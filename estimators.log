@@ -1,0 +1,257 @@
+2012-05-26 18:13:50,713 INFO Init Funcion Concluded
+2012-05-26 18:13:51,030 INFO Got Response from server br.pool.ntp.org
+2012-05-26 18:13:51,031 INFO Logged: [off, -5.35419106483, time,1338066830.97]
+2012-05-26 18:30:57,732 INFO Got Response from server br.pool.ntp.org
+2012-05-26 18:30:57,732 INFO Logged: [off, -5.4244966507, time,1338067857.67]
+2012-05-26 18:48:02,066 INFO Got Response from server br.pool.ntp.org
+2012-05-26 18:48:02,067 INFO Logged: [off, -5.48979234695, time,1338068881.99]
+2012-05-26 19:05:06,371 INFO Got Response from server br.pool.ntp.org
+2012-05-26 19:05:06,371 INFO Logged: [off, -5.57003331184, time,1338069906.28]
+2012-05-26 19:22:10,680 INFO Got Response from server br.pool.ntp.org
+2012-05-26 19:22:10,680 INFO Logged: [off, -5.63451051712, time,1338070930.62]
+2012-05-26 19:39:15,232 INFO Got Response from server br.pool.ntp.org
+2012-05-26 19:39:15,232 INFO Logged: [off, -5.70343804359, time,1338071955.18]
+2012-05-26 19:56:19,473 INFO Got Response from server br.pool.ntp.org
+2012-05-26 19:56:19,473 INFO Logged: [off, -5.76929855347, time,1338072979.4]
+2012-05-26 20:13:25,732 INFO Got Response from server br.pool.ntp.org
+2012-05-26 20:13:25,733 INFO Logged: [off, -5.84583950043, time,1338074005.65]
+2012-05-26 20:30:39,610 INFO Got Response from server br.pool.ntp.org
+2012-05-26 20:30:39,611 INFO Logged: [off, -5.91596078873, time,1338075039.52]
+2012-05-26 20:47:44,279 INFO Got Response from server br.pool.ntp.org
+2012-05-26 20:47:44,279 INFO Logged: [off, -5.9879014492, time,1338076064.22]
+2012-05-26 21:04:48,821 INFO Got Response from server br.pool.ntp.org
+2012-05-26 21:04:48,821 INFO Logged: [off, -6.05617618561, time,1338077088.76]
+2012-05-26 21:21:53,217 INFO Got Response from server br.pool.ntp.org
+2012-05-26 21:21:53,217 INFO Logged: [off, -6.12949109077, time,1338078113.16]
+2012-05-26 21:38:57,598 INFO Got Response from server br.pool.ntp.org
+2012-05-26 21:38:57,599 INFO Logged: [off, -6.19481253624, time,1338079137.53]
+2012-05-26 21:56:02,276 INFO Got Response from server br.pool.ntp.org
+2012-05-26 21:56:02,276 INFO Logged: [off, -6.26900005341, time,1338080162.21]
+2012-05-26 22:13:06,586 INFO Got Response from server br.pool.ntp.org
+2012-05-26 22:13:06,586 INFO Logged: [off, -6.33964848518, time,1338081186.53]
+2012-05-26 22:30:14,398 INFO Got Response from server br.pool.ntp.org
+2012-05-26 22:30:14,398 INFO Logged: [off, -6.40387797356, time,1338082214.34]
+2012-05-26 22:47:18,705 INFO Got Response from server br.pool.ntp.org
+2012-05-26 22:47:18,706 INFO Logged: [off, -6.48098325729, time,1338083238.64]
+2012-05-26 23:04:23,361 INFO Got Response from server br.pool.ntp.org
+2012-05-26 23:04:23,361 INFO Logged: [off, -6.54846644402, time,1338084263.3]
+2012-05-26 23:21:27,672 INFO Got Response from server br.pool.ntp.org
+2012-05-26 23:21:27,673 INFO Logged: [off, -6.62068510056, time,1338085287.61]
+2012-05-26 23:38:31,989 INFO Got Response from server br.pool.ntp.org
+2012-05-26 23:38:31,989 INFO Logged: [off, -6.69043469429, time,1338086311.93]
+2012-05-26 23:55:41,247 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 00:12:50,852 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 00:30:00,428 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 00:47:09,779 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 01:04:19,040 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 01:21:28,744 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 01:38:37,948 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 01:55:47,151 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 02:12:56,350 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 02:30:05,955 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 02:47:15,248 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 03:04:24,508 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 03:21:33,768 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 03:38:43,353 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 03:55:52,709 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 04:13:01,968 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 04:30:11,228 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 04:47:20,833 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 05:04:30,097 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 05:21:39,358 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 05:38:48,663 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 05:55:58,118 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 06:13:07,334 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 06:30:23,291 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 06:47:32,637 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 07:04:42,324 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 07:21:51,496 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 07:39:00,850 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 07:56:12,186 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 08:13:21,748 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 08:30:36,054 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 08:47:45,327 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 09:04:54,578 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 09:22:04,248 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 09:39:13,552 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 09:56:23,410 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 10:13:32,764 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 10:30:53,101 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 10:48:02,431 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 11:05:11,771 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 11:22:21,109 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 11:39:30,781 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 11:56:40,038 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 12:13:49,231 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 12:31:00,752 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 12:48:10,719 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 13:05:20,131 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 13:22:29,430 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 13:39:38,712 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 13:56:48,349 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 14:13:57,685 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 14:31:07,024 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 14:48:16,362 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 15:05:25,951 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 15:22:35,292 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 15:39:44,631 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 15:56:53,911 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 16:14:03,641 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 16:31:12,933 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 16:48:22,140 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 17:05:31,381 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 17:22:41,090 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 17:39:50,320 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 17:56:59,593 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 18:14:08,837 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 18:31:18,350 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 18:48:27,624 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 19:05:36,832 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 19:22:46,193 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 19:39:55,822 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 19:57:05,163 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 20:14:14,451 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 20:31:23,703 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 20:48:33,311 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 21:05:42,590 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 21:22:51,848 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 21:40:01,125 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 21:57:10,640 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 22:14:19,934 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 22:31:29,261 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 22:48:38,519 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 23:05:48,061 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 23:22:57,547 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 23:40:06,815 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-27 23:57:16,073 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 00:14:25,580 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 00:31:34,811 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 00:48:44,071 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 01:05:53,313 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 01:23:02,876 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 01:40:12,192 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 01:57:21,509 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 02:14:30,721 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 02:31:40,470 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 02:48:49,701 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 03:05:58,955 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 03:23:08,198 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 03:40:17,650 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 03:57:26,909 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 04:14:36,102 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 04:31:45,307 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 04:48:55,263 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 05:06:06,414 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 05:23:15,647 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 05:40:26,062 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 05:57:35,783 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 06:14:44,945 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 06:31:54,196 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 06:49:03,401 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 07:06:12,882 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 07:23:22,286 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 07:40:33,628 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 07:57:43,945 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 08:14:55,259 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 08:32:04,506 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 08:49:13,795 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 09:06:23,101 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 09:23:32,755 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 09:40:42,290 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 09:57:52,067 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 10:15:01,465 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 10:32:11,096 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 10:49:20,316 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 11:06:32,507 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 11:23:41,804 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 11:40:51,354 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 11:58:00,619 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 12:15:09,953 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 12:32:19,196 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 12:49:28,941 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 13:06:38,282 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 13:23:47,582 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 13:40:56,864 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 13:58:06,493 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 14:15:15,977 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 14:32:26,123 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 14:49:35,430 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 15:06:45,136 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 15:23:54,368 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 15:41:03,628 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 15:58:15,553 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 16:15:27,863 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 16:32:37,120 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 16:49:46,467 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 17:06:55,723 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 17:24:05,631 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 17:41:16,969 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 17:58:26,417 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 18:15:36,361 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 18:32:46,179 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 18:49:55,354 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 19:07:04,614 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 19:24:13,790 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 19:41:23,652 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 19:58:32,937 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 20:15:42,287 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 20:32:51,653 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 20:50:01,428 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 21:07:10,697 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 21:24:19,941 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 21:41:29,198 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 21:58:38,738 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 22:15:47,942 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 22:32:57,419 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 22:50:06,681 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 23:07:16,330 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 23:24:25,556 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 23:41:35,055 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-28 23:58:44,516 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 00:15:54,513 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 00:33:03,867 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 00:50:13,287 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 01:07:22,716 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 01:24:32,851 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 01:41:42,137 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 01:58:51,479 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 02:16:00,816 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 02:33:10,791 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 02:50:20,350 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 03:07:29,702 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 03:24:38,940 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 03:41:48,604 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 03:58:57,763 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 04:16:08,990 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 04:33:18,218 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 04:50:33,745 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 05:07:42,964 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 05:24:52,287 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 05:42:01,484 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 05:59:10,996 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 06:16:20,253 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 06:33:29,739 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 06:50:39,869 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 07:07:49,660 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 07:24:59,001 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 07:42:08,787 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 07:59:18,279 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 08:16:27,971 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 08:33:37,311 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 08:50:46,798 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 09:07:56,147 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 09:25:06,835 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 09:42:16,051 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 09:59:25,300 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 10:16:34,554 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 10:33:46,020 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 10:50:55,208 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 11:08:04,485 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 11:25:13,669 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 11:42:23,177 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 11:59:32,405 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 12:16:41,736 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 12:33:50,897 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 12:51:00,464 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 13:08:09,647 ERROR Error when trying to connect to Server br.pool.ntp.org
+2012-05-29 13:25:18,936 ERROR Error when trying to connect to Server br.pool.ntp.org
