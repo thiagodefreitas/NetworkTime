@@ -8,7 +8,7 @@ allandev.py: This module is responsible for the Allan Deviation Calculations
 
 __author__ = "Thiago de Freitas Oliveira Araujo"
 __copyright__ = "Copyright 2012, Google"
-__credits__ = ["Judah Levine", "Harlan Stenn"]
+__credits__ = ["Judah Levine", "Harlan Stenn", "Antonio Lima"]
 __license__ = "GPL"
 __version__ = "1.0"
 __maintainer__ = "Thiago de Freitas"
