@@ -38,7 +38,7 @@ class AllanDev():
         n = ceil((N-1)/2)
         p = floor (log10(n)/log10(2)) #Number of clusters
 
-
+        print p
         self.av = zeros(p+1)
         self.timeS = zeros(p+1)
         self.error = zeros(p+1)
