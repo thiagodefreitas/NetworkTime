@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
+ <author>Thiago de Freitas Oliveira Araujo</author>
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
@@ -220,8 +221,8 @@ p, li { white-space: pre-wrap; }
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>380</x>
-      <y>640</y>
+      <x>70</x>
+      <y>620</y>
       <width>630</width>
       <height>17</height>
      </rect>
@@ -233,8 +234,8 @@ p, li { white-space: pre-wrap; }
    <widget class="QLabel" name="label_5">
     <property name="geometry">
      <rect>
-      <x>350</x>
-      <y>630</y>
+      <x>30</x>
+      <y>620</y>
       <width>24</width>
       <height>24</height>
      </rect>
@@ -246,7 +247,7 @@ p, li { white-space: pre-wrap; }
      <enum>Qt::PlainText</enum>
     </property>
     <property name="pixmap">
-     <pixmap>icons/ntp-client.png</pixmap>
+     <pixmap>gui/icons/ntp-client.png</pixmap>
     </property>
     <property name="scaledContents">
      <bool>true</bool>
@@ -350,8 +351,8 @@ p, li { white-space: pre-wrap; }
   <action name="actionPlot">
    <property name="icon">
     <iconset>
-     <normaloff>icons/plot_icon.png</normaloff>
-     <normalon>icons/plot_icon.png</normalon>icons/plot_icon.png</iconset>
+     <normaloff>gui/icons/plot_icon.png</normaloff>
+     <normalon>gui/icons/plot_icon.png</normalon>gui/icons/plot_icon.png</iconset>
    </property>
    <property name="text">
     <string>Plot</string>
@@ -366,7 +367,7 @@ p, li { white-space: pre-wrap; }
   <action name="actionLoadLopstats">
    <property name="icon">
     <iconset>
-     <normalon>icons/onebit_13.png</normalon>
+     <normalon>gui/icons/onebit_13.png</normalon>
     </iconset>
    </property>
    <property name="text">
@@ -379,7 +380,7 @@ p, li { white-space: pre-wrap; }
   <action name="actionSave">
    <property name="icon">
     <iconset>
-     <normaloff>icons/onebit_11.png</normaloff>icons/onebit_11.png</iconset>
+     <normaloff>gui/icons/onebit_11.png</normaloff>gui/icons/onebit_11.png</iconset>
    </property>
    <property name="text">
     <string>Save</string>
@@ -394,7 +395,7 @@ p, li { white-space: pre-wrap; }
   <action name="actionLoadLog">
    <property name="icon">
     <iconset>
-     <normaloff>icons/onebit_14.png</normaloff>icons/onebit_14.png</iconset>
+     <normaloff>gui/icons/onebit_14.png</normaloff>gui/icons/onebit_14.png</iconset>
    </property>
    <property name="text">
     <string>loadLog</string>
@@ -406,7 +407,7 @@ p, li { white-space: pre-wrap; }
   <action name="actionLoadRun">
    <property name="icon">
     <iconset>
-     <normaloff>icons/onebit_15.png</normaloff>icons/onebit_15.png</iconset>
+     <normaloff>gui/icons/onebit_15.png</normaloff>gui/icons/onebit_15.png</iconset>
    </property>
    <property name="text">
     <string>loadRun</string>
@@ -418,7 +419,7 @@ p, li { white-space: pre-wrap; }
   <action name="actionHelp">
    <property name="icon">
     <iconset>
-     <normaloff>icons/onebit_37.png</normaloff>icons/onebit_37.png</iconset>
+     <normaloff>gui/icons/onebit_37.png</normaloff>gui/icons/onebit_37.png</iconset>
    </property>
    <property name="text">
     <string>Help</string>

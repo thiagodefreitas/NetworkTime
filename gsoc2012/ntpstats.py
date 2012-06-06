@@ -81,7 +81,6 @@ class MainWindow(QtGui.QMainWindow):
         self.ui.plotSpace_2.addWidget(self.plot_spaceHist)
 
         self.type = 0
-
     def connectActions(self):
         self.ui.actionNtpStatus.connect(PySide.QtCore.SIGNAL("triggered()"), self.aboutBox)
 
