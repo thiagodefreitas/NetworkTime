@@ -24,6 +24,7 @@ import PySide
 import matplotlib
 import scipy
 import time
+from time import ctime
 
 
 cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]))
@@ -152,7 +153,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.loopProcessor.processLoopStats(fname)
                 self.loadFile(fname)
                 self.updateStatus('New Loopstats file opened.')
-
+                [self.loopProcessor.timeS, self.loopProcessor.av, self.loopProcessor.error] = self.loopProcessor.Allan.allanDev(self.loopProcessor.offsets, 10)
                 self.type = 1
 
                 self.sizeOff = len(self.loopProcessor.offsets)
@@ -296,6 +297,9 @@ class MainWindow(QtGui.QMainWindow):
                         range_min = (self.ui.spinBox.value()-1)*84
                         range_max = range_min + 84
                         self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max])
+                        self.ui.textEdit_2.setText(smallText)
                     else:
 
                         range_min = (self.ui.spinBox.value()-1)*84
@@ -306,9 +310,14 @@ class MainWindow(QtGui.QMainWindow):
                             range_max = range_min + self.exceeds
 
                         self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max-1])
+                        self.ui.textEdit_2.setText(smallText)
                 else:
                     self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets, self.loopProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-
+                    smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[0]) + "\n" +\
+                                "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[-1])
+                    self.ui.textEdit_2.setText(smallText)
 
             elif(self.type == 2): #RUN
 
@@ -317,6 +326,9 @@ class MainWindow(QtGui.QMainWindow):
                         range_min = (self.ui.spinBox.value()-1)*84
                         range_max = range_min + 84
                         self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor[range_min:range_max].seconds, av=None, error=None, timeS=None, tickCorrect=1)
+                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max])
+                        self.ui.textEdit_2.setText(smallText)
                     else:
 
                         range_min = (self.ui.spinBox.value()-1)*84
@@ -327,16 +339,27 @@ class MainWindow(QtGui.QMainWindow):
                             range_max = range_min + self.exceeds
 
                         self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max-1])
+                        self.ui.textEdit_2.setText(smallText)
                 else:
                     self.plot_spaceOff.update_plot(1, self.runProcessor.offsets, self.runProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
+                    smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[0]) + "\n" +\
+                                "Final Time:" + "\n" + ctime(self.runProcessor.seconds[-1])
+                    self.ui.textEdit_2.setText(smallText)
 
             elif(self.type == 3): #LOG
+
+                self.ui.textEdit_2.clear()
 
                 if self.ui.radioButton.isChecked():
                     if not self.exceeds:
                         range_min = (self.ui.spinBox.value()-1)*84
                         range_max = range_min + 84
                         self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max])
+                        self.ui.textEdit_2.setText(smallText)
                     else:
 
                         range_min = (self.ui.spinBox.value()-1)*84
@@ -347,20 +370,43 @@ class MainWindow(QtGui.QMainWindow):
                             range_max = range_min + self.exceeds
 
                         self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max-1])
+                        self.ui.textEdit_2.setText(smallText)
                 else:
                     self.plot_spaceOff.update_plot(1, self.logProcessor.offsets, self.logProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
+                    smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[0]) + "\n" + \
+                                "Final Time:" + "\n" + ctime(self.logProcessor.seconds[-1])
+                    self.ui.textEdit_2.setText(smallText)
+
+
 
 
         elif self.ui.tabWidget.currentIndex()==2: # Allan Deviations
 
             if(self.type ==1): # LOOPSTATS
                 self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.loopProcessor.av, error=self.loopProcessor.error, timeS=self.loopProcessor.timeS, tickCorrect=0)
+                smallText = 'tau' + "\t" + "Adev" + "\n"
+                smallText += "-------------------------\n"
+                for i in range(1,len(self.loopProcessor.timeS)):
+                    smallText += str(self.loopProcessor.timeS[i]) + "\t" + str(self.loopProcessor.av[i])  + "\n"
+                self.ui.textEdit_3.setText(smallText)
 
             elif(self.type == 2): #RUN
                 self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.runProcessor.av, error=self.runProcessor.error, timeS=self.runProcessor.timeS, tickCorrect=0)
+                smallText = 'tau' + "\t" + "Adev" + "\n"
+                smallText += "-------------------------\n"
+                for i in range(1,len(self.runProcessor.timeS)):
+                    smallText += str(self.runProcessor.timeS[i]) + "\t" + str(self.runProcessor.av[i])  + "\n"
+                self.ui.textEdit_3.setText(smallText)
 
             elif(self.type==3): # LOG
                 self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.logProcessor.av, error=self.logProcessor.error, timeS=self.logProcessor.timeS, tickCorrect=0)
+                smallText = 'tau' + "\t" + "Adev" + "\n"
+                smallText += "-------------------------\n"
+                for i in range(1,len(self.logProcessor.timeS)):
+                    smallText += str(self.logProcessor.timeS[i]) + "\t" + str(self.logProcessor.av[i])  + "\n"
+                self.ui.textEdit_3.setText(smallText)
 
         elif self.ui.tabWidget.currentIndex()==3: #Histograms
 

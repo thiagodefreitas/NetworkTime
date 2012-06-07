@@ -19,6 +19,7 @@ from scipy import *
 import scipy
 from math import *
 
+
 class AllanDev():
 
     def __init__(self):
@@ -35,33 +36,31 @@ class AllanDev():
 
         N = len(values) # Number of data availables
         tau = tau0 # sampling time
-        n = ceil((N-1)/2)
-        p = floor (log10(n)/log10(2)) #Number of clusters
-
-        print p
+        n = ceil((float)((N-1))/2)
+        p = floor ((float)(log10(n))/log10(2)) #Number of clusters
         self.av = zeros(p+1)
         self.timeS = zeros(p+1)
         self.error = zeros(p+1)
 
-        print ("Calculating...")
+        print ("Calculating Allan Deviation...")
         # Minimal cluster size is 1 and max is 2^p
         # in time would be 1*tau and max time would be (2^p)*tau
         for i in range((int)(p)):
 
-            omega = zeros(floor(N/(pow(2,i)))) #floor(N/(2^i)) is the number of the cluster
+            omega = zeros(floor((float)(N)/(pow(2,i)))) #floor(N/(2^i)) is the number of the cluster
             T = (pow(2,i))*tau
 
             l = 1
             k = 1
             #Perfome the average values
-            while (k < floor(N/(pow(2,i)))):
+            while (k < floor((float)(N)/(pow(2,i)))):
 
 
 
                 val = values[(int)(l):(int)((l+((pow(2,i))-1)))]
                 tempSum = scipy.sum(val)
 
-                omega[k] = tempSum/(pow(2,i))
+                omega[k] = (float)(tempSum)/(pow(2,i))
                 l += (pow(2,i))
                 k += 1
 
@@ -74,15 +73,15 @@ class AllanDev():
 
 
                 #Compute the final step for Allan Deviation estimation
-            self.av[i+1] = sqrt(sumvalue/(2*(len(omega)-1))) #i+1 because i starts at 0 (2^0 = 1)
+
+            self.av[i+1] = sqrt((float)(sumvalue)/(2*(len(omega)-1))) #i+1 because i starts at 0 (2^0 = 1)
             self.timeS [i+1] = T #i+1 because i starts at 0 (2^0 = 1)
 
             #Equation for error AV estimation
             #See Papoulis (1991) for further information
-            self.error[i+1] = 1/sqrt(2*((N/(pow(2,i)))-1))
+            self.error[i+1] = 1/sqrt(2*(((float)(N)/(pow(2,i)))-1))
             self.error[i+1] *= self.av[i+1]
 
-        print self.av
         return self.timeS, self.av,self.error
 
     def allanDevn(self,values, tau0):
@@ -136,4 +135,4 @@ class AllanDev():
             #See Papoulis (1991) for further information
             error[i] = 1/sqrt(2*((N/i)-1))
 
-            print "Allan Variance", self.av
+        return self.timeS, self.av,self.error

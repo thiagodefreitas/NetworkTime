@@ -32,6 +32,7 @@ class plotSpace(FigureCanvas):
 
     def update_plot(self, type, off, sec, av, error, timeS, tickCorrect):
 
+        self.subplot.clear()
         if(type==1):
 
             self.subplot.set_xlabel('Hours(h)')
@@ -55,6 +56,8 @@ class plotSpace(FigureCanvas):
                 if i%4 == 0:
                     ct = ctime(sec[i])
                     ct = ct.split(' ')
+                    if '' in ct:
+                        ct.remove('')
                     ct = ct[3].split(':')
                     toPlot.append(ct[0])
                     toPlotTime.append(sec[i])
@@ -72,6 +75,8 @@ class plotSpace(FigureCanvas):
             self.draw()
 
         elif(type==2):
+
+
             self.subplot.set_xlabel(r'$\tau$')
             self.subplot.set_ylabel(r'$\sigma(\tau$)')
             self.subplot.set_title('Allan Standard Deviation')
@@ -83,6 +88,7 @@ class plotSpace(FigureCanvas):
             self.draw()
 
         elif(type==3):
+
             self.subplot.set_title("Histogram of the Offsets")
             self.subplot.hist(off)
             self.subplot.grid(True)

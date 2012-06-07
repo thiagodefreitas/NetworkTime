@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ntpstats.ui'
 #
-# Created: Wed Jun  6 23:03:53 2012
+# Created: Thu Jun  7 02:18:09 2012
 #      by: pyside-uic 0.2.13 running on PySide 1.1.1
 #
 # WARNING! All changes made in this file will be lost!
@@ -41,11 +41,17 @@ class Ui_MainWindow(object):
         self.label_2.setGeometry(QtCore.QRect(650, 30, 241, 17))
         self.label_2.setObjectName("label_2")
         self.spinBox = QtGui.QSpinBox(self.tab_2)
-        self.spinBox.setGeometry(QtCore.QRect(640, 320, 271, 27))
+        self.spinBox.setGeometry(QtCore.QRect(640, 140, 271, 27))
         self.spinBox.setObjectName("spinBox")
         self.radioButton = QtGui.QRadioButton(self.tab_2)
-        self.radioButton.setGeometry(QtCore.QRect(640, 290, 311, 22))
+        self.radioButton.setGeometry(QtCore.QRect(640, 120, 311, 22))
         self.radioButton.setObjectName("radioButton")
+        self.textEdit_2 = QtGui.QTextEdit(self.tab_2)
+        self.textEdit_2.setGeometry(QtCore.QRect(640, 210, 301, 141))
+        self.textEdit_2.setObjectName("textEdit_2")
+        self.label_6 = QtGui.QLabel(self.tab_2)
+        self.label_6.setGeometry(QtCore.QRect(650, 190, 131, 17))
+        self.label_6.setObjectName("label_6")
         self.tabWidget.addTab(self.tab_2, "")
         self.tab_3 = QtGui.QWidget()
         self.tab_3.setObjectName("tab_3")
@@ -61,6 +67,12 @@ class Ui_MainWindow(object):
         self.label_4 = QtGui.QLabel(self.tab_3)
         self.label_4.setGeometry(QtCore.QRect(650, 30, 241, 17))
         self.label_4.setObjectName("label_4")
+        self.label_7 = QtGui.QLabel(self.tab_3)
+        self.label_7.setGeometry(QtCore.QRect(650, 190, 191, 17))
+        self.label_7.setObjectName("label_7")
+        self.textEdit_3 = QtGui.QTextEdit(self.tab_3)
+        self.textEdit_3.setGeometry(QtCore.QRect(640, 210, 301, 191))
+        self.textEdit_3.setObjectName("textEdit_3")
         self.tabWidget.addTab(self.tab_3, "")
         self.tab_4 = QtGui.QWidget()
         self.tab_4.setObjectName("tab_4")
@@ -105,7 +117,6 @@ class Ui_MainWindow(object):
         self.toolBarNTP.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
         self.toolBarNTP.setObjectName("toolBarNTP")
         MainWindow.addToolBar(QtCore.Qt.TopToolBarArea, self.toolBarNTP)
-        MainWindow.insertToolBarBreak(self.toolBarNTP)
         self.actionNtpStatus = QtGui.QAction(MainWindow)
         self.actionNtpStatus.setObjectName("actionNtpStatus")
         self.actionLoopstats = QtGui.QAction(MainWindow)
@@ -180,8 +191,18 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QtGui.QApplication.translate("MainWindow", "Contents", None, QtGui.QApplication.UnicodeUTF8))
         self.label_2.setText(QtGui.QApplication.translate("MainWindow", "Provide File Name to Save the Plot", None, QtGui.QApplication.UnicodeUTF8))
         self.radioButton.setText(QtGui.QApplication.translate("MainWindow", "Enable Periodical Analysis of the Offsets", None, QtGui.QApplication.UnicodeUTF8))
+        self.label_6.setText(QtGui.QApplication.translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+"p, li { white-space: pre-wrap; }\n"
+"</style></head><body style=\" font-family:\'Ubuntu\'; font-size:11pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:600; color:#ff0000;\">Plot Interval</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QtGui.QApplication.translate("MainWindow", "Offsets", None, QtGui.QApplication.UnicodeUTF8))
         self.label_4.setText(QtGui.QApplication.translate("MainWindow", "Provide File Name to Save the Plot", None, QtGui.QApplication.UnicodeUTF8))
+        self.label_7.setText(QtGui.QApplication.translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+"p, li { white-space: pre-wrap; }\n"
+"</style></head><body style=\" font-family:\'Ubuntu\'; font-size:11pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:600; color:#ff0000;\">Allan Deviation Values</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), QtGui.QApplication.translate("MainWindow", "Allan Deviation", None, QtGui.QApplication.UnicodeUTF8))
         self.label_3.setText(QtGui.QApplication.translate("MainWindow", "Provide File Name to Save the Plot", None, QtGui.QApplication.UnicodeUTF8))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), QtGui.QApplication.translate("MainWindow", "Histograms", None, QtGui.QApplication.UnicodeUTF8))
