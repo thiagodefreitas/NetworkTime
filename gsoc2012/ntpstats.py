@@ -354,24 +354,24 @@ class MainWindow(QtGui.QMainWindow):
         elif self.ui.tabWidget.currentIndex()==2: # Allan Deviations
 
             if(self.type ==1): # LOOPSTATS
-                self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.loopProcessor.av, error=self.loopProcessor.error, timeS=self.loopProcessor.timeS)
+                self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.loopProcessor.av, error=self.loopProcessor.error, timeS=self.loopProcessor.timeS, tickCorrect=0)
 
             elif(self.type == 2): #RUN
-                self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.runProcessor.av, error=self.runProcessor.error, timeS=self.runProcessor.timeS)
+                self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.runProcessor.av, error=self.runProcessor.error, timeS=self.runProcessor.timeS, tickCorrect=0)
 
             elif(self.type==3): # LOG
-                self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.logProcessor.av, error=self.logProcessor.error, timeS=self.logProcessor.timeS)
+                self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.logProcessor.av, error=self.logProcessor.error, timeS=self.logProcessor.timeS, tickCorrect=0)
 
         elif self.ui.tabWidget.currentIndex()==3: #Histograms
 
             if(self.type == 1): # LOOPSTATS
-                self.plot_spaceHist.update_plot(3, self.loopProcessor.offsets, sec=None, av=None, error=None, timeS=None)
+                self.plot_spaceHist.update_plot(3, self.loopProcessor.offsets, sec=None, av=None, error=None, timeS=None, tickCorrect=0)
 
             elif(self.type == 2): #RUN
-                self.plot_spaceHist.update_plot(3, self.runProcessor.offsets, sec=None, av=None, error=None, timeS=None)
+                self.plot_spaceHist.update_plot(3, self.runProcessor.offsets, sec=None, av=None, error=None, timeS=None, tickCorrect=0)
 
             elif(self.type == 3): # LOG
-                self.plot_spaceHist.update_plot(3, self.logProcessor.offsets, sec=None, av=None, error=None, timeS=None)
+                self.plot_spaceHist.update_plot(3, self.logProcessor.offsets, sec=None, av=None, error=None, timeS=None, tickCorrect=0)
 
 
 if __name__ == "__main__":
