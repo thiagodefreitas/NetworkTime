@@ -2,7 +2,7 @@
 
 """
 
-mainwindow.py: Main Window for the Gui Version of the Program
+ntpstats.py: Main Window for the Gui Version of the Program
 
 """
 
@@ -81,6 +81,15 @@ class MainWindow(QtGui.QMainWindow):
         self.ui.plotSpace_2.addWidget(self.plot_spaceHist)
 
         self.type = 0
+
+        self.sizeOff = 0
+
+        self.numberOFTicks = 0
+
+        self.exceeds = 0
+
+
+
     def connectActions(self):
         self.ui.actionNtpStatus.connect(PySide.QtCore.SIGNAL("triggered()"), self.aboutBox)
 
@@ -97,6 +106,8 @@ class MainWindow(QtGui.QMainWindow):
 
         self.ui.actionSave.connect(PySide.QtCore.SIGNAL("triggered()"), self.plotSave)
 
+        self.connect(self.ui.actionExit, QtCore.SIGNAL('triggered()'), self.close)
+
     def aboutBox(self):
 
         QMessageBox.about(self, "About NTPStats 2012",
@@ -112,6 +123,16 @@ class MainWindow(QtGui.QMainWindow):
                          PySide.__version__,  PySide.QtCore.__version__,
                          platform.system()))
 
+    def closeEvent(self, event):
+
+        reply = QtGui.QMessageBox.question(self, 'Leave NTPStats',
+            "Are you sure to quit?", QtGui.QMessageBox.No |
+                                     QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+
+        if reply == QtGui.QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()
 
     def fileLoopstats(self):
 
@@ -131,8 +152,16 @@ class MainWindow(QtGui.QMainWindow):
                 self.loopProcessor.processLoopStats(fname)
                 self.loadFile(fname)
                 self.updateStatus('New Loopstats file opened.')
-                [self.loopProcessor.timeS, self.loopProcessor.av, self.loopProcessor.error] = self.loopProcessor.Allan.allanDev(self.loopProcessor.offsets, 10)
+
                 self.type = 1
+
+                self.sizeOff = len(self.loopProcessor.offsets)
+                if(self.sizeOff%84 != 0):
+                    self.exceeds = self.sizeOff%84
+
+
+                self.numberOFTicks = scipy.ceil((float)(self.sizeOff)/84)
+                self.ui.spinBox.setRange(1,self.numberOFTicks)
 
 
 
@@ -164,6 +193,12 @@ class MainWindow(QtGui.QMainWindow):
                 self.updateStatus('New Run Statistics File opened.')
                 [self.runProcessor.timeS, self.runProcessor.av, self.runProcessor.error] = self.runProcessor.Allan.allanDev(self.runProcessor.offsets, 10)
                 self.type = 2
+                self.sizeOff = len(self.runProcessor.offsets)
+                if(self.sizeOff%84 != 0):
+                    self.exceeds = self.sizeOff%84
+
+                self.numberOFTicks = scipy.ceil((float)(self.sizeOff)/84)
+                self.ui.spinBox.setRange(1,self.numberOFTicks)
 
     def fileLog(self):
 
@@ -185,6 +220,13 @@ class MainWindow(QtGui.QMainWindow):
                 self.updateStatus('New Log file opened.')
                 [self.logProcessor.timeS, self.logProcessor.av, self.logProcessor.error] = self.logProcessor.Allan.allanDev(self.logProcessor.offsets, 10)
                 self.type = 3
+                self.sizeOff = len(self.logProcessor.offsets)
+                print "jsjjh", self.sizeOff
+                if(self.sizeOff%84 != 0):
+                    self.exceeds = self.sizeOff%84
+                    print "ewhejwh", self.exceeds
+                self.numberOFTicks = scipy.ceil((float)(self.sizeOff)/84)
+                self.ui.spinBox.setRange(1,self.numberOFTicks)
 
 
     def oktoPlot(self):
@@ -250,17 +292,65 @@ class MainWindow(QtGui.QMainWindow):
         elif self.ui.tabWidget.currentIndex()==1: #Offsets
 
             if(self.type == 1): # LOOPSTATS
-                dividers = []
-                for i in range(len(self.loopProcessor.offsets)):
-                    i+= 40
-                    print i
-                self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets, self.loopProcessor.seconds, av=None, error=None, timeS=None)
+
+                if self.ui.radioButton.isChecked():
+                    if not self.exceeds:
+                        range_min = (self.ui.spinBox.value()-1)*84
+                        range_max = range_min + 84
+                        self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                    else:
+
+                        range_min = (self.ui.spinBox.value()-1)*84
+
+                        range_max = (self.ui.spinBox.value()*84)
+
+                        if(self.ui.spinBox.value() == self.numberOFTicks):
+                            range_max = range_min + self.exceeds
+
+                        self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                else:
+                    self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets, self.loopProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
+
 
             elif(self.type == 2): #RUN
-                self.plot_spaceOff.update_plot(1, self.runProcessor.offsets, self.runProcessor.seconds, av=None, error=None, timeS=None)
+
+                if self.ui.radioButton.isChecked():
+                    if not self.exceeds:
+                        range_min = (self.ui.spinBox.value()-1)*84
+                        range_max = range_min + 84
+                        self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor[range_min:range_max].seconds, av=None, error=None, timeS=None, tickCorrect=1)
+                    else:
+
+                        range_min = (self.ui.spinBox.value()-1)*84
+
+                        range_max = (self.ui.spinBox.value()*84)
+
+                        if(self.ui.spinBox.value() == self.numberOFTicks):
+                            range_max = range_min + self.exceeds
+
+                        self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                else:
+                    self.plot_spaceOff.update_plot(1, self.runProcessor.offsets, self.runProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
 
             elif(self.type == 3): #LOG
-                self.plot_spaceOff.update_plot(1, self.logProcessor.offsets, self.logProcessor.seconds, av=None, error=None, timeS=None)
+
+                if self.ui.radioButton.isChecked():
+                    if not self.exceeds:
+                        range_min = (self.ui.spinBox.value()-1)*84
+                        range_max = range_min + 84
+                        self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                    else:
+
+                        range_min = (self.ui.spinBox.value()-1)*84
+
+                        range_max = (self.ui.spinBox.value()*84)
+
+                        if(self.ui.spinBox.value() == self.numberOFTicks):
+                            range_max = range_min + self.exceeds
+
+                        self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                else:
+                    self.plot_spaceOff.update_plot(1, self.logProcessor.offsets, self.logProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
 
 
         elif self.ui.tabWidget.currentIndex()==2: # Allan Deviations

@@ -99,17 +99,27 @@ p, li { white-space: pre-wrap; }
        <string>Provide File Name to Save the Plot</string>
       </property>
      </widget>
-     <widget class="QSlider" name="sliderOffsets">
+     <widget class="QSpinBox" name="spinBox">
       <property name="geometry">
        <rect>
-        <x>650</x>
-        <y>510</y>
+        <x>640</x>
+        <y>320</y>
         <width>271</width>
-        <height>29</height>
+        <height>27</height>
        </rect>
       </property>
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
+     </widget>
+     <widget class="QRadioButton" name="radioButton">
+      <property name="geometry">
+       <rect>
+        <x>640</x>
+        <y>290</y>
+        <width>311</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Enable Periodical Analysis of the Offsets</string>
       </property>
      </widget>
     </widget>
@@ -151,19 +161,6 @@ p, li { white-space: pre-wrap; }
        <string>Provide File Name to Save the Plot</string>
       </property>
      </widget>
-     <widget class="QSlider" name="sliderOffsets_3">
-      <property name="geometry">
-       <rect>
-        <x>650</x>
-        <y>510</y>
-        <width>271</width>
-        <height>29</height>
-       </rect>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-     </widget>
     </widget>
     <widget class="QWidget" name="tab_4">
      <attribute name="title">
@@ -201,19 +198,6 @@ p, li { white-space: pre-wrap; }
       </property>
       <property name="text">
        <string>Provide File Name to Save the Plot</string>
-      </property>
-     </widget>
-     <widget class="QSlider" name="sliderHist">
-      <property name="geometry">
-       <rect>
-        <x>650</x>
-        <y>510</y>
-        <width>271</width>
-        <height>29</height>
-       </rect>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
       </property>
      </widget>
     </widget>
@@ -276,6 +260,7 @@ p, li { white-space: pre-wrap; }
      <addaction name="actionRun_File"/>
     </widget>
     <addaction name="menuLoad"/>
+    <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuAbout">
     <property name="title">
@@ -426,6 +411,18 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="shortcut">
     <string>Ctrl+H</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="icon">
+    <iconset>
+     <normaloff>gui/icons/onebit_33.png</normaloff>gui/icons/onebit_33.png</iconset>
+   </property>
+   <property name="text">
+    <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
    </property>
   </action>
  </widget>

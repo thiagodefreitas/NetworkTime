@@ -30,7 +30,7 @@ class plotSpace(FigureCanvas):
         self.subplot = self.figure.add_subplot(111)
         self.subplot.hold(True)
 
-    def update_plot(self, type, off, sec, av, error, timeS):
+    def update_plot(self, type, off, sec, av, error, timeS, tickCorrect):
 
         if(type==1):
 
@@ -65,8 +65,9 @@ class plotSpace(FigureCanvas):
 
             self.subplot.grid()
 
-            self.subplot.set_xticks(toPlotTime)
-            self.subplot.set_xticklabels(toPlot)
+            if tickCorrect:
+                self.subplot.set_xticks(toPlotTime)
+                self.subplot.set_xticklabels(toPlot)
 
             self.draw()
 
