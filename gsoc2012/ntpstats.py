@@ -221,10 +221,8 @@ class MainWindow(QtGui.QMainWindow):
                 [self.logProcessor.timeS, self.logProcessor.av, self.logProcessor.error] = self.logProcessor.Allan.allanDev(self.logProcessor.offsets, 10)
                 self.type = 3
                 self.sizeOff = len(self.logProcessor.offsets)
-                print "jsjjh", self.sizeOff
                 if(self.sizeOff%84 != 0):
                     self.exceeds = self.sizeOff%84
-                    print "ewhejwh", self.exceeds
                 self.numberOFTicks = scipy.ceil((float)(self.sizeOff)/84)
                 self.ui.spinBox.setRange(1,self.numberOFTicks)
 
