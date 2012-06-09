@@ -19,6 +19,8 @@ from scipy import *
 import pylab
 import allandev
 
+import numpy as np
+
 class loopLoader():
 
     def __init__(self):
@@ -29,6 +31,7 @@ class loopLoader():
         self.timeS = []
         self.av = []
         self.error = []
+        self.day = []
 
         self.file = None
         self.file2 = None
@@ -39,9 +42,14 @@ class loopLoader():
 
         readLines = self.file.readlines()
 
+        self.offsets = []
+        self.seconds = []
+        self.day = []
+
         for line in readLines:
             line = line.strip()
             line=line.split()
+            self.day.append((float)(line[0]))
             self.offsets.append((float)(line[2]))
             self.seconds.append((float)(line[1]))
 
@@ -97,6 +105,18 @@ class loopLoader():
 
         pylab.show()
 
+        #PPM PLOT
+
+       # pylab.loglog(self.timeS, np.asarray(self.av)*1e6, 'b^', self.timeS, np.asarray(self.av) *1e6)
+       # pylab.errorbar(self.timeS, np.asarray(self.av)*1e6,yerr=np.asarray(self.error),fmt='k.' )
+
+        #pylab.legend(('ADEV points', 'ADEV'))
+
+
+        #pylab.grid(True)
+
+        #pylab.show()
+
 
 
 
@@ -106,5 +126,6 @@ if __name__ == '__main__':
     allantest = loopLoader()
     allantest.processLoopStats('loopstats.txt')
     allantest.savetoFile("offsets.txt")
-    [allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDev(allantest.offsets, 10)
+    #[allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDev(allantest.offsets, 10)
+    [allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDevMills(allantest.offsets)
     allantest.plotnoGui()

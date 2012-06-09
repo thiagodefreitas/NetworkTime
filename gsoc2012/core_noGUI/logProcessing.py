@@ -41,7 +41,8 @@ class logProcess():
 
         readings = self.file.readlines()
 
-
+        self.offsets = []
+        self.seconds = []
 
         for line in readings:
             if "Logged" in line:
@@ -89,7 +90,7 @@ class logProcess():
         pylab.xticks(toPlotTime, toPlot )
 
         pylab.figure(2)
-
+        print self.offsets
         pylab.hist(self.offsets, histtype='step')
         pylab.title("Histogram of the Offsets")
 
@@ -121,7 +122,7 @@ if __name__ == '__main__':
 
     allantest.processLog("estimators.log")
 
-    [allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDev(allantest.offsets, 10)
+    [allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDevMills(allantest.offsets)
 
     fileOffsets = open("offsetsLog.txt","w")
 

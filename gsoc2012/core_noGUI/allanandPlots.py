@@ -39,6 +39,9 @@ class allanandPlots():
         self.file = open(fName, "r")
         self.file2 = open(fName2, "r")
 
+        self.offsets = []
+        self.seconds = []
+
         readSeconds = self.file.readlines()
         readOffsets = self.file2.readlines()
 
@@ -102,7 +105,7 @@ if __name__ == '__main__':
     allantest = allanandPlots()
     allantest.processOffsets("computeTime_estimation.txt","offsets_estimation.txt")
 
-    [allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDev(allantest.offsets, 10)
+    [allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDevMills(allantest.offsets)
 
     print mean(allantest.offsets)
 

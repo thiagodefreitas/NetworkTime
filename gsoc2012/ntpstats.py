@@ -57,6 +57,8 @@ __version__ = '1.0 Prototype'
 
 from gui.ui_mainwindow import Ui_MainWindow
 
+import numpy as np
+
 
 
 class MainWindow(QtGui.QMainWindow):
@@ -88,6 +90,8 @@ class MainWindow(QtGui.QMainWindow):
         self.numberOFTicks = 0
 
         self.exceeds = 0
+
+        self.modified = 0
 
 
 
@@ -153,7 +157,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.loopProcessor.processLoopStats(fname)
                 self.loadFile(fname)
                 self.updateStatus('New Loopstats file opened.')
-                [self.loopProcessor.timeS, self.loopProcessor.av, self.loopProcessor.error] = self.loopProcessor.Allan.allanDev(self.loopProcessor.offsets, 10)
+                [self.loopProcessor.timeS, self.loopProcessor.av, self.loopProcessor.error] = self.loopProcessor.Allan.allanDevMills(self.loopProcessor.offsets)
                 self.type = 1
 
                 self.sizeOff = len(self.loopProcessor.offsets)
@@ -192,7 +196,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.runProcessor.processOffsets(fname, fname2)
                 self.loadFile(fname)
                 self.updateStatus('New Run Statistics File opened.')
-                [self.runProcessor.timeS, self.runProcessor.av, self.runProcessor.error] = self.runProcessor.Allan.allanDev(self.runProcessor.offsets, 10)
+                [self.runProcessor.timeS, self.runProcessor.av, self.runProcessor.error] = self.runProcessor.Allan.allanDevMills(self.runProcessor.offsets)
                 self.type = 2
                 self.sizeOff = len(self.runProcessor.offsets)
                 if(self.sizeOff%84 != 0):
@@ -219,7 +223,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.logProcessor.processLog(fname)
                 self.loadFile(fname)
                 self.updateStatus('New Log file opened.')
-                [self.logProcessor.timeS, self.logProcessor.av, self.logProcessor.error] = self.logProcessor.Allan.allanDev(self.logProcessor.offsets, 10)
+                [self.logProcessor.timeS, self.logProcessor.av, self.logProcessor.error] = self.logProcessor.Allan.allanDevMills(self.logProcessor.offsets)
                 self.type = 3
                 self.sizeOff = len(self.logProcessor.offsets)
                 if(self.sizeOff%84 != 0):
@@ -292,92 +296,195 @@ class MainWindow(QtGui.QMainWindow):
 
             if(self.type == 1): # LOOPSTATS
 
+                if not self.modified:
+
+                    self.loopProcessor.seconds = np.asarray(self.loopProcessor.seconds)
+                    self.loopProcessor.day = np.asarray(self.loopProcessor.day)
+                    self.loopProcessor.seconds += (self.loopProcessor.day - self.loopProcessor.day[0]) * 86400
+                    self.loopProcessor.seconds /= 3600
+                    self.modified = 1
+
                 if self.ui.radioButton.isChecked():
-                    if not self.exceeds:
-                        range_min = (self.ui.spinBox.value()-1)*84
-                        range_max = range_min + 84
-                        self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max])
+
+                    if self.ui.radioButton_2.isChecked():
+                        if not self.exceeds:
+                            range_min = (self.ui.spinBox.value()-1)*84
+                            range_max = range_min + 84
+                            self.plot_spaceOff.plotMinusLeastSquares(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max])
+                            self.ui.textEdit_2.setText(smallText)
+                        else:
+
+                            range_min = (self.ui.spinBox.value()-1)*84
+
+                            range_max = (self.ui.spinBox.value()*84)
+
+                            if(self.ui.spinBox.value() == self.numberOFTicks):
+                                range_max = range_min + self.exceeds
+
+                            self.plot_spaceOff.plotMinusLeastSquares(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max-1])
+                            self.ui.textEdit_2.setText(smallText)
+                    else:
+                        if not self.exceeds:
+                            range_min = (self.ui.spinBox.value()-1)*84
+                            range_max = range_min + 84
+                            self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max])
+                            self.ui.textEdit_2.setText(smallText)
+                        else:
+
+                            range_min = (self.ui.spinBox.value()-1)*84
+
+                            range_max = (self.ui.spinBox.value()*84)
+
+                            if(self.ui.spinBox.value() == self.numberOFTicks):
+                                range_max = range_min + self.exceeds
+
+                            self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max-1])
+                            self.ui.textEdit_2.setText(smallText)
+
+
+                else:
+                    if self.ui.radioButton_2.isChecked():
+                        self.plot_spaceOff.plotMinusLeastSquares(1, self.loopProcessor.offsets, self.loopProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
+                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[-1])
                         self.ui.textEdit_2.setText(smallText)
                     else:
-
-                        range_min = (self.ui.spinBox.value()-1)*84
-
-                        range_max = (self.ui.spinBox.value()*84)
-
-                        if(self.ui.spinBox.value() == self.numberOFTicks):
-                            range_max = range_min + self.exceeds
-
-                        self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max-1])
+                        self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets, self.loopProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
+                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[-1])
                         self.ui.textEdit_2.setText(smallText)
-                else:
-                    self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets, self.loopProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-                    smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[0]) + "\n" +\
-                                "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[-1])
-                    self.ui.textEdit_2.setText(smallText)
+####
+                ####
 
             elif(self.type == 2): #RUN
 
                 if self.ui.radioButton.isChecked():
-                    if not self.exceeds:
-                        range_min = (self.ui.spinBox.value()-1)*84
-                        range_max = range_min + 84
-                        self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor[range_min:range_max].seconds, av=None, error=None, timeS=None, tickCorrect=1)
-                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max])
+
+                    if self.ui.radioButton_2.isChecked():
+                        if not self.exceeds:
+                            range_min = (self.ui.spinBox.value()-1)*84
+                            range_max = range_min + 84
+                            self.plot_spaceOff.plotMinusLeastSquares(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max])
+                            self.ui.textEdit_2.setText(smallText)
+                        else:
+
+                            range_min = (self.ui.spinBox.value()-1)*84
+
+                            range_max = (self.ui.spinBox.value()*84)
+
+                            if(self.ui.spinBox.value() == self.numberOFTicks):
+                                range_max = range_min + self.exceeds
+
+                            self.plot_spaceOff.plotMinusLeastSquares(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max-1])
+                            self.ui.textEdit_2.setText(smallText)
+                    else:
+                        if not self.exceeds:
+                            range_min = (self.ui.spinBox.value()-1)*84
+                            range_max = range_min + 84
+                            self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max])
+                            self.ui.textEdit_2.setText(smallText)
+                        else:
+
+                            range_min = (self.ui.spinBox.value()-1)*84
+
+                            range_max = (self.ui.spinBox.value()*84)
+
+                            if(self.ui.spinBox.value() == self.numberOFTicks):
+                                range_max = range_min + self.exceeds
+
+                            self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max-1])
+                            self.ui.textEdit_2.setText(smallText)
+
+
+                else:
+                    if self.ui.radioButton_2.isChecked():
+                        self.plot_spaceOff.plotMinusLeastSquares(1, self.runProcessor.offsets, self.runProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
+                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.runProcessor.seconds[-1])
                         self.ui.textEdit_2.setText(smallText)
                     else:
-
-                        range_min = (self.ui.spinBox.value()-1)*84
-
-                        range_max = (self.ui.spinBox.value()*84)
-
-                        if(self.ui.spinBox.value() == self.numberOFTicks):
-                            range_max = range_min + self.exceeds
-
-                        self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max-1])
+                        self.plot_spaceOff.update_plot(1, self.runProcessor.offsets, self.runProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
+                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.runProcessor.seconds[-1])
                         self.ui.textEdit_2.setText(smallText)
-                else:
-                    self.plot_spaceOff.update_plot(1, self.runProcessor.offsets, self.runProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-                    smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[0]) + "\n" +\
-                                "Final Time:" + "\n" + ctime(self.runProcessor.seconds[-1])
-                    self.ui.textEdit_2.setText(smallText)
 
             elif(self.type == 3): #LOG
 
                 self.ui.textEdit_2.clear()
 
                 if self.ui.radioButton.isChecked():
-                    if not self.exceeds:
-                        range_min = (self.ui.spinBox.value()-1)*84
-                        range_max = range_min + 84
-                        self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max])
+
+                    if self.ui.radioButton_2.isChecked():
+                        if not self.exceeds:
+                            range_min = (self.ui.spinBox.value()-1)*84
+                            range_max = range_min + 84
+                            self.plot_spaceOff.plotMinusLeastSquares(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max])
+                            self.ui.textEdit_2.setText(smallText)
+                        else:
+
+                            range_min = (self.ui.spinBox.value()-1)*84
+
+                            range_max = (self.ui.spinBox.value()*84)
+
+                            if(self.ui.spinBox.value() == self.numberOFTicks):
+                                range_max = range_min + self.exceeds
+
+                            self.plot_spaceOff.plotMinusLeastSquares(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max-1])
+                            self.ui.textEdit_2.setText(smallText)
+                    else:
+                        if not self.exceeds:
+                            range_min = (self.ui.spinBox.value()-1)*84
+                            range_max = range_min + 84
+                            self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max])
+                            self.ui.textEdit_2.setText(smallText)
+                        else:
+
+                            range_min = (self.ui.spinBox.value()-1)*84
+
+                            range_max = (self.ui.spinBox.value()*84)
+
+                            if(self.ui.spinBox.value() == self.numberOFTicks):
+                                range_max = range_min + self.exceeds
+
+                            self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
+                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max-1])
+                            self.ui.textEdit_2.setText(smallText)
+
+
+                else:
+                    if self.ui.radioButton_2.isChecked():
+                        self.plot_spaceOff.plotMinusLeastSquares(1, self.logProcessor.offsets, self.logProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
+                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.logProcessor.seconds[-1])
                         self.ui.textEdit_2.setText(smallText)
                     else:
-
-                        range_min = (self.ui.spinBox.value()-1)*84
-
-                        range_max = (self.ui.spinBox.value()*84)
-
-                        if(self.ui.spinBox.value() == self.numberOFTicks):
-                            range_max = range_min + self.exceeds
-
-                        self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max-1])
+                        self.plot_spaceOff.update_plot(1, self.logProcessor.offsets, self.logProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
+                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.logProcessor.seconds[-1])
                         self.ui.textEdit_2.setText(smallText)
-                else:
-                    self.plot_spaceOff.update_plot(1, self.logProcessor.offsets, self.logProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-                    smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[0]) + "\n" + \
-                                "Final Time:" + "\n" + ctime(self.logProcessor.seconds[-1])
-                    self.ui.textEdit_2.setText(smallText)
 
 
 
@@ -385,28 +492,55 @@ class MainWindow(QtGui.QMainWindow):
         elif self.ui.tabWidget.currentIndex()==2: # Allan Deviations
 
             if(self.type ==1): # LOOPSTATS
-                self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.loopProcessor.av, error=self.loopProcessor.error, timeS=self.loopProcessor.timeS, tickCorrect=0)
-                smallText = 'tau' + "\t" + "Adev" + "\n"
-                smallText += "-------------------------\n"
-                for i in range(1,len(self.loopProcessor.timeS)):
-                    smallText += str(self.loopProcessor.timeS[i]) + "\t" + str(self.loopProcessor.av[i])  + "\n"
-                self.ui.textEdit_3.setText(smallText)
+
+                if self.ui.radioButton_3.isChecked():
+                    self.plot_spaceAllan.plotAllanPPM(2, off=None, sec=None, av=self.loopProcessor.av, error=self.loopProcessor.error, timeS=self.loopProcessor.timeS, tickCorrect=0)
+                    smallText = 'tau' + "\t" + "Adev" + "\n"
+                    smallText += "-------------------------\n"
+                    for i in range(0,len(self.loopProcessor.timeS)):
+                        smallText += str(self.loopProcessor.timeS[i]) + "\t" + str(self.loopProcessor.av[i]*1e6)  + "\n"
+                    self.ui.textEdit_3.setText(smallText)
+                else:
+                    self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.loopProcessor.av, error=self.loopProcessor.error, timeS=self.loopProcessor.timeS, tickCorrect=0)
+                    smallText = 'tau' + "\t" + "Adev" + "\n"
+                    smallText += "-------------------------\n"
+                    for i in range(0,len(self.loopProcessor.timeS)):
+                        smallText += str(self.loopProcessor.timeS[i]) + "\t" + str(self.loopProcessor.av[i])  + "\n"
+                    self.ui.textEdit_3.setText(smallText)
 
             elif(self.type == 2): #RUN
-                self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.runProcessor.av, error=self.runProcessor.error, timeS=self.runProcessor.timeS, tickCorrect=0)
-                smallText = 'tau' + "\t" + "Adev" + "\n"
-                smallText += "-------------------------\n"
-                for i in range(1,len(self.runProcessor.timeS)):
-                    smallText += str(self.runProcessor.timeS[i]) + "\t" + str(self.runProcessor.av[i])  + "\n"
-                self.ui.textEdit_3.setText(smallText)
+
+                if self.ui.radioButton_3.isChecked():
+                    self.plot_spaceAllan.plotAllanPPM(2, off=None, sec=None, av=self.runProcessor.av, error=self.runProcessor.error, timeS=self.runProcessor.timeS, tickCorrect=0)
+                    smallText = 'tau' + "\t" + "Adev" + "\n"
+                    smallText += "-------------------------\n"
+                    for i in range(0,len(self.runProcessor.timeS)):
+                        smallText += str(self.runProcessor.timeS[i]) + "\t" + str(self.runProcessor.av[i]*1e6)  + "\n"
+                    self.ui.textEdit_3.setText(smallText)
+                else:
+                    self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.runProcessor.av, error=self.runProcessor.error, timeS=self.runProcessor.timeS, tickCorrect=0)
+                    smallText = 'tau' + "\t" + "Adev" + "\n"
+                    smallText += "-------------------------\n"
+                    for i in range(0,len(self.runProcessor.timeS)):
+                        smallText += str(self.runProcessor.timeS[i]) + "\t" + str(self.runProcessor.av[i])  + "\n"
+                    self.ui.textEdit_3.setText(smallText)
 
             elif(self.type==3): # LOG
-                self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.logProcessor.av, error=self.logProcessor.error, timeS=self.logProcessor.timeS, tickCorrect=0)
-                smallText = 'tau' + "\t" + "Adev" + "\n"
-                smallText += "-------------------------\n"
-                for i in range(1,len(self.logProcessor.timeS)):
-                    smallText += str(self.logProcessor.timeS[i]) + "\t" + str(self.logProcessor.av[i])  + "\n"
-                self.ui.textEdit_3.setText(smallText)
+
+                if self.ui.radioButton_3.isChecked():
+                    self.plot_spaceAllan.plotAllanPPM(2, off=None, sec=None, av=self.logProcessor.av, error=self.logProcessor.error, timeS=self.logProcessor.timeS, tickCorrect=0)
+                    smallText = 'tau' + "\t" + "Adev" + "\n"
+                    smallText += "-------------------------\n"
+                    for i in range(0,len(self.logProcessor.timeS)):
+                        smallText += str(self.logProcessor.timeS[i]) + "\t" + str(self.logProcessor.av[i]*1e6)  + "\n"
+                    self.ui.textEdit_3.setText(smallText)
+                else:
+                    self.plot_spaceAllan.update_plot(2, off=None, sec=None, av=self.logProcessor.av, error=self.logProcessor.error, timeS=self.logProcessor.timeS, tickCorrect=0)
+                    smallText = 'tau' + "\t" + "Adev" + "\n"
+                    smallText += "-------------------------\n"
+                    for i in range(0,len(self.logProcessor.timeS)):
+                        smallText += str(self.logProcessor.timeS[i]) + "\t" + str(self.logProcessor.av[i])  + "\n"
+                    self.ui.textEdit_3.setText(smallText)
 
         elif self.ui.tabWidget.currentIndex()==3: #Histograms
 

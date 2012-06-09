@@ -18,6 +18,7 @@ __status__ = "Prototype"
 from scipy import *
 import scipy
 from math import *
+import numpy as np
 
 
 class AllanDev():
@@ -27,6 +28,39 @@ class AllanDev():
         self.av = [0]
         self.timeS = [0]
         self.error = [0]
+
+    def allanDevMills(self, values):
+
+    ##########
+    # Allan Deviation Calculation Routine adapted from David Mills Matlab sub-routine
+    ##########
+
+        timeInterval = []
+        aDev = []
+        error = []
+        N = len(values)
+
+        y1 = np.asarray(values)
+        d=10
+        i=0
+        while(len(y1) >=10 ):
+            u = diff(y1)/d
+            v = diff(u)
+            temp = sqrt(mean(v * v)/2)
+            aDev.append(temp)
+            timeInterval.append(d)
+            y1 = y1[::2]
+            temp2 = 1/sqrt(2*(((float)(N)/(pow(2,i)))-1))
+            temp2 *= aDev[i]
+            error.append(temp2)
+            i=i+1
+            d=d*2
+
+
+        return timeInterval,aDev,error
+
+
+
 
     def allanDev(self,values, tau0):
 
@@ -57,7 +91,7 @@ class AllanDev():
 
 
 
-                val = values[(int)(l):(int)((l+((pow(2,i))-1)))]
+                val = np.asarray(values[(int)(l):(int)((l+((pow(2,i))-1)))])
                 tempSum = scipy.sum(val)
 
                 omega[k] = (float)(tempSum)/(pow(2,i))
@@ -66,7 +100,7 @@ class AllanDev():
 
             sumvalue = 0
 
-            #Perfome the difference of the average values
+            #Perfom the difference of the average values
             for k in range(1,(len(omega)-1)):
 
                 sumvalue += pow((omega[k+1]-omega[k]),2)
@@ -83,6 +117,7 @@ class AllanDev():
             self.error[i+1] *= self.av[i+1]
 
         return self.timeS, self.av,self.error
+
 
     def allanDevn(self,values, tau0):
 
