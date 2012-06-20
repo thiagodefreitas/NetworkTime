@@ -22,6 +22,8 @@ from time import ctime
 from math import *
 import allandev
 
+import numpy as np
+
 class logProcess():
 
     def __init__(self):
@@ -43,6 +45,7 @@ class logProcess():
 
         self.offsets = []
         self.seconds = []
+        self.secondsPure = []
 
         for line in readings:
             if "Logged" in line:
@@ -53,9 +56,17 @@ class logProcess():
                 line = line.split(",")
 
                 self.offsets.append((float)(line[1]))
-                self.seconds.append((float)(line[3]))
+                self.secondsPure.append((float)(line[3]))
+
+                if(len(self.seconds) > 0):
+                    self.seconds.append((float)(line[3])-self.seconds[0])
+                else:
+                    self.seconds.append((float)(line[3]))
             else:
                 pass
+
+        self.seconds[0] = 0
+
 
         self.file.close()
 
@@ -68,29 +79,30 @@ class logProcess():
         pylab.title("Offsets Generated from a NTP trial run")
         pylab.grid(True)
 
-        xMin = self.seconds[0]
-        xMax = self.seconds[len(self.seconds)-1]
+       # xMin = 0
+       # xMax = (float)(self.offsets[-1])
 
-        xMin = (int)((floor)(xMin))
 
-        xMax = (int)((floor)(xMax))
+#        xMin = (int)((floor)(xMin))
 
-        pylab.xlim([xMin,xMax])
+ #       xMax = (int)((floor)(xMax))
+
+#        pylab.xlim([xMin,xMax])
 
         toPlot = []
         toPlotTime = []
 
-        for i in range(len(self.seconds)):
-            if i%14 == 0:
-                ct = ctime(self.seconds[i])
-                ct = ct.split(' ')
-                toPlot.append(ct[3])
-                toPlotTime.append(self.seconds[i])
+    #    for i in range(len(self.seconds)):
+        #    if i%14 == 0:
+             #   ct = ctime(self.seconds[i])
+              #  ct = ct.split(' ')
+             #   toPlot.append(ct[3])
+              #  toPlotTime.append(self.seconds[i])
 
-        pylab.xticks(toPlotTime, toPlot )
+        #pylab.xticks(toPlotTime, toPlot )
 
         pylab.figure(2)
-        print self.offsets
+
         pylab.hist(self.offsets, histtype='step')
         pylab.title("Histogram of the Offsets")
 
@@ -112,6 +124,7 @@ class logProcess():
 
         pylab.grid(True)
 
+
         pylab.show()
 
 
@@ -120,7 +133,7 @@ if __name__ == '__main__':
 
     allantest = logProcess()
 
-    allantest.processLog("estimators.log")
+    allantest.processLog("run_ubuntu.log")
 
     [allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDevMills(allantest.offsets)
 
@@ -128,5 +141,11 @@ if __name__ == '__main__':
 
     for item in allantest.offsets:
         fileOffsets.write("%s\n" % item)
+
+
+    fileSeconds = open("secondsLog.txt","w")
+
+    for item in allantest.seconds:
+        fileSeconds.write("%s\n" % item)
 
     allantest.plotnoGui()

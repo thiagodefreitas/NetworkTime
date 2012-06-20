@@ -44,6 +44,7 @@ class loopLoader():
 
         self.offsets = []
         self.seconds = []
+        self.secondsPure=[]
         self.day = []
 
         for line in readLines:
@@ -51,6 +52,7 @@ class loopLoader():
             line=line.split()
             self.day.append((float)(line[0]))
             self.offsets.append((float)(line[2]))
+            self.secondsPure.append((float)(line[1]))
             self.seconds.append((float)(line[1]))
 
         self.file.close()

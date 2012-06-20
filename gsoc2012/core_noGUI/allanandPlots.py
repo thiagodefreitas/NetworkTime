@@ -41,6 +41,7 @@ class allanandPlots():
 
         self.offsets = []
         self.seconds = []
+        self.secondsPure =[]
 
         readSeconds = self.file.readlines()
         readOffsets = self.file2.readlines()
@@ -52,7 +53,20 @@ class allanandPlots():
         for line2 in readSeconds:
             line2 = line2.strip()
 
-            self.seconds.append((float)(line2))
+            self.secondsPure.append((float)(line[2]))
+
+            if(len(self.seconds) > 0):
+
+                self.seconds.append((float)(line2)-self.seconds[0])
+
+            else:
+
+                self.seconds.append((float)(line2))
+
+        print self.seconds
+
+        self.seconds[0] = 0
+
 
     def plotnoGui(self):
 
@@ -62,14 +76,14 @@ class allanandPlots():
         pylab.title("Offsets Generated from a NTP trial run")
         pylab.grid(True)
 
-        xMin = self.seconds[0]
-        xMax = self.seconds[len(self.seconds)-1]
+       # xMin = self.seconds[0]
+       # xMax = self.seconds[len(self.seconds)-1]
 
-        xMin = (int)((floor)(xMin))
+        #xMin = (int)((floor)(xMin))
 
-        xMax = (int)((floor)(xMax))
+       # xMax = (int)((floor)(xMax))
 
-        pylab.xlim([xMin,xMax])
+       # pylab.xlim([xMin,xMax])
 
         pylab.figure(2)
 

@@ -17,7 +17,11 @@ __status__ = "Prototype"
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
+
 from time import ctime
+
+import scipy
 
 import numpy as np
 
@@ -29,6 +33,8 @@ class plotSpace(FigureCanvas):
     def __init__(self):
         super(plotSpace, self).__init__(Figure())
 
+
+
         self.subplot = self.figure.add_subplot(111)
         self.subplot.hold(True)
 
@@ -36,36 +42,37 @@ class plotSpace(FigureCanvas):
 
         self.subplot.clear()
 
-        self.subplot.set_xlabel('Hours(h)')
+ #       sizeD = range(len(off))
+
+
+        self.subplot.set_xlabel('Seconds(s)')
         self.subplot.set_ylabel('Residuals(ms)')
 
-        a,b = np.polyfit(sec,off,1)
+
         secArray = np.asarray(sec)
         offArray = np.asarray(off)
+        a,b = np.polyfit(secArray,offArray,1)
 
         self.subplot.plot(secArray, offArray-(a*secArray+b), '--k')
 
-        xMin = sec[0]
-        xMax = sec[len(sec)-1]
+#        xMin = 0
+#        xMax = len(off)
 
-        xMin = (int)((floor)(xMin))
 
-        xMax = (int)((floor)(xMax))
+#        self.subplot.set_xlim([xMin,xMax])
 
-        self.subplot.set_xlim([xMin,xMax])
+       # toPlot = []
+       # toPlotTime = []
 
-        toPlot = []
-        toPlotTime = []
-
-        for i in range(len(sec)):
-            if i%4 == 0:
-                ct = ctime(sec[i])
-                ct = ct.split(' ')
-                if '' in ct:
-                    ct.remove('')
-                ct = ct[3].split(':')
-                toPlot.append(ct[0])
-                toPlotTime.append(sec[i])
+        #for i in sizeD:
+        #    if i%4 == 0:
+        #        ct = ctime(sec[i])
+        #        ct = ct.split(' ')
+        #        if '' in ct:
+        #            ct.remove('')
+        #        ct = ct[3].split(':')
+        #        toPlot.append(ct[0])
+        #        toPlotTime.append(sizeD[i])
 
 
 
@@ -73,9 +80,9 @@ class plotSpace(FigureCanvas):
 
         self.subplot.grid()
 
-        if tickCorrect:
-            self.subplot.set_xticks(toPlotTime)
-            self.subplot.set_xticklabels(toPlot)
+       # if tickCorrect:
+       #     self.subplot.set_xticks(toPlotTime)
+       #     self.subplot.set_xticklabels(toPlot)
 
         self.draw()
 
@@ -98,32 +105,31 @@ class plotSpace(FigureCanvas):
         self.subplot.clear()
         if(type==1):
 
-            self.subplot.set_xlabel('Hours(h)')
+            #sizeD = range(len(off))
+
+            self.subplot.set_xlabel('Seconds(s)')
             self.subplot.set_ylabel('Offsets(ms)')
 
             self.subplot.plot(sec,off)
 
-            xMin = sec[0]
-            xMax = sec[len(sec)-1]
+           # xMin = 0
 
-            xMin = (int)((floor)(xMin))
+            #xMax = len(off)
 
-            xMax = (int)((floor)(xMax))
+            #self.subplot.set_xlim([xMin,xMax])
 
-            self.subplot.set_xlim([xMin,xMax])
+            #toPlot = []
+            #toPlotTime = []
 
-            toPlot = []
-            toPlotTime = []
-
-            for i in range(len(sec)):
-                if i%4 == 0:
-                    ct = ctime(sec[i])
-                    ct = ct.split(' ')
-                    if '' in ct:
-                        ct.remove('')
-                    ct = ct[3].split(':')
-                    toPlot.append(ct[0])
-                    toPlotTime.append(sec[i])
+            #for i in sizeD:
+             #   if i%4 == 0:
+             #       ct = ctime(sec[i])
+             #       ct = ct.split(' ')
+             #       if '' in ct:
+             #           ct.remove('')
+             #       ct = ct[3].split(':')
+             #       toPlot.append(ct[0])
+             #       toPlotTime.append(sizeD[i])
 
 
 
@@ -131,9 +137,9 @@ class plotSpace(FigureCanvas):
 
             self.subplot.grid()
 
-            if tickCorrect:
-                self.subplot.set_xticks(toPlotTime)
-                self.subplot.set_xticklabels(toPlot)
+           # if tickCorrect:
+           #     self.subplot.set_xticks(toPlotTime)
+           #     self.subplot.set_xticklabels(toPlot)
 
             self.draw()
 
@@ -141,12 +147,13 @@ class plotSpace(FigureCanvas):
 
 
             self.subplot.set_xlabel(r'$\tau$ - sec')
-            self.subplot.set_ylabel(r'$\sigma(\tau$) - ms')
+            self.subplot.set_ylabel(r'$\sigma(\tau$) - s')
             self.subplot.set_title('Allan Standard Deviation')
             plot2 = self.subplot.loglog(timeS, av, 'b^', timeS, av)
             plot1 = self.subplot.errorbar(timeS, av,yerr=error,fmt='k.', animated=True )
             self.subplot.grid()
             self.subplot.legend(('ADEV points', 'ADEV'))
+
 
             self.draw()
 

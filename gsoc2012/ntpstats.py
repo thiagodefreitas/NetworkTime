@@ -269,11 +269,11 @@ class MainWindow(QtGui.QMainWindow):
             self.plot_spaceOff.save_plot(nameSave)
 
         elif self.ui.tabWidget.currentIndex()==2:
-            nameSave = self.ui.nametoSave_2.text()
+            nameSave = self.ui.nametoSave_3.text()
             self.plot_spaceAllan.save_plot(nameSave)
 
         elif self.ui.tabWidget.currentIndex()==3:
-            nameSave = self.ui.nametoSave_3.text()
+            nameSave = self.ui.nametoSave_2.text()
             self.plot_spaceHist.save_plot(nameSave)
 
 
@@ -311,8 +311,8 @@ class MainWindow(QtGui.QMainWindow):
                             range_min = (self.ui.spinBox.value()-1)*84
                             range_max = range_min + 84
                             self.plot_spaceOff.plotMinusLeastSquares(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max])
+                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.loopProcessor.secondsPure[range_max])
                             self.ui.textEdit_2.setText(smallText)
                         else:
 
@@ -324,16 +324,16 @@ class MainWindow(QtGui.QMainWindow):
                                 range_max = range_min + self.exceeds
 
                             self.plot_spaceOff.plotMinusLeastSquares(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max-1])
+                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.loopProcessor.secondsPure[range_max-1])
                             self.ui.textEdit_2.setText(smallText)
                     else:
                         if not self.exceeds:
                             range_min = (self.ui.spinBox.value()-1)*84
                             range_max = range_min + 84
                             self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max])
+                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.loopProcessor.secondsPure[range_max])
                             self.ui.textEdit_2.setText(smallText)
                         else:
 
@@ -345,21 +345,21 @@ class MainWindow(QtGui.QMainWindow):
                                 range_max = range_min + self.exceeds
 
                             self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets[range_min:range_max], self.loopProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[range_max-1])
+                            smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.loopProcessor.secondsPure[range_max-1])
                             self.ui.textEdit_2.setText(smallText)
 
 
                 else:
                     if self.ui.radioButton_2.isChecked():
                         self.plot_spaceOff.plotMinusLeastSquares(1, self.loopProcessor.offsets, self.loopProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[0]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[-1])
+                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.secondsPure[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.loopProcessor.secondsPure[-1])
                         self.ui.textEdit_2.setText(smallText)
                     else:
                         self.plot_spaceOff.update_plot(1, self.loopProcessor.offsets, self.loopProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.seconds[0]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.loopProcessor.seconds[-1])
+                        smallText = "Initial Time:" + "\n" + ctime(self.loopProcessor.secondsPure[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.loopProcessor.secondsPure[-1])
                         self.ui.textEdit_2.setText(smallText)
 ####
                 ####
@@ -373,8 +373,8 @@ class MainWindow(QtGui.QMainWindow):
                             range_min = (self.ui.spinBox.value()-1)*84
                             range_max = range_min + 84
                             self.plot_spaceOff.plotMinusLeastSquares(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max])
+                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.runProcessor.secondsPure[range_max])
                             self.ui.textEdit_2.setText(smallText)
                         else:
 
@@ -386,16 +386,16 @@ class MainWindow(QtGui.QMainWindow):
                                 range_max = range_min + self.exceeds
 
                             self.plot_spaceOff.plotMinusLeastSquares(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max-1])
+                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.runProcessor.secondsPure[range_max-1])
                             self.ui.textEdit_2.setText(smallText)
                     else:
                         if not self.exceeds:
                             range_min = (self.ui.spinBox.value()-1)*84
                             range_max = range_min + 84
                             self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max])
+                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.runProcessor.secondsPure[range_max])
                             self.ui.textEdit_2.setText(smallText)
                         else:
 
@@ -407,21 +407,21 @@ class MainWindow(QtGui.QMainWindow):
                                 range_max = range_min + self.exceeds
 
                             self.plot_spaceOff.update_plot(1, self.runProcessor.offsets[range_min:range_max], self.runProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.runProcessor.seconds[range_max-1])
+                            smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.runProcessor.secondsPure[range_max-1])
                             self.ui.textEdit_2.setText(smallText)
 
 
                 else:
                     if self.ui.radioButton_2.isChecked():
                         self.plot_spaceOff.plotMinusLeastSquares(1, self.runProcessor.offsets, self.runProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[0]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.runProcessor.seconds[-1])
+                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.secondsPure[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.runProcessor.secondsPure[-1])
                         self.ui.textEdit_2.setText(smallText)
                     else:
                         self.plot_spaceOff.update_plot(1, self.runProcessor.offsets, self.runProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.seconds[0]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.runProcessor.seconds[-1])
+                        smallText = "Initial Time:" + "\n" + ctime(self.runProcessor.secondsPure[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.runProcessor.secondsPure[-1])
                         self.ui.textEdit_2.setText(smallText)
 
             elif(self.type == 3): #LOG
@@ -435,8 +435,8 @@ class MainWindow(QtGui.QMainWindow):
                             range_min = (self.ui.spinBox.value()-1)*84
                             range_max = range_min + 84
                             self.plot_spaceOff.plotMinusLeastSquares(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max])
+                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.logProcessor.secondsPure[range_max])
                             self.ui.textEdit_2.setText(smallText)
                         else:
 
@@ -448,16 +448,16 @@ class MainWindow(QtGui.QMainWindow):
                                 range_max = range_min + self.exceeds
 
                             self.plot_spaceOff.plotMinusLeastSquares(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max-1])
+                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.logProcessor.secondsPure[range_max-1])
                             self.ui.textEdit_2.setText(smallText)
                     else:
                         if not self.exceeds:
                             range_min = (self.ui.spinBox.value()-1)*84
                             range_max = range_min + 84
                             self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max])
+                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.logProcessor.secondsPure[range_max])
                             self.ui.textEdit_2.setText(smallText)
                         else:
 
@@ -469,21 +469,21 @@ class MainWindow(QtGui.QMainWindow):
                                 range_max = range_min + self.exceeds
 
                             self.plot_spaceOff.update_plot(1, self.logProcessor.offsets[range_min:range_max], self.logProcessor.seconds[range_min:range_max], av=None, error=None, timeS=None, tickCorrect=1)
-                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[range_min]) + "\n" +\
-                                        "Final Time:" + "\n" + ctime(self.logProcessor.seconds[range_max-1])
+                            smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.secondsPure[range_min]) + "\n" +\
+                                        "Final Time:" + "\n" + ctime(self.logProcessor.secondsPure[range_max-1])
                             self.ui.textEdit_2.setText(smallText)
 
 
                 else:
                     if self.ui.radioButton_2.isChecked():
                         self.plot_spaceOff.plotMinusLeastSquares(1, self.logProcessor.offsets, self.logProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[0]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.logProcessor.seconds[-1])
+                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.secondsPure[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.logProcessor.secondsPure[-1])
                         self.ui.textEdit_2.setText(smallText)
                     else:
                         self.plot_spaceOff.update_plot(1, self.logProcessor.offsets, self.logProcessor.seconds, av=None, error=None, timeS=None, tickCorrect=0)
-                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.seconds[0]) + "\n" +\
-                                    "Final Time:" + "\n" + ctime(self.logProcessor.seconds[-1])
+                        smallText = "Initial Time:" + "\n" + ctime(self.logProcessor.secondsPure[0]) + "\n" +\
+                                    "Final Time:" + "\n" + ctime(self.logProcessor.secondsPure[-1])
                         self.ui.textEdit_2.setText(smallText)
 
 
