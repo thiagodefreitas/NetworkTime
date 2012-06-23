@@ -37,6 +37,8 @@ class logProcess():
 
         self.file = None
 
+
+
     def processLog(self, fName):
 
         self.file = open(fName, "r")
@@ -75,6 +77,9 @@ class logProcess():
 
         pylab.figure(1)
 
+        pylab.xlabel('Time(s)')
+        pylab.ylabel('Offsets(s)')
+
         pylab.plot(self.seconds, self.offsets)
         pylab.title("Offsets Generated from a NTP trial run")
         pylab.grid(True)
@@ -103,13 +108,26 @@ class logProcess():
 
         pylab.figure(2)
 
-        pylab.hist(self.offsets, histtype='step')
-        pylab.title("Histogram of the Offsets")
+      #  pylab.hist(self.offsets, histtype='step')
+       # pylab.title("Histogram of the Offsets")
 
+        pylab.xlabel('Seconds(s)')
+        pylab.ylabel('Residuals(s)')
+
+
+        secArray = np.asarray(self.seconds)
+        offArray = np.asarray(self.offsets)
+        a,b = np.polyfit(secArray,offArray,1)
+
+
+
+        residualsArray =  offArray-(a*secArray+b)
+
+        pylab.plot(secArray,residualsArray , '--k')
 
         pylab.figure(3)
 
-        pylab.xlabel(r'$\tau$')
+        pylab.xlabel(r'$\tau$ - sec')
         pylab.ylabel(r'$\sigma(\tau$)')
         pylab.title('Allan Standard Deviation')
 
@@ -125,6 +143,85 @@ class logProcess():
         pylab.grid(True)
 
 
+        pylab.figure(4)
+
+        pylab.xlabel('Seconds(s)')
+        pylab.ylabel('Residuals(s)')
+
+
+
+
+        offsetsMod = zeros(9)
+        offs = np.asarray(self.offsets)
+        offsetsMod = np.concatenate((offsetsMod,offs))
+
+        offsetsAgain =[]
+        secAgain = []
+
+        for i in range(10,len(self.offsets)):
+            [time1, av1, err1] = allantest.Allan.allanDevMills(offsetsMod[i-10:i])
+
+            if (av1[0] > 0.00035):
+                print "OK!!"
+            else:
+                offsetsAgain.append(self.offsets[i-10])
+                secAgain.append(self.seconds[i-10])
+
+
+
+
+        secArray = np.asarray(secAgain)
+        offArray = np.asarray(offsetsAgain)
+        a,b = np.polyfit(secArray,offArray,1)
+
+
+
+        residualsArray =  offArray-(a*secArray+b)
+
+        pylab.plot(secArray,residualsArray , '--k')
+
+
+
+        pylab.figure(5)
+
+        [time1, av1, err1] = allantest.Allan.allanDevMills(offsetsAgain)
+
+        pylab.xlabel(r'$\tau$ - sec')
+        pylab.ylabel(r'$\sigma(\tau$)')
+        pylab.title('Allan Standard Deviation')
+
+
+
+
+        pylab.loglog(time1, av1, 'b^', time1, av1)
+        pylab.errorbar(time1, av1,yerr=err1,fmt='k.' )
+
+        pylab.legend(('ADEV points', 'ADEV'))
+
+
+        pylab.grid(True)
+
+        pylab.figure(6)
+
+        [time1, av1, err1] = allantest.Allan.allanDevMills(offsetsAgain)
+
+        pylab.xlabel(r'$\tau$ - sec')
+        pylab.ylabel(r'$\sigma(\tau$) - PPM')
+        pylab.title('Allan Standard Deviation')
+
+
+
+
+        pylab.loglog(time1, np.asarray(av1)*1e6, 'b^', time1, np.asarray(av1) *1e6)
+        pylab.errorbar(time1, np.asarray(av1)*1e6,yerr=np.asarray(err1)*1e6,fmt='k.')
+
+        pylab.legend(('ADEV points', 'ADEV'))
+
+
+        pylab.grid(True)
+
+
+
         pylab.show()
 
 
@@ -137,6 +234,8 @@ if __name__ == '__main__':
 
     [allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDevMills(allantest.offsets)
 
+
+
     fileOffsets = open("offsetsLog.txt","w")
 
     for item in allantest.offsets:
@@ -145,7 +244,9 @@ if __name__ == '__main__':
 
     fileSeconds = open("secondsLog.txt","w")
 
+
     for item in allantest.seconds:
         fileSeconds.write("%s\n" % item)
+
 
     allantest.plotnoGui()
