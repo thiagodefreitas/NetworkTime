@@ -157,7 +157,7 @@ class logProcess():
 
         offsetsAgain =[]
         secAgain = []
-
+    #Checking the Allan Deviation for Abnormal Values
         for i in range(10,len(self.offsets)):
             [time1, av1, err1] = allantest.Allan.allanDevMills(offsetsMod[i-10:i])
 
@@ -216,6 +216,39 @@ class logProcess():
         pylab.errorbar(time1, np.asarray(av1)*1e6,yerr=np.asarray(err1)*1e6,fmt='k.')
 
         pylab.legend(('ADEV points', 'ADEV'))
+
+
+        pylab.grid(True)
+
+
+
+
+
+        pylab.figure(7)
+
+        storageOFFs = []
+
+        offArray2 = offsetsAgain[7::8]
+        secArray2 = secAgain[7::8]
+
+
+        pylab.xlabel('Seconds(s)')
+        pylab.ylabel('Corrected Offset(s)')
+
+
+
+        for i in range(len(offArray2)):
+
+
+
+
+
+            correction = a*secArray2[i] + b
+
+            storageOFFs.append(offArray2[i] - correction)
+
+
+        pylab.plot(secArray2,storageOFFs)
 
 
         pylab.grid(True)
