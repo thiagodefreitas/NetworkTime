@@ -36,18 +36,16 @@ logger.setLevel(logging.DEBUG)
 
 
 class NTPEstimators():
-
     """Class to Save Offsets and Current Time to Text Files for Further Processing"""
 
     def __init__(self, server, offFile, cTimeFile):
-
         self.server = server
         self.offFileName = offFile
         self.cTimeFileName = cTimeFile
         self.response = None
         self.ntpClient = ntplib.NTPClient()
-        self.fileOffsets = open(self.offFileName,"w")
-        self.cTimeFile = open(self.cTimeFileName,"w")
+        self.fileOffsets = open(self.offFileName, "w")
+        self.cTimeFile = open(self.cTimeFileName, "w")
 
         logger.info("Init Funcion Concluded")
 
@@ -60,12 +58,11 @@ class NTPEstimators():
 
     def get_responses(self):
         try:
-
             self.response = self.ntpClient.request(self.server, version=4)
             logger.info('Got Response from server %s', self.server)
             self.fileOffsets.write("%s\n" % self.response.offset)
             self.cTimeFile.write("%s\n" % self.response.orig_time)
-	    logger.info("Logged: [off, %s, time, %s]", self.response.offset, self.response.orig_time)
+            logger.info("Logged: [off, %s, time, %s]", self.response.offset, self.response.orig_time)
         except:
             logger.error("Error when trying to connect to Server %s", self.server)
             raise
@@ -73,13 +70,10 @@ class NTPEstimators():
             return
 
 if __name__ == '__main__':
-
     estimatorTest = NTPEstimators("utcnist2.colorado.edu", "offsets_estimation.txt", "computeTime_estimation.txt")
-
 
     while(True):
         try:
-
             estimatorTest.get_responses()
             time.sleep(1024)
 
