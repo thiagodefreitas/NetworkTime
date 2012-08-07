@@ -22,6 +22,10 @@ from time import ctime
 from math import *
 import allandev
 
+import ransac
+
+from ransac import *
+
 import numpy as np
 
 class logProcess():
@@ -250,8 +254,6 @@ class logProcess():
 
         div = 3
 
-        print len(offsetsAgain), len(secAgain)
-
         secAgainT = secAgain[0:(len(secAgain)/div)]
 
         offsetsAgainT = offsetsAgain[0:(len(offsetsAgain)/div)]
@@ -317,14 +319,13 @@ class logProcess():
         pylab.figure(9)
 
 
-        secArray = np.asarray(secAgain)
-        offArray = np.asarray(offsetsAgain)
+        secArray = np.asarray(self.seconds)
+        offArray = np.asarray(self.offsets)
         a,b = np.polyfit(secArray,offArray,1)
 
 
 
         residualsArray =  offArray-(a*secArray+b)
-
 
         #diffs = diff(residualsArray)
         diffs = zeros(len(residualsArray)-1)
@@ -342,7 +343,7 @@ class logProcess():
                 if(self.timeStep1):
                     residualsArray[i-1] =  av2[0]*1024
                     residualsArray[i] = residualsArray[i] - residualsArray[i-1]
-                    print residualsArray[i]
+
 
                 self.timeStep1=True
 
@@ -393,6 +394,126 @@ class logProcess():
 
 
         pylab.plot(secArray,residualsArray , '--k')
+
+
+        pylab.figure(10)
+
+
+        secArray = np.asarray(self.seconds)
+        offArray = np.asarray(self.offsets)
+
+        #offArray = offArray-offArray[0]
+
+        a,b = np.polyfit(secArray,offArray,1)
+
+
+
+        residualsArray =  offArray-(a*secArray+b)
+
+
+
+        ###################
+        # Testing Ransac Fit for the Data
+
+        residualsArray.shape = (len(residualsArray),1)
+        secArray.shape = (len(secArray),1)
+        offArray.shape = (len(offArray),1)
+        n_inputs = 1
+
+        n_outputs = 1
+
+        all_data = numpy.hstack( (secArray,offArray) )
+
+
+        input_columns = range(n_inputs)
+
+        output_columns = [n_inputs+i for i in range(n_outputs)]
+
+        model = LinearLeastSquaresModel(input_columns,output_columns)
+
+        ransac_fit, ransac_data = ransac(all_data,model,90, 1000, 10, 10, debug=1,return_all=True)
+
+        linear_fit,resids,rank,s = scipy.linalg.lstsq(all_data[:,input_columns],
+            all_data[:,output_columns])
+
+        sort_idxs = numpy.argsort(secArray[:,0])
+        ar1_col0_sorted = secArray[sort_idxs] # maintain as rank-2 array
+# numpy.dot(ar1_col0_sorted, linear_fit) [:, 0]
+
+        fitted_ransac = numpy.dot(ar1_col0_sorted, ransac_fit)[:, 0] + self.offsets[0]
+        fitted_ransac = offArray[:,0] - fitted_ransac
+
+        lin_fit = a*secArray+b
+
+
+        pylab.plot(secArray, fitted_ransac, label='RANSAC fit')
+        pylab.plot(secArray,a*secArray+b, label='linear fit')
+
+
+        pylab.plot(secArray, offArray ,'k.', label='noisy data')
+
+
+        pylab.legend()
+
+        pylab.figure(11)
+
+        for item in self.offsets:
+            item = item - self.offsets[0]
+
+
+
+        diffs = diff(self.offsets)
+
+        diffs = np.asarray(diffs)
+
+        s = secArray[1:,]
+
+        print s.shape, diffs.shape
+
+        diffs.shape = (len(diffs), 1)
+
+
+
+
+        all_data = numpy.hstack( (s,diffs) )
+
+        ransac_fit, ransac_data = ransac(all_data,model,90, 500, 0.2, 25, debug=1,return_all=True)
+        diffs.shape = len(diffs)
+        s.shape = len(s)
+        a,b = np.polyfit(s,diffs,1)
+
+        lin_fit = a*s+b
+
+        pylab.plot(s, diffs, 'g.')
+        pylab.plot(s[ransac_data['inliers']], diffs[ransac_data['inliers']], 'r.')
+      #  pylab.plot(s, lin_fit, 'b.')
+
+        #pylab.plot(secArray[ransac_data['inliers']], offArray[ransac_data['inliers']], 'r.')
+       # pylab.plot(secArray[ransac_data['inliers']], offArray[ransac_data['inliers']])
+        #pylab.plot(secArray[ransac_data['inliers']], lin_fit[ransac_data['inliers']], 'g.')
+
+      #  pylab.plot(secArray[ransac_data['inliers']], lin_fit[ransac_data['inliers']])
+
+        #pylab.plot( secArray[ransac_data['inliers'],0], offArray[ransac_data['inliers'],0], 'bx', label='RANSAC data' )
+        pylab.legend()
+
+        pylab.figure(12)
+
+        [time1, av1, err1] = allantest.Allan.allanDevMills(offArray[ransac_data['inliers'],0])
+
+        pylab.xlabel(r'$\tau$ - sec')
+        pylab.ylabel(r'$\sigma(\tau$) - sec')
+        pylab.title('Allan Standard Deviation')
+
+
+        pylab.loglog(time1, av1, 'b^', time1, av1)
+        pylab.errorbar(time1, av1,yerr=err1,fmt='k.' )
+
+        pylab.legend(('ADEV points', 'ADEV'))
+
+
+        pylab.grid(True)
+
         pylab.show()
 
 if __name__ == '__main__':
