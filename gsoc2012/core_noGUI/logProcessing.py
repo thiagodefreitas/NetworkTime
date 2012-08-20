@@ -28,6 +28,90 @@ from ransac import *
 
 import numpy as np
 
+
+def ransac_modified(data,model,n,k,t,d,debug=False,return_all=False):
+    """fit model parameters to data using the RANSAC algorithm
+
+This implementation written from pseudocode found at
+http://en.wikipedia.org/w/index.php?title=RANSAC&oldid=116358182
+
+{{{
+Given:
+    data - a set of observed data points
+    model - a model that can be fitted to data points
+    n - the minimum number of data values required to fit the model
+    k - the maximum number of iterations allowed in the algorithm
+    t - a threshold value for determining when a data point fits a model
+    d - the number of close data values required to assert that a model fits well to data
+Return:
+    bestfit - model parameters which best fit the data (or nil if no good model is found)
+iterations = 0
+bestfit = nil
+besterr = something really large
+while iterations < k {
+    maybeinliers = n randomly selected values from data
+    maybemodel = model parameters fitted to maybeinliers
+    alsoinliers = empty set
+    for every point in data not in maybeinliers {
+        if point fits maybemodel with an error smaller than t
+             add point to alsoinliers
+    }
+    if the number of elements in alsoinliers is > d {
+        % this implies that we may have found a good model
+        % now test how good it is
+        bettermodel = model parameters fitted to all points in maybeinliers and alsoinliers
+        thiserr = a measure of how well model fits these points
+        if thiserr < besterr {
+            bestfit = bettermodel
+            besterr = thiserr
+        }
+    }
+    increment iterations
+}
+return bestfit
+}}}
+"""
+    iterations = 0
+    bestfit = None
+    besterr = numpy.inf
+    best_inlier_idxs = None
+    while iterations < k:
+        maybe_idxs, test_idxs = random_partition(n,data.shape[0])
+        maybeinliers = data[maybe_idxs,:]
+        test_points = data[test_idxs]
+        maybemodel = model.fit(maybeinliers)
+        test_err = model.get_error( test_points, maybemodel)
+        also_idxs = test_idxs[test_err < t] # select indices of rows with accepted points
+        alsoinliers = data[also_idxs,:]
+        if debug:
+            print 'test_err.min()',test_err.min()
+            print 'test_err.max()',test_err.max()
+            print 'numpy.mean(test_err)',numpy.mean(test_err)
+            print 'iteration %d:len(alsoinliers) = %d'%(
+                iterations,len(alsoinliers))
+        if len(alsoinliers) > d:
+            betterdata = numpy.concatenate( (maybeinliers, alsoinliers) )
+            mi = np.hsplit(maybeinliers,2)
+            ai = np.hsplit(alsoinliers,2)
+
+            betterdatatoAllan = numpy.concatenate((mi[1], ai[1]))
+            betterdatatoAllan = reshape(betterdatatoAllan, len(betterdatatoAllan))
+            bettermodel = model.fit(betterdata)
+            better_errs = model.get_error( betterdata, bettermodel)
+            thiserr = numpy.mean( better_errs )
+            [timeA, thisallan, thiserrA] = allantest.Allan.allanDevMills(betterdatatoAllan)
+            if (thisallan[0]) < 0.00035:
+                bestfit = bettermodel
+                besterr = thiserr
+                best_inlier_idxs = numpy.concatenate( (maybe_idxs, also_idxs) )
+        iterations+=1
+    if bestfit is None:
+        raise ValueError("did not meet fit acceptance criteria")
+    if return_all:
+        return bestfit, {'inliers':best_inlier_idxs}
+    else:
+        return bestfit
+
 class logProcess():
 
     def __init__(self):
@@ -137,7 +221,7 @@ class logProcess():
         pylab.figure(3)
 
         pylab.xlabel(r'$\tau$ - sec')
-        pylab.ylabel(r'$\sigma(\tau$) - sec')
+        pylab.ylabel(r'$\sigma(\tau$)')
         pylab.title('Allan Standard Deviation')
 
 
@@ -172,7 +256,7 @@ class logProcess():
         for i in range(10,len(self.offsets)):
             [time1, av1, err1] = allantest.Allan.allanDevMills(offsetsMod[i-10:i])
 
-            if (av1[0] > 0.00035):
+            if (av1[0] > 0.00020):
                 pass
             else:
                 offsetsAgain.append(self.offsets[i-10])
@@ -209,7 +293,7 @@ class logProcess():
         [time1, av1, err1] = allantest.Allan.allanDevMills(offsetsAgain)
 
         pylab.xlabel(r'$\tau$ - sec')
-        pylab.ylabel(r'$\sigma(\tau$) - sec')
+        pylab.ylabel(r'$\sigma(\tau$)')
         pylab.title('Allan Standard Deviation')
 
 
@@ -318,9 +402,23 @@ class logProcess():
 
         pylab.figure(9)
 
+        offsetsAgain =[]
+        secAgain = []
 
-        secArray = np.asarray(self.seconds)
-        offArray = np.asarray(self.offsets)
+        #Checking the Allan Deviation for Abnormal Values
+
+        for i in range(10,len(self.offsets)):
+            [time1, av1, err1] = allantest.Allan.allanDevMills(offsetsMod[i-10:i])
+
+            if (av1[0] > 0.00035):
+                pass
+            else:
+                offsetsAgain.append(self.offsets[i-10])
+                secAgain.append(self.seconds[i-10])
+
+
+        secArray = np.asarray(secAgain)
+        offArray = np.asarray(offsetsAgain)
         a,b = np.polyfit(secArray,offArray,1)
 
 
@@ -330,19 +428,20 @@ class logProcess():
         #diffs = diff(residualsArray)
         diffs = zeros(len(residualsArray)-1)
         # d = 0
-        for i in range(1,len(residualsArray)):
+        offinho = offArray
+        for i in range(1,len(offinho)):
 
-            diffs[i-1] = residualsArray[i] - residualsArray[i-1]
+            diffs[i-1] = offinho[i] - offinho[i-1]
 
 
 
-            if diffs[i-1] > av2[0]:
+            if diffs[i-1] > 3*av2[0]:
 
 
 
                 if(self.timeStep1):
-                    residualsArray[i-1] =  av2[0]*1024
-                    residualsArray[i] = residualsArray[i] - residualsArray[i-1]
+                    offinho[i-1] =  av2[0]*1024
+                    offinho[i] = offinho[i] - offinho[i-1]
 
 
                 self.timeStep1=True
@@ -393,8 +492,24 @@ class logProcess():
             ##            d += 1
 
 
-        pylab.plot(secArray,residualsArray , '--k')
+        pylab.plot(secArray,offinho , '--k')
 
+        pylab.figure(13)
+
+        [time1, av1, err1] = allantest.Allan.allanDevMills(diffs)
+
+        pylab.xlabel(r'$\tau$ - sec')
+        pylab.ylabel(r'$\sigma(\tau$)')
+        pylab.title('Allan Standard Deviation')
+
+
+        pylab.loglog(time1, av1, 'b^', time1, av1)
+        pylab.errorbar(time1, av1,yerr=err1,fmt='k.' )
+
+        pylab.legend(('ADEV points', 'ADEV'), loc=2)
+
+
+        pylab.grid(True)
 
         pylab.figure(10)
 
@@ -457,35 +572,55 @@ class logProcess():
 
         pylab.figure(11)
 
-        for item in self.offsets:
-            item = item - self.offsets[0]
 
 
+        offsetsAgain =[]
+        secAgain = []
 
-        diffs = diff(self.offsets)
+        #Checking the Allan Deviation for Abnormal Values
+
+        for i in range(10,len(self.offsets)):
+            [time1, av1, err1] = allantest.Allan.allanDevMills(offsetsMod[i-10:i])
+
+            if (av1[0] > 0.00035):
+                pass
+            else:
+                offsetsAgain.append(self.offsets[i-10])
+                secAgain.append(self.seconds[i-10])
+
+        for item in offsetsAgain:
+            item = item - offsetsAgain[0]
+
+        diffs = diff(offsetsAgain)
 
         diffs = np.asarray(diffs)
-
+        offArray = np.asarray(offsetsAgain)
+        secArray = np.asarray(secAgain)
         s = secArray[1:,]
-
+        offArray.shape = (len(offArray),1)
         print s.shape, diffs.shape
 
         diffs.shape = (len(diffs), 1)
 
-
+        s.shape = (len(s),1)
 
 
         all_data = numpy.hstack( (s,diffs) )
 
-        ransac_fit, ransac_data = ransac(all_data,model,90, 500, 0.2, 25, debug=1,return_all=True)
+        #n - the minimum number of data required to fit the model
+        #k - the number of iterations performed by the algorithm
+        #t - a threshold value for determining when a datum fits a model
+        #d - the number of close data values required to assert that a model fits well to data
+
+        ransac_fit, ransac_data = ransac(all_data,model,20, 222, 0.2, 10, debug=1,return_all=True)
         diffs.shape = len(diffs)
         s.shape = len(s)
         a,b = np.polyfit(s,diffs,1)
 
         lin_fit = a*s+b
 
-        pylab.plot(s, diffs, 'g.')
-        pylab.plot(s[ransac_data['inliers']], diffs[ransac_data['inliers']], 'r.')
+        pylab.plot(s, diffs, 'g.', label='Real Differences')
+        pylab.plot(s[ransac_data['inliers']], diffs[ransac_data['inliers']], 'r.', label='RANSAC Differences')
       #  pylab.plot(s, lin_fit, 'b.')
 
         #pylab.plot(secArray[ransac_data['inliers']], offArray[ransac_data['inliers']], 'r.')
@@ -495,24 +630,91 @@ class logProcess():
       #  pylab.plot(secArray[ransac_data['inliers']], lin_fit[ransac_data['inliers']])
 
         #pylab.plot( secArray[ransac_data['inliers'],0], offArray[ransac_data['inliers'],0], 'bx', label='RANSAC data' )
-        pylab.legend()
-
+        pylab.legend(loc=2)
+    #alanvar com gambi
         pylab.figure(12)
 
-        [time1, av1, err1] = allantest.Allan.allanDevMills(offArray[ransac_data['inliers'],0])
+        [time1, av1, err1] = allantest.Allan.allanDevMills(diffs[ransac_data['inliers']])
 
         pylab.xlabel(r'$\tau$ - sec')
-        pylab.ylabel(r'$\sigma(\tau$) - sec')
+        pylab.ylabel(r'$\sigma(\tau$)')
         pylab.title('Allan Standard Deviation')
 
 
         pylab.loglog(time1, av1, 'b^', time1, av1)
         pylab.errorbar(time1, av1,yerr=err1,fmt='k.' )
 
-        pylab.legend(('ADEV points', 'ADEV'))
+        pylab.legend(('ADEV points', 'ADEV'), loc=2)
 
 
         pylab.grid(True)
+
+        #semGambi
+        pylab.figure(14)
+
+        for item in self.offsets:
+            item = item - self.offsets[0]
+
+        diffs = diff(self.offsets)
+
+        diffs = np.asarray(diffs)
+
+        offArray = np.asarray(self.offsets)
+        secArray = np.asarray(self.seconds)
+
+        s = secArray[1:,]
+        offArray.shape = (len(offArray),1)
+
+        diffs.shape = (len(diffs), 1)
+
+        s.shape = (len(s),1)
+
+
+        all_data = numpy.hstack( (s,diffs) )
+
+        #n - the minimum number of data required to fit the model
+        #k - the number of iterations performed by the algorithm
+        #t - a threshold value for determining when a datum fits a model
+        #d - the number of close data values required to assert that a model fits well to data
+
+        ransac_fit, ransac_data = ransac(all_data,model,20, 222, 0.2, 10, debug=1,return_all=True)
+        diffs.shape = len(diffs)
+        s.shape = len(s)
+        a,b = np.polyfit(s,diffs,1)
+
+        lin_fit = a*s+b
+
+        pylab.plot(s, diffs, 'g.', label='Real Differences')
+        pylab.plot(s[ransac_data['inliers']], diffs[ransac_data['inliers']], 'r.', label='RANSAC Differences')
+        #  pylab.plot(s, lin_fit, 'b.')
+
+        #pylab.plot(secArray[ransac_data['inliers']], offArray[ransac_data['inliers']], 'r.')
+        # pylab.plot(secArray[ransac_data['inliers']], offArray[ransac_data['inliers']])
+        #pylab.plot(secArray[ransac_data['inliers']], lin_fit[ransac_data['inliers']], 'g.')
+
+        #  pylab.plot(secArray[ransac_data['inliers']], lin_fit[ransac_data['inliers']])
+
+        #pylab.plot( secArray[ransac_data['inliers'],0], offArray[ransac_data['inliers'],0], 'bx', label='RANSAC data' )
+        pylab.legend(loc=2)
+
+        #alanvar sem gambi
+        pylab.figure(15)
+
+        [time1, av1, err1] = allantest.Allan.allanDevMills(diffs[ransac_data['inliers']])
+
+        pylab.xlabel(r'$\tau$ - sec')
+        pylab.ylabel(r'$\sigma(\tau$)')
+        pylab.title('Allan Standard Deviation')
+
+
+        pylab.loglog(time1, av1, 'b^', time1, av1)
+        pylab.errorbar(time1, av1,yerr=err1,fmt='k.' )
+
+        pylab.legend(('ADEV points', 'ADEV'), loc=2)
+
+
+        pylab.grid(True)
+
 
         pylab.show()
 
