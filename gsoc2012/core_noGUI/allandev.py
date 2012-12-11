@@ -41,7 +41,7 @@ class AllanDev():
         N = len(values)
 
         y1 = np.asarray(values)
-        d=1024
+        d=32
         i=0
         while(len(y1) >=10 ):
             u = diff(y1)/d

@@ -50,6 +50,7 @@ class loopLoader():
         for line in readLines:
             line = line.strip()
             line=line.split()
+            print line
             self.day.append((float)(line[0]))
             self.offsets.append((float)(line[2]))
             self.secondsPure.append((float)(line[1]))
@@ -61,8 +62,12 @@ class loopLoader():
     def savetoFile(self, fName):
 
         self.file2 = open(fName, "w")
-        for item in self.offsets:
-            self.file2.write("%s\n" % item)
+        if(fName=="offsets.txt"):
+            for item in self.offsets:
+                self.file2.write("%s\n" % item)
+        else:
+            for item in self.seconds:
+                self.file2.write("%s\n" % item)
 
         self.file2.close()
 
@@ -77,11 +82,11 @@ class loopLoader():
         xMin = self.seconds[0]
         xMax = self.seconds[len(self.seconds)-1]
 
-        xMin = (int)((floor)(xMin))
+       # xMin = (int)((floor)(xMin))
 
-        xMax = (int)((floor)(xMax))
+        #xMax = (int)((floor)(xMax))
 
-        pylab.xlim([xMin,xMax])
+        #pylab.xlim([xMin,xMax])
 
         pylab.figure(2)
 
@@ -105,7 +110,23 @@ class loopLoader():
 
         pylab.grid(True)
 
+        pylab.figure(4)
+
+        tserver = zeros(len(self.offsets))
+        tclient = self.seconds
+
+        for i in range(len(self.offsets)):
+            tserver[i] = 16*i
+            if (i>=1):
+                tclient[i] = tclient[i-1]+ (self.seconds[i]-self.seconds[i-1]) + self.offsets[i-1]
+                print tclient[i-1]
+                self.offsets[i]+= (tserver[i]-tclient[i])
+
+        pylab.plot(tserver-tclient)
+
         pylab.show()
+
+
 
         #PPM PLOT
 
@@ -128,6 +149,7 @@ if __name__ == '__main__':
     allantest = loopLoader()
     allantest.processLoopStats('loopstats.txt')
     allantest.savetoFile("offsets.txt")
+    allantest.savetoFile("seconds.txt")
     #[allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDev(allantest.offsets, 10)
     [allantest.timeS, allantest.av, allantest.error] = allantest.Allan.allanDevMills(allantest.offsets)
     allantest.plotnoGui()

@@ -53,7 +53,7 @@ class allanandPlots():
         for line2 in readSeconds:
             line2 = line2.strip()
 
-            self.secondsPure.append((float)(line[2]))
+          #  self.secondsPure.append((float)(line[2]))
 
             if(len(self.seconds) > 0):
 
@@ -73,6 +73,8 @@ class allanandPlots():
         pylab.figure(1)
 
         pylab.plot(self.seconds, self.offsets)
+        pylab.ylabel("Offsets(seconds)")
+        pylab.xlabel("Time elapsed(seconds)")
         pylab.title("Offsets Generated from a NTP trial run")
         pylab.grid(True)
 
@@ -85,6 +87,7 @@ class allanandPlots():
 
        # pylab.xlim([xMin,xMax])
 
+
         pylab.figure(2)
 
         pylab.hist(self.offsets, histtype='step')
@@ -92,8 +95,8 @@ class allanandPlots():
 
         pylab.figure(3)
 
-        pylab.xlabel(r'$\tau$')
-        pylab.ylabel(r'$\sigma(\tau$)')
+        pylab.xlabel(r'$\tau$(sec)')
+        pylab.ylabel(r'$\sigma(\tau$)(sec/sec)')
         pylab.title('Allan Standard Deviation')
 
 
