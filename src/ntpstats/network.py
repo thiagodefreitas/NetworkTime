@@ -94,7 +94,8 @@ def floor_packet_percentage(
     ok = np.isfinite(d)
     t, d = t[ok], d[ok]
     fl = float(d.min()) if floor is None else float(floor)
-    edges = np.arange(t[0], t[-1] + window, window)
+    nwin = int(np.floor((t[-1] - t[0]) / window)) + 1  # last window contains t[-1]
+    edges = t[0] + window * np.arange(nwin + 1)
     idx = np.searchsorted(t, edges)
     starts, pct = [], []
     for a, b, e in zip(idx[:-1], idx[1:], edges[:-1]):

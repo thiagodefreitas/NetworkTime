@@ -40,9 +40,10 @@ def test_edf_matches_monte_carlo(kind, alpha):
 
 def test_ci_coverage_mdev_flicker_fm():
     hits, trials = 0, 150
+    # "true" MDEV from one very long realisation
+    ref = st.compute(powerlaw_phase(1 << 17, -1, 1.0, rng=5), 1.0, "mdev", [8], ci=None).dev[0]
     for seed in range(trials):
         x = powerlaw_phase(2048, -1, 1.0, rng=seed + 77)[-512:]
         r = st.compute(x, 1.0, "mdev", [8], ci=0.683)
-        ref = st.compute(powerlaw_phase(1 << 17, -1, 1.0, rng=5), 1.0, "mdev", [8], ci=None).dev[0] if seed == 0 else ref
         hits += r.lo[0] <= ref <= r.hi[0]
     assert 0.5 < hits / trials < 0.9

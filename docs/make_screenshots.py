@@ -32,7 +32,7 @@ with sync_playwright() as p:
     for theme in ("light", "dark"):
         page = browser.new_page(viewport={"width": 1440, "height": 900}, color_scheme=theme)
         errors = []
-        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("pageerror", lambda e, errors=errors: errors.append(str(e)))
         page.goto(url)
         page.wait_for_timeout(600)
         if theme == "light":

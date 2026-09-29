@@ -187,11 +187,11 @@ def detect_format(lines: Sequence[str]) -> str:
 
 # ----------------------------------------------------------------- parsers
 def _finish(t, off, name, fmt, extra=None, meta=None) -> TimeSeries:
-    if not t:
+    if len(t) == 0:
         raise ParseError(f"no usable samples for format {fmt}")
     s = TimeSeries(
-        t=np.array(t),
-        offset=np.array(off),
+        t=np.asarray(t, dtype=float),
+        offset=np.asarray(off, dtype=float),
         name=name,
         source_format=fmt,
         extra={k: np.array(v) for k, v in (extra or {}).items()},
@@ -200,28 +200,79 @@ def _finish(t, off, name, fmt, extra=None, meta=None) -> TimeSeries:
     return s.sorted()
 
 
+def _numeric(rows, cols):
+    """Float matrix of ``cols`` from token rows; rows with a bad value are
+    dropped (vectorised fast path, per-row fallback). Returns (array, keep)."""
+    cols = list(cols)
+    try:
+        return np.array([[r[c] for c in cols] for r in rows], dtype=float).reshape(-1, len(cols)), None
+    except ValueError:
+        keep, out = [], []
+        for r in rows:
+            try:
+                out.append([float(r[c]) for c in cols])
+                keep.append(True)
+            except ValueError:
+                keep.append(False)
+        return np.array(out, dtype=float).reshape(-1, len(cols)), np.array(keep, dtype=bool)
+
+
+def _fast(lines, usecols, strcols=None, chrony=False):
+    """numpy C tokenizer fast path; None if any data line is irregular
+    (the caller then falls back to the tolerant per-line parser)."""
+    import warnings
+
+    if chrony:
+        dl = [ln for ln in lines if ln[:4].isdigit() and ln[4:5] == "-"]
+    else:
+        dl = [ln for ln in lines if ln[:1].isdigit()]
+    if not dl:
+        return None
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            a = np.loadtxt(dl, usecols=list(usecols), ndmin=2, comments="#")
+            sc = np.loadtxt(dl, usecols=list(strcols), dtype=str, ndmin=2, comments="#") if strcols else None
+    except (ValueError, IndexError):
+        return None
+    skipped = 0
+    if not chrony:  # non-numeric lines that are not comments were dropped: report them
+        skipped = sum(1 for ln in lines if (st := ln.strip()) and not st[0].isdigit() and st[0] not in "#=")
+    return a, sc, skipped
+
+
+def _tokens(lines, min_fields):
+    rows = [ln.split() for ln in _data_lines(lines)]
+    good = [r for r in rows if len(r) >= min_fields]
+    return good, len(rows) - len(good)
+
+
 def parse_loopstats(lines, name="loopstats") -> List[TimeSeries]:
-    rows, skipped = [], 0
-    for ln in _data_lines(lines):
-        f = ln.split()
-        try:
-            rows.append([float(mjd_to_unix(int(f[0]), float(f[1])))] + [float(v) for v in f[2:7]])
-        except (ValueError, IndexError):
-            skipped += 1
-            continue
-        if len(rows[-1]) != 6:
-            rows.pop()
-            skipped += 1
-    if not rows:
+    fast = _fast(lines, range(7))
+    if fast is not None:
+        a, _, skipped = fast
+    else:
+        rows, skipped = _tokens(lines, 7)
+        a, keep = _numeric(rows, range(7))
+        if keep is not None:
+            skipped += int((~keep).sum())
+    if not a.size:
         raise ParseError("no usable loopstats lines")
-    a = np.array(rows)
+    t = mjd_to_unix(a[:, 0], a[:, 1])
     return [
         _finish(
-            list(a[:, 0]), list(a[:, 1]), name, "loopstats",
-            extra={"frequency_ppm": a[:, 2], "jitter": a[:, 3], "wander_ppm": a[:, 4], "time_constant": a[:, 5]},
+            t, a[:, 2], name, "loopstats",
+            extra={"frequency_ppm": a[:, 3], "jitter": a[:, 4], "wander_ppm": a[:, 5], "time_constant": a[:, 6]},
             meta={"skipped_lines": skipped},
         )
     ]
+
+
+def _groups(keys):
+    """Indices per distinct key, in order of first appearance."""
+    uniq, first, inv = np.unique(np.asarray(keys), return_index=True, return_inverse=True)
+    order = np.argsort(first)
+    return [(str(uniq[i]), np.flatnonzero(inv == i)) for i in order]
 
 
 def _peer_status_select(status: str) -> int:
@@ -232,29 +283,31 @@ def _peer_status_select(status: str) -> int:
 
 
 def parse_peerstats(lines, name="peerstats") -> List[TimeSeries]:
-    peers: "OrderedDict[str, dict]" = OrderedDict()
-    skipped = 0
-    for ln in _data_lines(lines):
-        f = ln.split()
-        try:
-            row = (
-                float(mjd_to_unix(int(f[0]), float(f[1]))),
-                float(f[4]), float(f[5]), float(f[6]), float(f[7]),
-                _peer_status_select(f[3]),
-            )
-        except (ValueError, IndexError):
-            skipped += 1
-            continue
-        peers.setdefault(f[2], []).append(row)
+    fast = _fast(lines, (0, 1, 4, 5, 6, 7), strcols=(2, 3))
+    if fast is not None:
+        a, sc, skipped = fast
+        addrs, status = sc[:, 0], sc[:, 1]
+    else:
+        rows, skipped = _tokens(lines, 8)
+        a, keep = _numeric(rows, (0, 1, 4, 5, 6, 7))
+        if keep is not None:
+            skipped += int((~keep).sum())
+            rows = [r for r, k in zip(rows, keep) if k]
+        addrs, status = [r[2] for r in rows], [r[3] for r in rows]
+    if not a.size:
+        raise ParseError("no usable peerstats lines")
+    cache = {}
+    sel = np.array([cache[v] if v in cache else cache.setdefault(v, _peer_status_select(v)) for v in status])
+    t = mjd_to_unix(a[:, 0], a[:, 1])
     out = []
-    for addr, rows in peers.items():
-        a = np.array(rows)
+    for addr, idx in _groups(addrs):
         out.append(
             _finish(
-                list(a[:, 0]), list(a[:, 1]), f"{name} [{addr}]", "peerstats",
-                extra={"delay": a[:, 2], "dispersion": a[:, 3], "jitter": a[:, 4]},
+                t[idx], a[idx, 2], f"{name} [{addr}]", "peerstats",
+                extra={"delay": a[idx, 3], "dispersion": a[idx, 4], "jitter": a[idx, 5]},
                 # select code 6 = sys.peer, 7 = pps.peer (RFC 5905 / ntpd decode.html)
-                meta={"peer": addr, "sys_peer_fraction": float(np.mean(np.isin(a[:, 5], (6, 7)))), "skipped_lines": skipped},
+                meta={"peer": addr, "sys_peer_fraction": float(np.mean(np.isin(sel[idx], (6, 7)))),
+                      "skipped_lines": skipped},
             )
         )
     return out
@@ -297,27 +350,34 @@ def parse_rawstats(lines, name="rawstats") -> List[TimeSeries]:
     return out
 
 
+def _chrony_times(rows) -> np.ndarray:
+    """POSIX seconds from chrony 'YYYY-MM-DD HH:MM:SS[.ffffff]' columns (vectorised)."""
+    try:
+        dt = np.array([r[0] + "T" + r[1] for r in rows], dtype="datetime64[us]")
+        return dt.astype(np.int64) / 1e6
+    except ValueError:
+        return np.array([_chrony_time(r[0], r[1]) for r in rows])
+
+
 def _parse_chrony(lines, name, fmt, off_idx, extra_cols, min_fields, group=True, sign=-1.0) -> List[TimeSeries]:
-    groups: "OrderedDict[str, list]" = OrderedDict()
-    skipped = 0
-    for ln in _data_lines(lines):
-        if not _CHRONY_TS.match(ln):
-            continue
-        f = ln.split()
-        if len(f) < min_fields:
-            skipped += 1
-            continue
-        try:
-            row = [_chrony_time(f[0], f[1]), sign * float(f[off_idx])]
-            row += [float(f[i]) for _, i in extra_cols]
-        except ValueError:
-            skipped += 1
-            continue
-        key = f[2] if group else "all"
-        groups.setdefault(key, []).append(row)
+    cols = [off_idx] + [i for _, i in extra_cols]
+    fast = _fast(lines, cols, strcols=(0, 1, 2), chrony=True)
+    if fast is not None:
+        a, good, skipped = fast
+    else:
+        rows = [ln.split() for ln in _data_lines(lines) if _CHRONY_TS.match(ln)]
+        good = [r for r in rows if len(r) >= min_fields]
+        skipped = len(rows) - len(good)
+        a, keep = _numeric(good, cols)
+        if keep is not None:
+            skipped += int((~keep).sum())
+            good = [r for r, k in zip(good, keep) if k]
+    if len(good) == 0:
+        raise ParseError(f"no usable samples for format {fmt}")
+    t = _chrony_times(good)
     out = []
-    for key, rows in groups.items():
-        a = np.array(rows)
+    groups = _groups([r[2] for r in good]) if group else [("all", np.arange(len(good)))]
+    for key, idx in groups:
         label = f"{name} [{key}]" if group else name
         meta = {"skipped_lines": skipped,
                 "sign": "negated (chrony: local - reference)" if sign < 0 else "as logged (reference - local)"}
@@ -325,8 +385,8 @@ def _parse_chrony(lines, name, fmt, off_idx, extra_cols, min_fields, group=True,
             meta["peer"] = key
         out.append(
             _finish(
-                list(a[:, 0]), list(a[:, 1]), label, fmt,
-                extra={k: a[:, 2 + j] for j, (k, _) in enumerate(extra_cols)}, meta=meta,
+                t[idx], sign * a[idx, 0], label, fmt,
+                extra={k: a[idx, 1 + j] for j, (k, _) in enumerate(extra_cols)}, meta=meta,
             )
         )
     return out
@@ -522,10 +582,17 @@ def parse_csv(lines, name="data", tau0: Optional[float] = None) -> List[TimeSeri
         return [_finish(list(t), list(a[:, 0]), name, "csv", meta={"skipped_lines": skipped, "synthetic_time": True})]
     ti, oi = 0, 1
     if header:
-        for i, h in enumerate(header):
-            if h in ("unix_time", "time", "t", "timestamp", "posix_time", "epoch"):
-                ti = i
-                break
+        tis = [i for i, h in enumerate(header) if h in ("unix_time", "time", "t", "timestamp", "posix_time", "epoch")]
+        if not tis:
+            if tau0 is None:
+                raise ParseError("CSV header has no time column (unix_time/time/timestamp); pass tau0 for "
+                                 "uniformly sampled offsets")
+            oi = next((i for i, h in enumerate(header) if h in ("offset", "offset_s", "theta", "phase", "x")), 0)
+            t = np.arange(a.shape[0]) * float(tau0)
+            extra = {h: a[:, i] for i, h in enumerate(header) if i != oi}
+            return [_finish(t, a[:, oi], name, "csv", extra=extra,
+                            meta={"skipped_lines": skipped, "synthetic_time": True})]
+        ti = tis[0]
         for i, h in enumerate(header):
             if h in ("offset", "offset_s", "theta", "phase", "x"):
                 oi = i

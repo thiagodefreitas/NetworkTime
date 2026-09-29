@@ -10,8 +10,6 @@ from __future__ import annotations
 
 from typing import Iterable, List, Optional, Sequence
 
-import numpy as np
-
 from .analysis import detrend as _detrend
 from .series import TimeSeries
 from .stability import DESCRIPTIONS, TIME_KINDS, StabilityResult, series_stability

@@ -45,8 +45,10 @@ public NTP/NTS servers, [CHANGELOG.md](CHANGELOG.md) for releases and
   - correct τ₀ from the data and **gap handling that never invents data** (irregular logs are
     put on a grid; terms that would span a gap are dropped, not interpolated),
   - **dynamic** (sliding-window) views to expose non-stationarity,
-  - **limit-mask** checks against user-supplied `tau,limit` CSV masks (e.g. network TDEV/MTIE
-    limits), with margins and PASS/FAIL.
+  - **limit-mask** checks against user-supplied CSV masks (`tau,tdev`, `tau,mtie`, … e.g.
+    network TDEV/MTIE limits), with margins and PASS/FAIL,
+  - **compare** a source against a reference (PPS, GNSS or a better server) to get the error's
+    bias, RMS, TDEV and MTIE.
 - **Network metrics**: delay floor and queueing distribution, Mills' offset-vs-delay *wedge*,
   asymmetry indicator, floor packet percentage (ITU-T G.8260-style), NTP clock-filter
   (minimum delay) selection.
@@ -106,8 +108,11 @@ ntpstats info /var/log/ntpstats/loopstats.20260928
 # Stability table with 95 % confidence intervals and noise identification
 ntpstats stability /var/log/chrony/tracking.log -k oadev,mdev,tdev,mtie --ci 0.95
 
-# Check TDEV against a limit mask (tau,limit CSV); exit code 3 on failure
+# Check TDEV against a limit mask (CSV "tau,tdev"); exit code 3 on failure
 ntpstats stability ptp.log -k tdev,mtie --mask my-tdev-mask.csv
+
+# Validate a client against a reference (e.g. chrony vs a PPS refclock or GNSS host)
+ntpstats compare /var/log/chrony/tracking.log /var/log/chrony/refclocks.log --ref-peer PPS0
 
 # Sliding-window stability matrix (time x tau) as CSV
 ntpstats dynamic peerstats --peer 192.0.2.10 -k mdev
@@ -196,6 +201,21 @@ detrending), `--json`/`--csv` output.
 - **ntpd / NTPsec** (`ntp.conf`): `statsdir /var/log/ntpstats/`, `statistics loopstats peerstats rawstats`,
   `filegen peerstats file peerstats type day enable` (same for the others).
 
+### Docker
+
+```bash
+docker build -t ntpstats .
+docker run --rm -p 8123:8123 -v "$PWD:/data" ntpstats ui /data/peerstats --host 0.0.0.0 --no-browser
+docker run --rm ntpstats query --nts time.cloudflare.com
+```
+
+### Performance
+
+On a modest shared CPU: parsing takes about 1 s per million loopstats lines (2.4 s for
+peerstats) using numpy's C tokenizer, and a full stability analysis (OADEV/MDEV/TDEV/HDEV with
+exact-EDF confidence intervals) of **1 million samples** takes about 1.2 s. The UI only receives
+decimated data (min/max per bucket), so it stays responsive with large files.
+
 ## Python API
 
 ```python
@@ -220,7 +240,7 @@ regenerates the sample logs in `examples/data/` in each native format.
 
 ## Validation
 
-`pytest` runs about 150 tests, and none of them need network access:
+`pytest` runs about 170 tests (plus `ruff` lint and coverage in CI), and none of them need network access:
 
 - every estimator is checked against a literal implementation of the NIST SP 1065 sums, against
   the analytic log-log slopes of the five power-law noise types, and against a frozen table of

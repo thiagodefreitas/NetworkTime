@@ -162,8 +162,9 @@ class TimeSeries:
         cols = ["unix_time", "offset"] + list(self.extra)
         data = np.column_stack([self.t, self.offset] + [self.extra[k] for k in self.extra])
         header = ",".join(cols)
+        fmt = ["%.9f"] + ["%.12g"] * (len(cols) - 1)  # full time resolution (ns)
         if hasattr(path_or_buf, "write"):
-            np.savetxt(path_or_buf, data, delimiter=",", header=header, comments="", fmt="%.12g")
+            np.savetxt(path_or_buf, data, delimiter=",", header=header, comments="", fmt=fmt)
         else:
             with open(path_or_buf, "w", encoding="utf-8") as fh:
-                np.savetxt(fh, data, delimiter=",", header=header, comments="", fmt="%.12g")
+                np.savetxt(fh, data, delimiter=",", header=header, comments="", fmt=fmt)

@@ -206,7 +206,7 @@ def _measure(t, rel, theta, spec: ServerSpec, loss: float, rng, label: str):
     )
 
 
-def simulate_ntp(sc: Scenario = Scenario(), name: str = "simulated"):
+def simulate_ntp(sc: Optional[Scenario] = None, name: str = "simulated"):
     """Simulate SNTP exchanges against a perfect server.
 
     Returns ``(measured, truth)`` time series. ``measured`` uses the ntpd
@@ -215,6 +215,7 @@ def simulate_ntp(sc: Scenario = Scenario(), name: str = "simulated"):
     For multi-server scenarios this returns the first server; see
     :func:`simulate_multi`.
     """
+    sc = Scenario() if sc is None else sc
     if sc.servers:
         ms, truth = simulate_multi(sc, name)
         first = ms[0]

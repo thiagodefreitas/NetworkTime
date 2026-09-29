@@ -4,7 +4,9 @@
 
 Masks are *user supplied* (no standards text is bundled): a CSV/whitespace
 file with two columns ``tau,limit`` (seconds, and the statistic's unit),
-optionally with a header and ``#`` comments. Between breakpoints the limit
+optionally with a header and ``#`` comments. A mask applies to one statistic:
+the one named in the header's second column (``tau,tdev``, ``tau,mtie``,
+``tau,oadev`` ...), else the ``kind`` argument, else TDEV. Between breakpoints the limit
 is interpolated linearly in log-log coordinates, the way masks are drawn in
 ITU-T recommendations. Outside the defined tau range the mask does not apply.
 """
@@ -26,6 +28,7 @@ class Mask:
     taus: np.ndarray
     limits: np.ndarray
     name: str = "mask"
+    kind: str = "tdev"
     meta: Dict[str, object] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -45,23 +48,27 @@ class Mask:
         return out
 
     def as_dict(self) -> dict:
-        return {"name": self.name, "taus": self.taus.tolist(), "limits": self.limits.tolist()}
+        return {"name": self.name, "kind": self.kind, "taus": self.taus.tolist(), "limits": self.limits.tolist()}
 
 
-def load_mask(source, name: str = None) -> Mask:
-    """Read a mask from a path, file object or text."""
-    if isinstance(source, str) and ("\n" in source or "," in source) and not os.path.exists(source):
-        text = source
-        label = name or "mask"
-    elif hasattr(source, "read"):
+def load_mask(source, name: str = None, kind: str = None) -> Mask:
+    """Read a mask from a path, a file object, or mask text (a string that is
+    not an existing file). ``kind`` overrides the statistic named in the header."""
+    from .stability import KINDS
+
+    if hasattr(source, "read"):
         text = source.read()
         label = name or getattr(source, "name", "mask")
-    else:
+    elif isinstance(source, (str, os.PathLike)) and os.path.isfile(source):
         with open(source, encoding="utf-8") as fh:
             text = fh.read()
         label = name or os.path.basename(str(source))
+    else:
+        text = str(source)
+        label = name or "mask"
     taus: List[float] = []
     lims: List[float] = []
+    header_kind = None
     for line in io.StringIO(text):
         s = line.split("#", 1)[0].strip()
         if not s:
@@ -70,10 +77,15 @@ def load_mask(source, name: str = None) -> Mask:
         try:
             t, v = float(parts[0]), float(parts[1])
         except (ValueError, IndexError):
+            if len(parts) >= 2 and parts[1].lower() in KINDS:
+                header_kind = parts[1].lower()
             continue  # header
         taus.append(t)
         lims.append(v)
-    return Mask(np.array(taus), np.array(lims), name=label)
+    k = (kind or header_kind or "tdev").lower()
+    if k not in KINDS:
+        raise ValueError(f"unknown mask kind {k!r}")
+    return Mask(np.array(taus), np.array(lims), name=label, kind=k)
 
 
 def check(result: StabilityResult, mask: Mask) -> dict:

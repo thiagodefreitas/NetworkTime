@@ -55,13 +55,17 @@ def fit_noise(series: TimeSeries):
     """
     from .stability import series_stability
 
-    (res,) = series_stability(series, kinds=("oadev",))
-    tau = res.taus
-    avar = res.dev ** 2
-    A = np.column_stack([3 / tau ** 2, 1 / tau, tau / 3])
-    w = 1 / avar  # relative least squares
-    coef = _nnls(A * w[:, None], avar * w)
-    r, qp, qf = (max(float(c), 0.0) for c in coef)
+    (res,) = series_stability(series, kinds=("oadev",), ci=None)
+    ok = np.isfinite(res.dev) & (res.dev > 0)
+    tau = res.taus[ok]
+    avar = res.dev[ok] ** 2
+    if tau.size >= 2:
+        A = np.column_stack([3 / tau ** 2, 1 / tau, tau / 3])
+        w = 1 / avar  # relative least squares
+        coef = _nnls(A * w[:, None], avar * w)
+        r, qp, qf = (max(float(c), 0.0) for c in coef)
+    else:  # constant or degenerate data: fall back to tiny, positive defaults
+        r, qp, qf = 0.0, 0.0, 0.0
     # keep things strictly positive for numerical stability
     scale = float(np.median(np.abs(np.diff(series.offset)))) or 1e-6
     return max(r, (1e-3 * scale) ** 2), max(qp, 1e-30), max(qf, 1e-40)

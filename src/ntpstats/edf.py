@@ -51,7 +51,11 @@ def _estimator_filter(kind: str, m: int):
     elif kind in ("mdev", "tdev"):
         base = np.zeros(2 * m + 1)
         base[[0, m, 2 * m]] = (1.0, -2.0, 1.0)
-        c = np.convolve(base, np.ones(m))
+        c = np.zeros(3 * m)  # second difference at lag m, summed over m (MDEV)
+        cs = np.cumsum(base)
+        c[: 2 * m + 1] += cs
+        c[m: 3 * m] -= cs[: 2 * m] if m > 0 else 0
+        c = c[: 3 * m]
     elif kind == "hdev":
         c = np.zeros(3 * m + 1)
         c[[0, m, 2 * m, 3 * m]] = (1.0, -3.0, 3.0, -1.0)
@@ -59,6 +63,14 @@ def _estimator_filter(kind: str, m: int):
         raise ValueError(f"no EDF model for {kind}")
     stride = m if kind == "adev" else 1
     return c, stride
+
+
+def _fftconv(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    n = a.size + b.size - 1
+    if min(a.size, b.size) < 64:
+        return np.convolve(a, b)
+    size = 1 << int(np.ceil(np.log2(n)))
+    return np.fft.irfft(np.fft.rfft(a, size) * np.fft.rfft(b, size), size)[:n]
 
 
 @lru_cache(maxsize=512)
@@ -72,7 +84,7 @@ def _autocov(kind: str, alpha: int, m: int, max_lag: int) -> np.ndarray:
         taps = int(min(_MAX_TAPS, max(8 * c.size, 4096)))
     # Keep only the part of the convolution where the truncated h contributes
     # fully; the tail would be an artefact of truncating h.
-    g = np.convolve(c, _phase_filter(alpha, taps))
+    g = _fftconv(c, _phase_filter(alpha, taps))
     g = g[: c.size + 1] if alpha in (2, 0, -2) else g[:taps]
     size = 1 << int(np.ceil(np.log2(2 * g.size)))
     G = np.fft.rfft(g, size)

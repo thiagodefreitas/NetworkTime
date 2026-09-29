@@ -43,7 +43,7 @@ def _load_args(args) -> List[TimeSeries]:
             try:
                 s = [load_one(path, fmt=args.format, peer=args.peer, tau0=args.tau0)]
             except ParseError as exc:
-                raise SystemExit(f"{path}: {exc}")
+                raise SystemExit(f"{path}: {exc}") from None
         else:
             s = load(path, fmt=args.format, tau0=args.tau0)
         for x in s:
@@ -75,7 +75,7 @@ def _common(p: argparse.ArgumentParser):
     p.add_argument("--start", type=_parse_time, help="ignore samples before this time (POSIX s or ISO 8601 UTC)")
     p.add_argument("--end", type=_parse_time, help="ignore samples after this time")
     p.add_argument("--outliers", type=float, metavar="K", help="drop samples more than K*MAD from the detrended median")
-    p.add_argument("--tau0", type=float, help="sample interval for single-column files / resampling grid")
+    p.add_argument("--tau0", type=float, help="sample interval of single-column files; also the stability grid")
 
 
 # ---------------------------------------------------------------- commands
@@ -114,17 +114,19 @@ def cmd_stability(args):
     if args.mask:
         from .masks import load_mask
 
-        mask = load_mask(args.mask)
+        mask = load_mask(args.mask, kind=args.mask_kind)
     all_out = []
     rc = 0
     for s in _load_args(args):
-        results = series_stability(s, kinds=kinds, taus=taus, tau0=args.resample, max_gap=args.max_gap,
+        results = series_stability(s, kinds=kinds, taus=taus, tau0=args.resample or args.tau0, max_gap=args.max_gap,
                                    detrend=args.detrend, ci=args.ci)
         checks = {}
         if mask is not None:
             from .masks import check
 
-            checks = {r.kind: check(r, mask) for r in results}
+            checks = {r.kind: check(r, mask) for r in results if r.kind == mask.kind}
+            if not checks:
+                print(f"note: mask {mask.name} is for {mask.kind.upper()}, which was not computed (-k)", file=sys.stderr)
             if any(c["passed"] is False for c in checks.values()):
                 rc = 3
         if args.json:
@@ -183,9 +185,13 @@ def cmd_plot(args):
 
 
 def cmd_network(args):
+    from .analysis import detrend as _detrend
     from .network import delay_stats, floor_packet_percentage
 
     for s in _load_args(args):
+        # offset statistics are meaningless while a frequency offset dominates
+        s = TimeSeries(s.t, _detrend(s.t, s.offset, args.detrend or "linear"), s.name, s.source_format,
+                       dict(s.extra), dict(s.meta))
         try:
             d = delay_stats(s, cluster=args.cluster)
         except ValueError as exc:
@@ -222,16 +228,17 @@ def cmd_filter(args):
 
 
 def cmd_simulate(args):
+    from dataclasses import replace
+
     from .filters import kalman_series
     from .network import min_delay_filter
     from .simulate import PRESETS, simulate_ntp
 
-    sc = PRESETS[args.preset]
+    sc = replace(PRESETS[args.preset], seed=args.seed)  # never mutate the shared presets
     if args.duration:
-        sc.duration = args.duration
+        sc = replace(sc, duration=args.duration)
     if args.poll:
-        sc.poll = args.poll
-    sc.seed = args.seed
+        sc = replace(sc, poll=args.poll)
     meas, truth = simulate_ntp(sc, name=f"sim-{args.preset}")
     if args.output:
         meas.to_csv(args.output)
@@ -401,6 +408,36 @@ def cmd_report(args):
     print(f"wrote {args.output} ({len(doc) / 1024:.0f} kB, self-contained)")
 
 
+def cmd_compare(args):
+    """Error of one source against a reference (both from any supported log)."""
+    from .analysis import compare as _compare
+    from .stability import compute
+
+    est = load_one(args.estimate, fmt=args.format, peer=args.peer)
+    ref = load_one(args.reference, fmt=args.ref_format, peer=args.ref_peer)
+    c = _compare(est, ref)
+    r = ref.sorted()
+    e = est.sorted().between(r.t[0], r.t[-1])
+    err = TimeSeries(e.t, e.offset - np.interp(e.t, r.t, r.offset), name=f"{e.name} - {r.name}")
+    _, x, tau0 = err.to_uniform()
+    stats = {k: compute(x, tau0, k, "octave", ci=None) for k in ("tdev", "mtie")}
+    if args.json:
+        print(json.dumps({"estimate": est.name, "reference": ref.name, **c,
+                          **{k: v.as_dict() for k, v in stats.items()}}, indent=2))
+        return 0
+    print(f"== {est.name}\n   vs reference {ref.name}  ({c['samples']} overlapping samples)")
+    print(f"   error        bias {format_seconds(c['bias'])}, rms {format_seconds(c['rms'])}, std {format_seconds(c['std'])}, "
+          f"p95 |e| {format_seconds(c['p95_abs'])}, max |e| {format_seconds(c['max_abs'])}")
+    print(f"   {'tau [s]':>12} {'TDEV':>12} {'MTIE':>12}")
+    mt = dict(zip(np.round(stats["mtie"].taus, 6), stats["mtie"].dev))
+    for t, v in zip(stats["tdev"].taus, stats["tdev"].dev):
+        print(f"   {t:12.6g} {format_seconds(v):>12} {format_seconds(mt.get(round(t, 6), float('nan'))):>12}")
+    if args.output:
+        err.to_csv(args.output)
+        print(f"wrote error series to {args.output}")
+    return 0
+
+
 def cmd_ui(args):
     from .web.server import serve
 
@@ -427,6 +464,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--max-gap", type=float, default=3.0, help="gaps longer than this many tau0 are not interpolated")
     s.add_argument("--ci", type=float, default=0.683, help="confidence level for intervals (0 disables)")
     s.add_argument("--mask", help="CSV of tau,limit to check against (exit code 3 on failure)")
+    s.add_argument("--mask-kind", choices=KINDS, help="statistic the mask applies to (default: header, else tdev)")
     g = s.add_mutually_exclusive_group()
     g.add_argument("--json", action="store_true")
     g.add_argument("--csv", action="store_true")
@@ -453,6 +491,7 @@ def build_parser() -> argparse.ArgumentParser:
     _common(s)
     s.add_argument("--cluster", type=float, help="cluster width above floor delay, s")
     s.add_argument("--window", type=float, default=200.0, help="FPP window, s (G.8260 uses 200 s)")
+    s.add_argument("--detrend", choices=("linear", "quadratic"), help="trend removed before offset stats (default linear)")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_network)
 
@@ -465,7 +504,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_filter)
 
     s = sub.add_parser("simulate", help="simulate NTP exchanges with ground truth; benchmark filters")
-    s.add_argument("--preset", choices=("lan", "internet", "congested"), default="internet")
+    s.add_argument("--preset", choices=("lan", "internet", "congested", "route-change", "falseticker"), default="internet")
     s.add_argument("--duration", type=float, help="seconds")
     s.add_argument("--poll", type=float, help="seconds between exchanges")
     s.add_argument("--seed", type=int, default=1)
@@ -494,6 +533,17 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--ci", type=float, default=0.683)
     s.add_argument("--title", default="ntpstats report")
     s.set_defaults(func=cmd_report)
+
+    s = sub.add_parser("compare", help="error of a source against a reference (e.g. NTP client vs PPS/GNSS)")
+    s.add_argument("estimate", help="log with the offsets to evaluate")
+    s.add_argument("reference", help="log with the reference offsets (same sign convention, overlapping time)")
+    s.add_argument("-f", "--format", default="auto", choices=("auto",) + FORMATS)
+    s.add_argument("--ref-format", default="auto", choices=("auto",) + FORMATS)
+    s.add_argument("--peer")
+    s.add_argument("--ref-peer")
+    s.add_argument("-o", "--output", help="write the error series as CSV")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_compare)
 
     s = sub.add_parser("query", help="one-shot SNTP measurement")
     s.add_argument("servers", nargs="+")

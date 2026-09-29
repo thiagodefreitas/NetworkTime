@@ -164,7 +164,25 @@ def test_nts_verifies_certificate(pki, tmp_path):
     srv = FakeNTS(*pki)
     other_cert, _ = make_cert(tmp_path / "other" if (tmp_path / "other").mkdir() is None else tmp_path)
     try:
-        with pytest.raises(Exception):
+        with pytest.raises((nts.NTSError, SSL.Error)):
             nts.key_exchange("localhost", srv.tcp.getsockname()[1], cafile=other_cert)
     finally:
         srv.close()
+
+
+def test_nts_tls_errors_are_ntserrors():
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    s.listen(1)
+
+    def serve():
+        c, _ = s.accept()
+        c.sendall(b"HTTP/1.0 400 not tls\r\n\r\n")
+        c.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    try:
+        with pytest.raises(nts.NTSError):
+            nts.key_exchange("127.0.0.1", s.getsockname()[1], verify=False, timeout=2)
+    finally:
+        s.close()

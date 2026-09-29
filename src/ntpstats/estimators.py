@@ -38,7 +38,7 @@ Built-in reference algorithms
 from __future__ import annotations
 
 import math
-from typing import Callable, Dict, List, Sequence, Union
+from typing import Callable, Dict, Sequence, Union
 
 import numpy as np
 

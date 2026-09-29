@@ -13,6 +13,50 @@ tests the code, tags `vX.Y.Z` and publishes a GitHub Release with the notes belo
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-09-29
+
+### Security
+- Web UI: export file names are sanitised and RFC 6266-encoded, which prevents response-header
+  injection through crafted upload names; non-ASCII names no longer truncate responses.
+- Web UI: a negative `Content-Length` is rejected instead of blocking a worker thread.
+- Web UI: `/api/mask` treats the body as mask text only and can no longer read files on the
+  server.
+- NTS: a Kiss-o'-Death (including NTSN) is honoured only when it echoes the request's Unique
+  Identifier (RFC 8915 §5.7), so a spoofed packet cannot flush the keys.
+
+### Fixed
+- NTS: TLS failures during NTS-KE raise `NTSError`, which the CLI and monitor handle, instead of
+  surfacing raw pyOpenSSL exceptions.
+- Masks apply to one statistic, named in the header (`tau,tdev`, `tau,mtie`, …) or set with
+  `--mask-kind` (default TDEV). They are no longer compared with estimators of other units.
+- CSV export keeps full sub-second time resolution. It previously used `%.12g`, which kept
+  only 2 decimals of POSIX time.
+- CSV import with a header but no time column now requires `tau0` instead of using the offset
+  as time.
+- `ntpstats network` removes a linear trend before computing offset statistics, as the UI and
+  report do (`--detrend`).
+- Kalman noise fitting no longer fails on constant offsets (zero ADEV).
+- Floor packet percentage no longer drops the last sample when the span is an exact multiple of
+  the window.
+- `ntpstats simulate` no longer mutates the shared presets.
+- `--tau0` is honoured as the stability grid for multi-column files.
+- `ntpstats report --ci 0` no longer crashes.
+- Live monitor: a late sample from a stopped monitor can no longer land in a newer live dataset.
+- `ui --host 0.0.0.0` accepts remote Host headers (it is an explicit opt-in). IPv6 bind
+  addresses work.
+
+### Performance
+- Stability confidence intervals: the EDF uses FFT convolution, so 1M-sample
+  OADEV/MDEV/HDEV/TDEV with CIs takes about 1.2 s (previously 28–121 s).
+- Parsers use numpy's C tokenizer, with a tolerant per-line fallback: ~1 s per million loopstats
+  lines, ~2.4 s peerstats and ~3 s chrony (previously ~9–10 s). Closes #13.
+
+### Added
+- `ntpstats compare ESTIMATE REFERENCE`: error statistics plus TDEV/MTIE of one source against
+  a reference (e.g. NTP client vs PPS/GNSS).
+- CI: ruff lint and coverage reporting; `Dockerfile` for the UI/CLI/monitor.
+- Tests for every fix above (166 tests).
+
 ## [2.3.0] - 2026-09-29
 
 ### Added
@@ -111,7 +155,8 @@ First release of the rewrite. The 2012 Google Summer of Code prototype is kept u
 - Allan deviation τ₀ was hard-coded to 32 s (≈33× error on loopstats data); irregular sampling
   and gaps were ignored. See `docs/STATE_OF_THE_ART.md`.
 
-[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.0.0...v2.1.0

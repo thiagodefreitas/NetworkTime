@@ -115,7 +115,38 @@ def test_network_requires_delay():
 
 
 def test_presets_run():
-    for name, sc in PRESETS.items():
+    for sc in PRESETS.values():
         from dataclasses import replace
         m, tr = simulate_ntp(replace(sc, duration=3600, seed=1))
         assert len(m) > 10 and "true_offset" in m.extra
+
+
+def test_kalman_on_constant_offsets():
+    s = TimeSeries(np.arange(0, 6400, 64.0), np.full(100, 1e-3))
+    r = filters.kalman(s)
+    assert np.allclose(r.phase[5:], 1e-3, atol=1e-9)
+
+
+def test_fpp_keeps_last_sample():
+    t = np.arange(0, 401, 1.0)
+    s = TimeSeries(t, np.zeros(t.size), extra={"delay": np.full(t.size, 0.01)})
+    starts, pct = network.floor_packet_percentage(s, window=200)
+    assert starts.size == 3 and pct[-1] == 100.0
+
+
+def test_csv_roundtrip_keeps_subsecond_time(tmp_path):
+    from ntpstats.parsers import load_one
+
+    t = 1.7e9 + 0.0625 * np.arange(20)
+    p = tmp_path / "x.csv"
+    TimeSeries(t, np.zeros(20)).to_csv(str(p))
+    assert np.allclose(np.diff(load_one(str(p)).t), 0.0625, atol=1e-7)
+
+
+def test_csv_without_time_column_needs_tau0():
+    from ntpstats.parsers import ParseError, load
+
+    with pytest.raises(ParseError):
+        load("offset,delay\n0.1,0.2\n0.2,0.3\n0.3,0.4\n")
+    (s,) = load("offset,delay\n0.1,0.2\n0.2,0.3\n0.3,0.4\n", tau0=16)
+    assert list(s.t) == [0, 16, 32] and list(s.offset) == [0.1, 0.2, 0.3]

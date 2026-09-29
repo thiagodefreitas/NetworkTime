@@ -19,14 +19,15 @@ import io
 import json
 import mimetypes
 import os
+import re
+import socket
 import threading
 import time
 import traceback
 import webbrowser
-from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, List, Optional
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import numpy as np
 
@@ -34,17 +35,24 @@ from .. import __version__
 from ..analysis import detrend as _detrend
 from ..analysis import remove_outliers, summary
 from ..filters import kalman
+from ..masks import check as mask_check
+from ..masks import load_mask
 from ..monitor import Monitor
 from ..network import delay_stats, floor_packet_percentage, min_delay_filter, wedge
-from ..simulate import PRESETS, simulate_ntp
 from ..parsers import ParseError, load
 from ..pcap import is_capture
 from ..series import TimeSeries
+from ..simulate import PRESETS, simulate_ntp
 from ..sntp import NTPError, query
 from ..sources import SourceError
-from ..masks import check as mask_check
-from ..masks import load_mask
-from ..stability import DESCRIPTIONS, KINDS, TIME_KINDS, dynamic, identify_noise, series_stability
+from ..stability import (
+    DESCRIPTIONS,
+    KINDS,
+    TIME_KINDS,
+    dynamic,
+    identify_noise,
+    series_stability,
+)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 VENDOR_DIR = os.path.join(os.path.dirname(__file__), "vendor")
@@ -95,6 +103,12 @@ STORE = Store()
 
 
 # ----------------------------------------------------------------- helpers
+def _disposition(filename: str) -> str:
+    """Content-Disposition safe against header injection and non-latin-1 names (RFC 6266)."""
+    ascii_name = re.sub(r"[^A-Za-z0-9._-]+", "_", filename)[:150] or "download"
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename[:150], safe='')}"
+
+
 def _decimate(t: np.ndarray, y: np.ndarray, max_points: int) -> np.ndarray:
     """Indices for min/max-per-bucket decimation (keeps spikes visible)."""
     n = t.size
@@ -214,7 +228,7 @@ def api_stability(sid, params):
     for r in results:
         d = dict(r.as_dict(), description=DESCRIPTIONS[r.kind], meta=r.meta,
                  noise=identify_noise(r) if r.kind not in TIME_KINDS else [])
-        if mask is not None:
+        if mask is not None and mask.kind == r.kind:
             d["mask"] = dict(mask_check(r, mask), taus=mask.taus.tolist(), limits=mask.limits.tolist())
         out.append(d)
     return {"id": sid, "name": s.name, "results": out}
@@ -309,12 +323,13 @@ def export_stability_csv(sid, params) -> str:
     return buf.getvalue()
 
 
-def _monitor_sample(r):
+def _monitor_sample(r, sid):
     with STORE.lock:
-        sid = STORE.monitor_id
-        if sid is None:
+        # the dataset id is bound when the monitor starts, so a late sample from a
+        # stopped monitor can never leak into a newer live dataset
+        old = STORE.datasets.get(sid)
+        if old is None:
             return
-        old = STORE.datasets[sid]
         if isinstance(r, dict):  # local daemon sample (sources.LocalWatch)
             t, off = float(r["time"]), float(r["offset"])
             vals = {k: float(r[k]) for k in old.extra if isinstance(r.get(k), (int, float))}
@@ -347,14 +362,20 @@ def api_monitor_start(body):
 
             cols = {k: np.array([]) for k in NUMERIC_EXTRAS[source]}
             label, servers = f"live: local {source}", [f"local {source}"]
-            mon = LocalWatch(source, interval, out_path=out, on_sample=_monitor_sample, on_error=_monitor_error)
         else:
             version = int(body.get("version", 4))
             cols = {"delay": np.array([]), "stratum": np.array([])}
             label = f"live{' NTPv5' if version == 5 else ''}: {', '.join(servers)}"
-            mon = Monitor(servers, interval, out_path=out, on_sample=_monitor_sample, on_error=_monitor_error,
-                          version=version)
         sid = STORE.add(TimeSeries(np.array([]), np.array([]), label, "live", cols, {"peer": servers[0]}))
+
+        def on_sample(r, sid=sid):
+            _monitor_sample(r, sid)
+
+        if source in ("chrony", "ntpd"):
+            mon = LocalWatch(source, interval, out_path=out, on_sample=on_sample, on_error=_monitor_error)
+        else:
+            mon = Monitor(servers, interval, out_path=out, on_sample=on_sample, on_error=_monitor_error,
+                          version=version)
         STORE.monitor_id = sid
         STORE.monitor_log = []
         STORE.monitor = mon.start()
@@ -395,6 +416,8 @@ class Handler(BaseHTTPRequestHandler):
     # -- plumbing
     def _host_ok(self) -> bool:
         host = (self.headers.get("Host") or "").rsplit(":", 1)[0] if not (self.headers.get("Host") or "").startswith("[") else (self.headers.get("Host") or "").split("]")[0] + "]"
+        if getattr(self.server, "any_host", False):
+            return True
         return host in self.allowed_hosts or host in getattr(self.server, "extra_hosts", ())
 
     def _send(self, code, body: bytes, ctype="application/json", extra_headers=None):
@@ -419,7 +442,12 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": msg}, code)
 
     def _body(self) -> bytes:
-        n = int(self.headers.get("Content-Length") or 0)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            raise ValueError("invalid Content-Length") from None
+        if n < 0:
+            raise ValueError("invalid Content-Length")
         if n > MAX_UPLOAD:
             raise ValueError("upload too large")
         return self.rfile.read(n) if n else b""
@@ -484,14 +512,13 @@ class Handler(BaseHTTPRequestHandler):
                                           detrend=None if det in (None, "none") else det,
                                           ci=_q(params, "ci", 0.683, float) or 0.683, title=f"ntpstats report: {name}")
                     return self._send(200, body.encode(), "text/html; charset=utf-8",
-                                      {"Content-Disposition": f'attachment; filename="{name}-report.html"'})
+                                      {"Content-Disposition": _disposition(f"{name}-report.html")})
                 elif what == "summary.json":
                     body = json.dumps(_clean(summary(_prepare(sid, params))), indent=2)
                 else:
                     return self._error(404, "unknown export")
                 ctype = "application/json" if what.endswith(".json") else "text/csv"
-                return self._send(200, body.encode(), ctype,
-                                  {"Content-Disposition": f'attachment; filename="{name}-{what}"'})
+                return self._send(200, body.encode(), ctype, {"Content-Disposition": _disposition(f"{name}-{what}")})
             return self._error(404, "unknown endpoint")
         except KeyError:
             return self._error(404, "unknown dataset")
@@ -521,7 +548,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json([STORE.describe(i) for i in ids])
             if route == ["mask"]:
                 name = unquote(self.headers.get("X-Filename") or "mask")
-                mask = load_mask(self._body().decode("utf-8", errors="replace"), name=name)
+                mask = load_mask(io.StringIO(self._body().decode("utf-8", errors="replace")), name=name,
+                                 kind=_q(params, "kind", None))
                 with STORE.lock:
                     mid = f"m{len(STORE.masks) + 1}"
                     STORE.masks[mid] = mask
@@ -574,10 +602,16 @@ def serve(
     for path in files:
         for s in load(path, fmt=fmt):
             STORE.add(s)
-    httpd = ThreadingHTTPServer((host, port), Handler)
+    server_cls = ThreadingHTTPServer
+    if ":" in host:  # IPv6 literal
+        server_cls = type("ThreadingHTTPServerV6", (ThreadingHTTPServer,), {"address_family": socket.AF_INET6})
+    httpd = server_cls((host, port), Handler)
     httpd.daemon_threads = True
     if host not in ("127.0.0.1", "localhost", "::1"):
-        httpd.extra_hosts = (host,)
+        # Explicitly exposed: accept any Host header (DNS-rebinding protection is
+        # only meaningful for loopback binds); the custom-header CSRF check stays.
+        httpd.any_host = host in ("0.0.0.0", "::")
+        httpd.extra_hosts = (host, f"[{host}]")
         print(f"warning: listening on {host}; the UI has no authentication")
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{httpd.server_address[1]}/"
     print(f"ntpstats UI running at {url}  (Ctrl+C to stop)")

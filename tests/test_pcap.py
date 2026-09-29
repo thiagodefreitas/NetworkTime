@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
 import pytest
-
 from capture_util import exchanges, pcap_bytes, pcapng_bytes
+
 from ntpstats.parsers import load
 
 

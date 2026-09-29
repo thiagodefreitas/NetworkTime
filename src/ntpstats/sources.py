@@ -114,7 +114,8 @@ def sample_ntpq(cmd: Sequence[str] = ("ntpq",)) -> Dict[str, object]:
     return d
 
 
-SAMPLERS: Dict[str, Callable[..., Dict[str, object]]] = {"chrony": sample_chrony, "ntpd": sample_ntpq}
+#: daemon -> sampler function name (resolved at call time so it can be patched/replaced)
+SAMPLERS: Dict[str, str] = {"chrony": "sample_chrony", "ntpd": "sample_ntpq"}
 NUMERIC_EXTRAS = {
     "chrony": ("last_offset", "rms_offset", "frequency_ppm", "skew_ppm", "root_delay", "root_dispersion", "stratum"),
     "ntpd": ("frequency_ppm", "sys_jitter", "clk_jitter", "clk_wander_ppm", "rootdelay", "rootdisp", "stratum"),
@@ -143,7 +144,7 @@ class LocalWatch:
         self._thread: Optional[threading.Thread] = None
 
     def sample(self) -> Dict[str, object]:
-        fn = SAMPLERS[self.daemon]
+        fn: Callable[..., Dict[str, object]] = globals()[SAMPLERS[self.daemon]]
         return fn(self.cmd) if self.cmd else fn()
 
     def start(self) -> "LocalWatch":

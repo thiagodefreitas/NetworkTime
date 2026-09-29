@@ -10,12 +10,18 @@ import pytest
 
 from ntpstats import estimators as E
 from ntpstats import stability as st
-from ntpstats.analysis import compare
 from ntpstats.bench import load_scenarios, run_bench, score, summarize, to_csv
 from ntpstats.report import bench_report, dataset_report
-from ntpstats.series import TimeSeries
-from ntpstats.simulate import (PRESETS, ClockModel, PathEvent, PathModel, Scenario, ServerSpec,
-                               scenario_from_dict, simulate_multi, simulate_ntp)
+from ntpstats.simulate import (
+    PRESETS,
+    ClockModel,
+    PathEvent,
+    PathModel,
+    Scenario,
+    scenario_from_dict,
+    simulate_multi,
+    simulate_ntp,
+)
 
 EX = os.path.join(os.path.dirname(__file__), os.pardir, "examples")
 

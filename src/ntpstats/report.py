@@ -22,7 +22,7 @@ from . import __version__
 from .analysis import detrend as _detrend
 from .analysis import format_seconds, summary
 from .series import TimeSeries
-from .stability import DESCRIPTIONS, NOISE_NAMES, TIME_KINDS, series_stability
+from .stability import NOISE_NAMES, TIME_KINDS, series_stability
 
 _VENDOR = os.path.join(os.path.dirname(__file__), "web", "vendor")
 PALETTE = ["#3b82f6", "#f97316", "#10b981", "#e11d48", "#8b5cf6", "#eab308", "#06b6d4", "#64748b"]
@@ -126,7 +126,7 @@ def dataset_report(series: Sequence[TimeSeries], kinds=("oadev", "mdev", "tdev")
     charts: List[dict] = []
     body = [f"<h1>{html.escape(title)}</h1>",
             f'<div class="meta">{len(series)} dataset(s) · stability: {", ".join(k.upper() for k in kinds)}'
-            f' · detrend: {detrend or "none"} · CI {ci:.1%}</div>']
+            f' · detrend: {detrend or "none"} · CI {"off" if not ci else f"{ci:.1%}"}</div>']
     for i, s in enumerate(series):
         c = PALETTE[i % len(PALETTE)]
         sm = summary(s)
@@ -152,7 +152,10 @@ def dataset_report(series: Sequence[TimeSeries], kinds=("oadev", "mdev", "tdev")
         for j, r in enumerate(results):
             col = PALETTE[(i + j) % len(PALETTE)]
             m = {float(t): k for k, t in enumerate(r.taus)}
-            pick = lambda arr: [None if (arr is None or t not in m) else float(arr[m[t]]) for t in taus]  # noqa: E731
+
+            def pick(arr, m=m, taus=taus):
+                return [None if (arr is None or t not in m) else float(arr[m[t]]) for t in taus]
+
             spec["series"].append({"label": r.kind.upper(), "y": pick(r.dev), "color": col, "points": True,
                                    "lo": pick(r.lo) if r.lo is not None else None, "hi": pick(r.hi) if r.hi is not None else None})
             for k, t in enumerate(r.taus):

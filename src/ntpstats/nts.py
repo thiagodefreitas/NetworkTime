@@ -38,11 +38,11 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from .sntp import (
+    _PACKET,
     KissOfDeath,
     NTPError,
     NTPResult,
     _ntp_to_unix,
-    _PACKET,
     _refid,
     _short,
 )
@@ -160,6 +160,13 @@ def key_exchange(host: str, port: int = 4460, timeout: float = 5.0, verify: bool
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, tv)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, tv)
     conn = SSL.Connection(ctx, sock)
+    try:
+        return _ke_session(conn, host, timeout, verify, SSL)
+    except SSL.Error as exc:
+        raise NTSError(f"NTS-KE TLS error with {host}:{port}: {exc}") from exc
+
+
+def _ke_session(conn, host, timeout, verify, SSL) -> "NTSKeys":
     try:
         conn.set_tlsext_host_name(host.encode())
         conn.set_connect_state()
@@ -320,6 +327,11 @@ class NTSSession:
         (b0, stratum, poll, prec, rdelay, rdisp, refid, _ref, _org, rec, xm) = _PACKET.unpack(data[:48])
         if stratum == 0:
             code = refid.rstrip(b"\0").decode("ascii", errors="replace")
+            # RFC 8915 s5.7: a (necessarily unauthenticated) NTS NAK is only
+            # honoured if it echoes our Unique Identifier.
+            uid_ok = any(t == EF_UID and body[:32] == uid for _, t, body in _extension_fields(data))
+            if not uid_ok:
+                raise NTSError(f"ignored Kiss-o'-Death {code} without matching unique identifier")
             if code == "NTSN":
                 self.keys = None  # cookies rejected: redo NTS-KE next time
             raise KissOfDeath(code)

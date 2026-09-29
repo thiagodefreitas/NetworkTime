@@ -123,7 +123,7 @@ def main():
     import sys
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, "tests"))
-    from capture_util import ether, ntp64, ntp_request, ntp_response, pcap_bytes
+    from capture_util import ether, ntp_request, ntp_response, pcap_bytes
 
     s = sims["198.51.100.7"]
     frames = []

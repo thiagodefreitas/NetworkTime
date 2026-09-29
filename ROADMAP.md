@@ -46,7 +46,7 @@ as [GitHub issues](https://github.com/thiagodefreitas/NetworkTime/issues).
 - Richer simulation: flicker FM, temperature-driven wander, route changes and asymmetric steps,
   and server faults (falsetickers). ([#11](https://github.com/thiagodefreitas/NetworkTime/issues/11))
 
-## UX and infrastructure
+## UX and infrastructure (2.4.0: performance, lint, coverage, Docker, security review done)
 - A single-file self-contained HTML report export. ([#12](https://github.com/thiagodefreitas/NetworkTime/issues/12))
 - Large-file performance: streaming parsers, >10 M samples, background computation. ([#13](https://github.com/thiagodefreitas/NetworkTime/issues/13))
 - PyPI release, documentation site, container image. ([#14](https://github.com/thiagodefreitas/NetworkTime/issues/14))
