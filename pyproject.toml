@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ntpstats"
-version = "2.0.0"
+dynamic = ["version"]
 description = "NTP / network-time offset, delay and frequency-stability analysis (ADEV, MDEV, TDEV, HDEV, MTIE) with a lightweight web UI"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -32,6 +32,9 @@ Issues = "https://github.com/thiagodefreitas/NetworkTime/issues"
 
 [project.scripts]
 ntpstats = "ntpstats.cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "ntpstats.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

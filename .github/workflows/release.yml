@@ -1,0 +1,75 @@
+# Creates tag vX.Y.Z and a GitHub Release whenever master carries a version
+# (ntpstats.__version__) that has not been released yet. Optionally publishes
+# to PyPI through trusted publishing when the repository variable
+# PYPI_PUBLISH is set to "true" (configure the "pypi" environment first).
+name: Release
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      created: ${{ steps.check.outputs.created }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - id: v
+        run: echo "version=$(python -c 'import re;print(re.search(r"__version__ = \"(.+?)\"", open("src/ntpstats/__init__.py").read()).group(1))')" >> "$GITHUB_OUTPUT"
+      - id: check
+        run: |
+          if git rev-parse -q --verify "refs/tags/v${{ steps.v.outputs.version }}" >/dev/null; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.check.outputs.created == 'true'
+        run: |
+          pip install -e ".[test,plot]" build
+          pytest -q
+          python -m build
+      - if: steps.check.outputs.created == 'true'
+        name: Release notes from CHANGELOG
+        run: |
+          python - <<'PY'
+          import re
+          v = "${{ steps.v.outputs.version }}"
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(r"^## \[" + re.escape(v) + r"\][^\n]*\n(.*?)(?=^## \[|^\[)", text, re.S | re.M)
+          open("notes.md", "w").write((m.group(1).strip() if m else f"ntpstats {v}") + "\n")
+          PY
+      - if: steps.check.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.v.outputs.version }}" dist/* \
+            --target "${{ github.sha }}" --title "ntpstats ${{ steps.v.outputs.version }}" --notes-file notes.md
+      - if: steps.check.outputs.created == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: release
+    if: needs.release.outputs.created == 'true' && vars.PYPI_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
