@@ -168,3 +168,9 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 6px;
   .grid2 { grid-template-columns: 1fr; }
   main { padding: 10px 16px; }
 }
+
+.chart.heat { padding: 8px; }
+.chart.heat canvas { width: 100%; height: 340px; display: block; }
+.chip.pass { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.chip.fail { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+td.fail { color: var(--bad); font-weight: 600; }

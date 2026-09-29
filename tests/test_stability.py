@@ -141,3 +141,71 @@ def test_tau_grids():
 def test_invalid_kind():
     with pytest.raises(ValueError):
         st.compute(np.zeros(10), 1.0, "nope")
+
+
+# ---- 2.1 estimators
+def naive_totdev(x, m, tau0):
+    N = len(x)
+    ext = {i: x[i] for i in range(N)}
+    for j in range(1, N - 1):
+        ext[-j] = 2 * x[0] - x[j]
+        ext[N - 1 + j] = 2 * x[N - 1] - x[N - 1 - j]
+    s = sum((ext[i - m] - 2 * ext[i] + ext[i + m]) ** 2 for i in range(1, N - 1))
+    return np.sqrt(s / (2 * (m * tau0) ** 2 * (N - 2)))
+
+
+def naive_theo1(x, m, tau0):
+    N = len(x)
+    h = m // 2
+    s = 0.0
+    for i in range(N - m):
+        for d in range(h):
+            s += ((x[i] - x[i - d + h]) + (x[i + m] - x[i + d + h])) ** 2 / (h - d)
+    return np.sqrt(s / (0.75 * (N - m) * (m * tau0) ** 2))
+
+
+@pytest.mark.parametrize("m", [1, 2, 5, 16, 60])
+def test_totdev_textbook(phase, m):
+    assert st.compute(phase, 2.0, "totdev", [m], ci=None).dev[0] == pytest.approx(naive_totdev(phase, m, 2.0), rel=1e-12)
+
+
+@pytest.mark.parametrize("m", [2, 4, 10, 64])
+def test_theo1_textbook(phase, m):
+    r = st.compute(phase, 2.0, "theo1", [m], ci=None)
+    assert r.taus[0] == pytest.approx(0.75 * m * 2.0)
+    assert r.dev[0] == pytest.approx(naive_theo1(phase, m, 2.0), rel=1e-12)
+
+
+def test_theo1_unbiased_for_white_fm():
+    x = powerlaw_phase(1 << 14, 0, 1.0, rng=8)
+    r = st.compute(x, 1.0, "theo1", [16, 64, 256], ci=None)
+    np.testing.assert_allclose(r.dev, 1 / np.sqrt(r.taus), rtol=0.1)
+
+
+def test_tierms_random_walk():
+    x = powerlaw_phase(1 << 14, 0, 1.0, rng=9)
+    r = st.compute(x, 1.0, "tierms", [1, 16, 64], ci=None)
+    np.testing.assert_allclose(r.dev, np.sqrt([1, 16, 64]), rtol=0.1)
+
+
+def test_dynamic_detects_change():
+    rng = np.random.default_rng(1)
+    x = np.concatenate([rng.normal(0, 1e-6, 4000), rng.normal(0, 1e-5, 4000)])
+    s = TimeSeries(np.arange(x.size, dtype=float), x)
+    d = st.dynamic(s, "oadev", window=1000, step=500)
+    assert d.dev.shape[0] == 15
+    assert np.nanmean(d.dev[-3:, 0]) > 5 * np.nanmean(d.dev[:3, 0])
+
+
+def test_mask_check():
+    from ntpstats.masks import check, load_mask
+
+    m = load_mask("# tau limit\ntau,limit\n1,1e-6\n100,1e-8\n")
+    assert m.limit_at(np.array([10.0]))[0] == pytest.approx(1e-7)
+    assert np.isnan(m.limit_at(np.array([1000.0]))[0])
+    x = powerlaw_phase(4096, 2, 1e-6, rng=2)  # white PM: ADEV(1 s) ~ 1.7e-6 > 1e-6
+    r = st.compute(x, 1.0, "oadev", "octave")
+    c = check(r, m)
+    assert c["passed"] is False and c["used_upper_bound"]
+    c2 = check(r, load_mask("1,1\n1000,1\n"))
+    assert c2["passed"] is True

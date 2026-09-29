@@ -104,12 +104,25 @@ def cmd_stability(args):
     taus = args.taus
     if "," in taus or taus.isdigit():
         taus = [int(v) for v in taus.split(",")]
+    mask = None
+    if args.mask:
+        from .masks import load_mask
+
+        mask = load_mask(args.mask)
     all_out = []
+    rc = 0
     for s in _load_args(args):
         results = series_stability(s, kinds=kinds, taus=taus, tau0=args.resample, max_gap=args.max_gap,
                                    detrend=args.detrend, ci=args.ci)
+        checks = {}
+        if mask is not None:
+            from .masks import check
+
+            checks = {r.kind: check(r, mask) for r in results}
+            if any(c["passed"] is False for c in checks.values()):
+                rc = 3
         if args.json:
-            all_out.append({"name": s.name, "results": [r.as_dict() for r in results]})
+            all_out.append({"name": s.name, "results": [dict(r.as_dict(), mask=checks.get(r.kind)) for r in results]})
             continue
         if args.csv:
             for r in results:
@@ -120,14 +133,38 @@ def cmd_stability(args):
               f"{meta['gap_points']} in gaps, regularity {meta['regularity']:.0%}")
         for r in results:
             print(f"-- {DESCRIPTIONS[r.kind]}" + (f"  ({r.ci:.1%} CI)" if r.ci else ""))
-            print(f"   {'tau [s]':>12} {'dev':>12} {'lo':>12} {'hi':>12} {'n':>7}  noise")
+            c = checks.get(r.kind)
+            head = f"   {'tau [s]':>12} {'dev':>12} {'lo':>12} {'hi':>12} {'n':>7}"
+            print(head + (f" {'limit':>11} {'margin':>7}" if c else "") + "  noise")
             for i in range(r.taus.size):
                 lo = f"{r.lo[i]:12.4e}" if r.lo is not None else " " * 12
                 hi = f"{r.hi[i]:12.4e}" if r.hi is not None else " " * 12
                 nz = NOISE_NAMES.get(int(r.alpha[i]), "") if r.alpha is not None and np.isfinite(r.alpha[i]) else ""
-                print(f"   {r.taus[i]:12.6g} {r.dev[i]:12.4e} {lo} {hi} {int(r.n[i]):7d}  {nz}")
+                extra = ""
+                if c:
+                    lim, mar = c["limit"][i], c["margin"][i]
+                    extra = (f" {lim:11.3e} {mar:7.2f}" + ("" if mar >= 1 else " FAIL")) if lim else " " * 20
+                print(f"   {r.taus[i]:12.6g} {r.dev[i]:12.4e} {lo} {hi} {int(r.n[i]):7d}{extra}  {nz}")
+            if c:
+                verdict = "n/a" if c["passed"] is None else ("PASS" if c["passed"] else "FAIL")
+                print(f"   mask {c['mask']}: {verdict} (worst margin {c['worst_margin']})")
     if args.json:
         print(json.dumps(all_out, indent=2))
+    return rc
+
+
+def cmd_dynamic(args):
+    from .stability import dynamic
+
+    for s in _load_args(args):
+        d = dynamic(s, kind=args.kind, window=args.window, step=args.step, detrend=args.detrend)
+        if args.json:
+            print(json.dumps(dict(d.as_dict(), name=s.name)))
+            continue
+        print("# " + s.name + f": {args.kind} window {d.window:g} s step {d.step:g} s")
+        print("time," + ",".join(f"{t:g}" for t in d.taus))
+        for t, row in zip(d.times, d.dev):
+            print(f"{t:.3f}," + ",".join("" if not np.isfinite(v) else f"{v:.6e}" for v in row))
 
 
 def cmd_plot(args):
@@ -282,10 +319,20 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--resample", type=float, metavar="TAU0", help="grid spacing (default: median sample interval)")
     s.add_argument("--max-gap", type=float, default=3.0, help="gaps longer than this many tau0 are not interpolated")
     s.add_argument("--ci", type=float, default=0.683, help="confidence level for intervals (0 disables)")
+    s.add_argument("--mask", help="CSV of tau,limit to check against (exit code 3 on failure)")
     g = s.add_mutually_exclusive_group()
     g.add_argument("--json", action="store_true")
     g.add_argument("--csv", action="store_true")
     s.set_defaults(func=cmd_stability)
+
+    s = sub.add_parser("dynamic", help="sliding-window (dynamic) stability, CSV matrix time x tau")
+    _common(s)
+    s.add_argument("-k", "--kind", default="oadev", choices=[k for k in KINDS if k != "mtie"])
+    s.add_argument("--window", type=float, help="window length, s (default: 1/8 of the record)")
+    s.add_argument("--step", type=float, help="step, s (default: window/4)")
+    s.add_argument("--detrend", choices=("linear", "quadratic"))
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_dynamic)
 
     s = sub.add_parser("plot", help="write a static report figure (PNG/PDF/SVG; needs matplotlib)")
     _common(s)

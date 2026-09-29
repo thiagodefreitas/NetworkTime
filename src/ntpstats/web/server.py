@@ -40,7 +40,9 @@ from ..simulate import PRESETS, simulate_ntp
 from ..parsers import ParseError, load
 from ..series import TimeSeries
 from ..sntp import NTPError, query
-from ..stability import DESCRIPTIONS, KINDS, identify_noise, series_stability
+from ..masks import check as mask_check
+from ..masks import load_mask
+from ..stability import DESCRIPTIONS, KINDS, TIME_KINDS, dynamic, identify_noise, series_stability
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 VENDOR_DIR = os.path.join(os.path.dirname(__file__), "vendor")
@@ -57,6 +59,7 @@ class Store:
         self.monitor: Optional[Monitor] = None
         self.monitor_id: Optional[str] = None
         self.monitor_log: List[str] = []
+        self.masks: Dict[str, object] = {}
 
     def add(self, s: TimeSeries) -> str:
         with self.lock:
@@ -202,15 +205,26 @@ def api_stability(sid, params):
     det = None if det in (None, "none") else det
     max_gap = _q(params, "max_gap", 3.0, float)
     tau0 = _q(params, "tau0", None, float)
-    results = series_stability(s, kinds=kinds, taus=taus, tau0=tau0, max_gap=max_gap, detrend=det)
-    return {
-        "id": sid,
-        "name": s.name,
-        "results": [
-            dict(r.as_dict(), description=DESCRIPTIONS[r.kind], noise=identify_noise(r) if r.kind != "mtie" else [], meta=r.meta)
-            for r in results
-        ],
-    }
+    ci = _q(params, "ci", 0.683, float) or None
+    results = series_stability(s, kinds=kinds, taus=taus, tau0=tau0, max_gap=max_gap, detrend=det, ci=ci)
+    mask = STORE.masks.get(_q(params, "mask", ""))
+    out = []
+    for r in results:
+        d = dict(r.as_dict(), description=DESCRIPTIONS[r.kind], meta=r.meta,
+                 noise=identify_noise(r) if r.kind not in TIME_KINDS else [])
+        if mask is not None:
+            d["mask"] = dict(mask_check(r, mask), taus=mask.taus.tolist(), limits=mask.limits.tolist())
+        out.append(d)
+    return {"id": sid, "name": s.name, "results": out}
+
+
+def api_dynamic(sid, params):
+    s = _prepare(sid, params)
+    det = _q(params, "detrend", None)
+    det = None if det in (None, "none") else det
+    d = dynamic(s, kind=_q(params, "kind", "oadev"), window=_q(params, "window", None, float),
+                step=_q(params, "step", None, float), detrend=det)
+    return dict(d.as_dict(), id=sid, name=s.name)
 
 
 def api_histogram(sid, params):
@@ -440,6 +454,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(api_histogram(route[1], params))
             if len(route) == 2 and route[0] == "network":
                 return self._json(api_network(route[1], params))
+            if len(route) == 2 and route[0] == "dynamic":
+                return self._json(api_dynamic(route[1], params))
             if len(route) == 3 and route[0] == "export":
                 sid, what = route[1], route[2]
                 name = STORE.get(sid).name.replace(" ", "_").replace("/", "_")
@@ -480,6 +496,13 @@ class Handler(BaseHTTPRequestHandler):
                 series = load(io.StringIO(text), fmt=fmt, tau0=tau0, name=name)
                 ids = [STORE.add(s) for s in series]
                 return self._json([STORE.describe(i) for i in ids])
+            if route == ["mask"]:
+                name = unquote(self.headers.get("X-Filename") or "mask")
+                mask = load_mask(self._body().decode("utf-8", errors="replace"), name=name)
+                with STORE.lock:
+                    mid = f"m{len(STORE.masks) + 1}"
+                    STORE.masks[mid] = mask
+                return self._json(dict(mask.as_dict(), id=mid))
             body = json.loads(self._body() or b"{}")
             if route == ["query"]:
                 r = query(str(body.get("server", "")).strip(), timeout=float(body.get("timeout", 2.0)))

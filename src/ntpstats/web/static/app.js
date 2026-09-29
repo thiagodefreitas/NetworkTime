@@ -8,8 +8,8 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 const PALETTE = ["#3b82f6", "#f97316", "#10b981", "#e11d48", "#8b5cf6", "#eab308", "#06b6d4", "#64748b"];
-const KIND_LABEL = { adev: "ADEV", oadev: "OADEV", mdev: "MDEV", tdev: "TDEV", hdev: "HDEV", mtie: "MTIE" };
-const TIME_KINDS = new Set(["tdev", "mtie"]);
+const KIND_LABEL = { adev: "ADEV", oadev: "OADEV", mdev: "MDEV", tdev: "TDEV", hdev: "HDEV", totdev: "TOTDEV", theo1: "Theo1", mtie: "MTIE", tierms: "TIErms" };
+const TIME_KINDS = new Set(["tdev", "mtie", "tierms"]);
 const NOISE = { "2": "white PM", "1": "flicker PM", "0": "white FM", "-1": "flicker FM", "-2": "RW FM" };
 
 const state = {
@@ -21,6 +21,7 @@ const state = {
   range: null,           // {start, end} POSIX seconds applied to analyses
   zoom: null,            // pending zoom selection on the offset chart
   kinds: new Set(["oadev", "mdev"]),
+  mask: null,            // {id, name} of the loaded limit mask
   charts: {},            // name -> uPlot instance
   cache: {},             // last payloads for export
   live: null,
@@ -375,14 +376,14 @@ async function renderStability() {
   const kinds = [...state.kinds];
   if (!kinds.length) return toast("select at least one statistic", true);
   const ci = $("#ci").value;
-  const q = params({ kinds: kinds.join(","), taus: $("#taus").value, ci });
+  const q = params({ kinds: kinds.join(","), taus: $("#taus").value, ci, mask: state.mask?.id });
   const payloads = await Promise.all(ids.map((id) => api(`/api/stability/${id}?${q}`)));
   state.cache.stability = payloads;
 
   const tables = [], series = [{}], bands = [];
   const dashes = [[], [6, 3], [2, 3], [8, 3, 2, 3], [1, 2], [10, 4]];
   const showCi = +ci > 0;
-  const kindColors = { adev: PALETTE[5], oadev: PALETTE[0], mdev: PALETTE[1], tdev: PALETTE[2], hdev: PALETTE[4], mtie: PALETTE[3] };
+  const kindColors = { adev: PALETTE[5], oadev: PALETTE[0], mdev: PALETTE[1], tdev: PALETTE[2], hdev: PALETTE[4], totdev: PALETTE[6], theo1: PALETTE[7], mtie: PALETTE[3], tierms: "#a16207" };
   payloads.forEach((p, i) => {
     p.results.forEach((r, j) => {
       if (!r.taus.length) return;
@@ -390,6 +391,10 @@ async function renderStability() {
       const name = `${KIND_LABEL[r.kind]}${ids.length > 1 ? " – " + (dsById(ids[i])?.name ?? p.name) : ""}`;
       tables.push([r.taus, r.dev]);
       series.push({ label: name, stroke: color, width: 1.75, dash: dashes[j % dashes.length], points: { show: true, size: 5, fill: color }, value: (u, v) => (TIME_KINDS.has(r.kind) ? fmtSec(v) : fmtExp(v)) });
+      if (r.mask && i === 0) {
+        tables.push([r.mask.taus, r.mask.limits]);
+        series.push({ label: `mask ${r.mask.mask} (${KIND_LABEL[r.kind]})`, stroke: css("--bad"), width: 2, dash: [8, 4], points: { show: true, size: 4, fill: css("--bad") } });
+      }
       if (showCi && r.lo && r.kind !== "mtie") {
         const devIdx = series.length - 1;
         tables.push([r.taus, r.hi]);
@@ -430,6 +435,19 @@ async function renderStability() {
   }, data);
   hideLegend(su, (s) => s._aux);
 
+  // mask verdict
+  const chip = $("#mask-chip");
+  const verdicts = payloads[0].results.filter((r) => r.mask && r.mask.passed != null);
+  if (state.mask && verdicts.length) {
+    const ok = verdicts.every((r) => r.mask.passed);
+    const worst = Math.min(...verdicts.map((r) => r.mask.worst_margin));
+    chip.textContent = `${ok ? "PASS" : "FAIL"} · worst margin ${worst.toFixed(2)}×`;
+    chip.className = "chip " + (ok ? "pass" : "fail");
+    chip.hidden = false;
+  } else chip.hidden = true;
+  if ($("#dyn").checked) renderDynamic(ids[0], kinds.find((k) => k !== "mtie") || "oadev");
+  $("#dyn-wrap").hidden = !$("#dyn").checked;
+
   // table
   const blocks = payloads.map((p, i) => p.results.map((r) => {
     const rows = r.taus.map((t, k) => `<tr><td>${tauFmt(t)}</td><td>${fmtNum(t, 6)}</td>
@@ -437,11 +455,12 @@ async function renderStability() {
       <td>${r.lo ? (TIME_KINDS.has(r.kind) ? fmtSec(r.lo[k]) : fmtExp(r.lo[k])) : "–"}</td>
       <td>${r.hi ? (TIME_KINDS.has(r.kind) ? fmtSec(r.hi[k]) : fmtExp(r.hi[k])) : "–"}</td>
       <td>${r.edf ? fmtNum(r.edf[k], 3) : "–"}</td><td>${r.n[k]}</td>
-      <td>${r.alpha && r.alpha[k] != null ? NOISE[String(r.alpha[k])] ?? "" : ""}</td></tr>`).join("");
+      <td>${r.alpha && r.alpha[k] != null ? NOISE[String(r.alpha[k])] ?? "" : ""}</td>
+      ${r.mask ? (r.mask.limit[k] == null ? "<td>–</td><td>–</td>" : `<td>${TIME_KINDS.has(r.kind) ? fmtSec(r.mask.limit[k]) : fmtExp(r.mask.limit[k])}</td><td class="${r.mask.margin[k] < 1 ? "fail" : ""}">${r.mask.margin[k].toFixed(2)}×</td>`) : ""}</tr>`).join("");
     const meta = r.meta || {};
     return `<h3>${esc(r.description)} — ${esc(dsById(ids[i])?.name ?? p.name)}</h3>
-      <p class="note">τ₀ = ${fmtNum(r.tau0, 6)} s · ${meta.grid_points ?? "?"} grid points, ${meta.gap_points ?? 0} in gaps (not interpolated) · sampling ${Math.round((meta.regularity ?? 1) * 100)} % regular${r.ci ? ` · ${(r.ci * 100).toFixed(1)} % χ² interval, lag-1 ACF noise ID` : ""}</p>
-      <table><tr><th>τ</th><th>τ [s]</th><th>${KIND_LABEL[r.kind]}</th><th>lower</th><th>upper</th><th>EDF</th><th>terms</th><th>noise</th></tr>${rows}</table>`;
+      <p class="note">τ₀ = ${fmtNum(r.tau0, 6)} s · ${meta.grid_points ?? "?"} grid points, ${meta.gap_points ?? 0} in gaps (not interpolated) · sampling ${Math.round((meta.regularity ?? 1) * 100)} % regular${r.ci ? ` · ${(r.ci * 100).toFixed(1)} % χ² interval (exact discrete EDF), lag-1 ACF noise ID` : ""}</p>
+      <table><tr><th>τ</th><th>τ [s]</th><th>${KIND_LABEL[r.kind]}</th><th>lower</th><th>upper</th><th>EDF</th><th>terms</th><th>noise</th>${r.mask ? "<th>limit</th><th>margin</th>" : ""}</tr>${rows}</table>`;
   }).join("")).join("");
   $("#stability-table").innerHTML = blocks;
 }
@@ -513,6 +532,67 @@ function median(a) {
   return b.length ? b[Math.floor(b.length / 2)] : 0;
 }
 
+
+// ------------------------------------------------------- dynamic heat-map
+const VIRIDIS = ["#440154", "#482878", "#3e4989", "#31688e", "#26828e", "#1f9e89", "#35b779", "#6ece58", "#b5de2b", "#fde725"];
+function heatColor(f) {
+  const x = Math.min(0.9999, Math.max(0, f)) * (VIRIDIS.length - 1);
+  const i = Math.floor(x), t = x - i;
+  const a = VIRIDIS[i], b = VIRIDIS[i + 1];
+  const mix = (k) => Math.round(parseInt(a.substr(k, 2), 16) * (1 - t) + parseInt(b.substr(k, 2), 16) * t);
+  return `rgb(${mix(1)},${mix(3)},${mix(5)})`;
+}
+
+async function renderDynamic(id, kind) {
+  let d;
+  try {
+    d = await api(`/api/dynamic/${id}?${params({ kind })}`);
+  } catch (e) {
+    $("#dyn-note").textContent = e.message;
+    return;
+  }
+  const cv = $("#heat");
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+  const L = 70, R = 90, T = 10, B = 34;
+  const nx = d.times.length, ny = d.taus.length;
+  const vals = d.dev.flat().filter((v) => v != null && v > 0);
+  if (!nx || !ny || !vals.length) { $("#dyn-note").textContent = "Not enough data for a sliding window."; return; }
+  const lo = Math.log10(Math.min(...vals)), hi = Math.log10(Math.max(...vals));
+  const cw = (W - L - R) / nx, ch = (H - T - B) / ny;
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+    const v = d.dev[i][j];
+    if (v == null || !(v > 0)) continue;
+    ctx.fillStyle = heatColor(hi > lo ? (Math.log10(v) - lo) / (hi - lo) : 0.5);
+    ctx.fillRect(L + i * cw, T + (ny - 1 - j) * ch, Math.ceil(cw) + 0.5, Math.ceil(ch) + 0.5);
+  }
+  ctx.fillStyle = css("--axis");
+  ctx.font = `11px ${css("--font")}`;
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (let j = 0; j < ny; j++) ctx.fillText(tauAxis(d.taus[j]), L - 6, T + (ny - 1 - j + 0.5) * ch);
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  const ticks = Math.min(6, nx);
+  for (let k = 0; k < ticks; k++) {
+    const i = Math.round((k * (nx - 1)) / Math.max(1, ticks - 1));
+    ctx.fillText(new Date(d.times[i] * 1000).toISOString().slice(5, 16).replace("T", " "), L + (i + 0.5) * cw, H - B + 6);
+  }
+  // colour bar
+  for (let k = 0; k < 100; k++) {
+    ctx.fillStyle = heatColor(k / 99);
+    ctx.fillRect(W - R + 20, T + (H - T - B) * (1 - (k + 1) / 100), 14, (H - T - B) / 100 + 1);
+  }
+  ctx.fillStyle = css("--axis");
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  const fmtv = TIME_KINDS.has(kind) ? (v) => fmtSec(v, 2) : (v) => v.toExponential(1);
+  ctx.fillText(fmtv(10 ** hi), W - R + 38, T + 6);
+  ctx.fillText(fmtv(10 ** lo), W - R + 38, H - B - 6);
+  $("#dyn-note").textContent = `${KIND_LABEL[kind]} over ${fmtDur(d.window)} windows every ${fmtDur(d.step)} (UTC on the x axis, τ on the y axis). Horizontal bands of change reveal non-stationarity: route changes, load cycles, temperature.`;
+}
+
 // -------------------------------------------------------------- live monitor
 async function pollLive() {
   try {
@@ -532,9 +612,11 @@ async function pollLive() {
 
 // ------------------------------------------------------------------- wiring
 function init() {
-  api("/api/info").then((i) => ($("#version").textContent = "v" + i.version));
-  const kinds = { adev: "ADEV", oadev: "OADEV", mdev: "MDEV", tdev: "TDEV", hdev: "HDEV", mtie: "MTIE" };
-  $("#kinds").innerHTML = Object.entries(kinds).map(([k, l]) => `<button data-kind="${k}" class="${state.kinds.has(k) ? "on" : ""}">${l}</button>`).join("");
+  api("/api/info").then((i) => {
+    $("#version").textContent = "v" + i.version;
+    $("#kinds").innerHTML = Object.keys(i.kinds).map((k) =>
+      `<button data-kind="${k}" title="${esc(i.kinds[k])}" class="${state.kinds.has(k) ? "on" : ""}">${KIND_LABEL[k] || k}</button>`).join("");
+  });
   $("#kinds").addEventListener("click", (e) => {
     const k = e.target.dataset.kind;
     if (!k) return;
@@ -544,7 +626,20 @@ function init() {
   });
 
   $$(".tabs button").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; render(); }));
-  for (const id of ["detrend", "outliers", "overlay", "aux", "taus", "ci", "slopes", "bins"]) $(`#${id}`).addEventListener("change", render);
+  for (const id of ["detrend", "outliers", "overlay", "aux", "taus", "ci", "slopes", "bins", "dyn"]) $(`#${id}`).addEventListener("change", render);
+  $("#mask-chip").addEventListener("click", () => { state.mask = null; $("#mask-label").textContent = "Mask…"; render(); });
+  $("#mask-chip").title = "Click to remove the mask";
+  $("#mask-input").addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    try {
+      const m = await api("/api/mask", { method: "POST", body: await f.text(), headers: { "X-Filename": encodeURIComponent(f.name), "Content-Type": "text/plain" } });
+      state.mask = m;
+      $("#mask-label").textContent = `Mask: ${m.name}`;
+      render();
+    } catch (err) { toast(err.message, true); }
+  });
   $("#file-input").addEventListener("change", (e) => { uploadFiles([...e.target.files]); e.target.value = ""; });
   $$("[data-export]").forEach((b) => b.addEventListener("click", () => exportPng(b.dataset.export)));
   $$("[data-csv]").forEach((b) => b.addEventListener("click", () => {

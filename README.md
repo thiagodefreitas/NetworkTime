@@ -28,11 +28,15 @@ was wrong with the original code, and [ROADMAP.md](ROADMAP.md) for where it is g
   CSV, and the 2012 `estimators.log`. Sign conventions are normalised (chrony reports
   *local − reference*; everything here is *reference − local*, like ntpd).
 - **Stability analysis done right**: non-overlapping and overlapping ADEV, MDEV, TDEV,
-  overlapping Hadamard deviation and MTIE (O(N log N)), each with
-  - χ² confidence intervals from equivalent degrees of freedom,
+  overlapping Hadamard, total deviation (TOTDEV), Theo1, MTIE (O(N log N)) and TIErms, each with
+  - χ² confidence intervals from the **exact** equivalent degrees of freedom of the discrete
+    power-law model (Monte Carlo verified),
   - per-τ power-law noise identification (lag-1 autocorrelation method),
   - correct τ₀ from the data and **gap handling that never invents data** (irregular logs are
-    put on a grid; terms that would span a gap are dropped, not interpolated).
+    put on a grid; terms that would span a gap are dropped, not interpolated),
+  - **dynamic** (sliding-window) views to expose non-stationarity,
+  - **limit-mask** checks against user-supplied `tau,limit` CSV masks (e.g. network TDEV/MTIE
+    limits), with margins and PASS/FAIL.
 - **Network metrics**: delay floor and queueing distribution, Mills' offset-vs-delay *wedge*,
   asymmetry indicator, floor packet percentage (ITU-T G.8260-style), NTP clock-filter
   (minimum delay) selection.
@@ -75,6 +79,12 @@ ntpstats info /var/log/ntpstats/loopstats.20260928
 
 # Stability table with 95 % confidence intervals and noise identification
 ntpstats stability /var/log/chrony/tracking.log -k oadev,mdev,tdev,mtie --ci 0.95
+
+# Check TDEV against a limit mask (tau,limit CSV); exit code 3 on failure
+ntpstats stability ptp.log -k tdev,mtie --mask my-tdev-mask.csv
+
+# Sliding-window stability matrix (time x tau) as CSV
+ntpstats dynamic peerstats --peer 192.0.2.10 -k mdev
 
 # Network behaviour of one peer
 ntpstats network /var/log/ntpstats/peerstats --peer 192.0.2.10

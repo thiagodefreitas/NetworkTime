@@ -136,11 +136,21 @@
           </select>
         </label>
         <label class="check"><input type="checkbox" id="slopes"> slope guides</label>
+        <label class="btn small" title="Load a limit mask: CSV with tau,limit">
+          <input id="mask-input" type="file" hidden><span id="mask-label">Mask…</span>
+        </label>
+        <span id="mask-chip" class="chip" hidden></span>
+        <label class="check"><input type="checkbox" id="dyn"> dynamic</label>
         <span class="grow"></span>
         <button class="btn small" data-export="stability">PNG</button>
         <button class="btn small" data-csv="stability.csv">CSV</button>
       </div>
       <div class="chart tall" id="chart-stability"></div>
+      <div id="dyn-wrap" hidden>
+        <h3>Dynamic stability (sliding window)</h3>
+        <div class="chart heat"><canvas id="heat"></canvas></div>
+        <p class="note" id="dyn-note"></p>
+      </div>
       <div id="stability-table" class="table-wrap"></div>
     </section>
 

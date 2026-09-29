@@ -22,7 +22,10 @@ Estimators
 ``tdev``   time deviation, tau/sqrt(3) * MDEV (ITU-T G.810 / G.8260 metric)
 ``hdev``   overlapping Hadamard deviation (insensitive to linear frequency
            drift, useful for NTP-disciplined clocks with aging/thermal drift)
+``totdev`` total deviation (reflection-extended ADEV, tighter at long tau)
+``theo1``  Theo1 (Howe), reaches tau = 0.75 * record length
 ``mtie``   maximum time interval error (ITU-T G.810)
+``tierms`` RMS time interval error (ITU-T G.810)
 """
 
 from __future__ import annotations
@@ -33,7 +36,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 
-KINDS = ("adev", "oadev", "mdev", "tdev", "hdev", "mtie")
+KINDS = ("adev", "oadev", "mdev", "tdev", "hdev", "totdev", "theo1", "mtie", "tierms")
 
 #: Short description used in the UI / CLI.
 DESCRIPTIONS = {
@@ -42,11 +45,14 @@ DESCRIPTIONS = {
     "mdev": "Modified Allan deviation",
     "tdev": "Time deviation [s]",
     "hdev": "Hadamard deviation (overlapping)",
+    "totdev": "Total deviation",
+    "theo1": "Theo1 deviation (tau = 0.75 m tau0)",
     "mtie": "Max. time interval error [s]",
+    "tierms": "RMS time interval error [s]",
 }
 
 #: Estimators whose value is a time (seconds) rather than a fractional frequency.
-TIME_KINDS = {"tdev", "mtie"}
+TIME_KINDS = {"tdev", "mtie", "tierms"}
 
 
 @dataclass
@@ -205,7 +211,51 @@ def _mtie_all(x, ms, tau0):
     return out
 
 
-_ESTIMATORS = {"adev": _adev, "oadev": _oadev, "mdev": _mdev, "tdev": _tdev, "hdev": _hdev}
+def _totdev(x, m, tau0):
+    """Total deviation, NIST SP 1065 eq. (25): phase reflected about both ends."""
+    N = x.size
+    if N < 3:
+        return np.nan, 0
+    j = np.arange(1, N - 1)
+    left = (2 * x[0] - x[j])[::-1]  # positions -(N-2) .. -1
+    right = 2 * x[-1] - x[N - 1 - j]  # positions N .. 2N-3
+    ext = np.concatenate([left, x, right])
+    o = N - 2  # offset of x[0] inside ext
+    i = np.arange(1, N - 1) + o
+    d = ext[i - m] - 2 * ext[i] + ext[i + m]
+    ms, n = _nan_meansq(d)
+    tau = m * tau0
+    return np.sqrt(ms / (2 * tau * tau)), n
+
+
+def _theo1(x, m, tau0):
+    """Theo1 (NIST SP 1065 eq. (31)); m even, result belongs to tau = 0.75 m tau0."""
+    N = x.size
+    if m % 2 or m < 2 or m > N - 1:
+        return np.nan, 0
+    h = m // 2
+    i = np.arange(0, N - m)
+    acc = np.zeros(i.size)
+    for delta in range(h):
+        term = (x[i] - x[i - delta + h]) + (x[i + m] - x[i + delta + h])
+        acc = acc + term * term / (h - delta)
+    ok = np.isfinite(acc)
+    n = int(ok.sum())
+    if n == 0:
+        return np.nan, 0
+    var = np.sum(acc[ok]) / (0.75 * n * (m * tau0) ** 2)
+    return np.sqrt(var), n
+
+
+def _tierms(x, m, tau0):
+    """RMS time interval error, sqrt(mean((x[i+m] - x[i])^2)) (ITU-T G.810)."""
+    d = x[m:] - x[:-m]
+    ms, n = _nan_meansq(d)
+    return np.sqrt(ms), n
+
+
+_ESTIMATORS = {"adev": _adev, "oadev": _oadev, "mdev": _mdev, "tdev": _tdev, "hdev": _hdev,
+               "totdev": _totdev, "theo1": _theo1, "tierms": _tierms}
 
 _MAX_M = {
     "adev": lambda n: (n - 1) // 2,
@@ -213,7 +263,10 @@ _MAX_M = {
     "mdev": lambda n: (n - 1) // 3,
     "tdev": lambda n: (n - 1) // 3,
     "hdev": lambda n: (n - 1) // 3,
+    "totdev": lambda n: (n - 1) // 2,
+    "theo1": lambda n: n - 1,
     "mtie": lambda n: n - 1,
+    "tierms": lambda n: n - 1,
 }
 
 
@@ -240,6 +293,8 @@ def compute(
     if x.size < 3:
         raise ValueError("need at least 3 samples")
     ms = tau_multipliers(x.size, taus, max_m=_MAX_M[kind](x.size))
+    if kind == "theo1":
+        ms = ms[(ms % 2 == 0)]
     if kind == "mtie":
         vals = _mtie_all(x, ms, tau0)
     else:
@@ -250,16 +305,38 @@ def compute(
     keep = np.isfinite(dev) & (n >= min_terms)
     ms, dev, n = ms[keep], dev[keep], n[keep]
     err = np.where(n > 0, dev / np.sqrt(np.maximum(n, 1)), np.nan) if kind != "mtie" else np.zeros_like(dev)
-    res = StabilityResult(kind=kind, tau0=float(tau0), taus=ms * float(tau0), dev=dev, err=err, n=n)
-    if ci and kind != "mtie" and dev.size:
+    tau_scale = 0.75 if kind == "theo1" else 1.0
+    res = StabilityResult(kind=kind, tau0=float(tau0), taus=ms * float(tau0) * tau_scale, dev=dev, err=err, n=n)
+    if ci and kind not in ("mtie", "tierms", "theo1") and dev.size:
         n_phase = int(np.isfinite(x).sum())
         alpha = np.array([noise_alpha(x, int(m)) for m in ms], dtype=float)
         # Where identification fails (too few points) inherit the neighbour's value.
         alpha = _fill_nan(alpha)
-        edf = np.array([edf_approx(kind, n_phase, int(m), a, int(k)) for m, a, k in zip(ms, alpha, n)])
+        edf = np.array([edf_for_result(kind, a, int(m), int(k), n_phase) for m, a, k in zip(ms, alpha, n)])
         res.lo, res.hi = chi2_interval(dev, edf, ci)
         res.edf, res.alpha, res.ci = edf, alpha, float(ci)
+    elif kind in ("theo1", "tierms") and dev.size:
+        res.alpha = _fill_nan(np.array([noise_alpha(x, max(int(m), 1)) for m in ms], dtype=float))
     return res
+
+
+def edf_for_result(kind: str, alpha: float, m: int, terms: int, n_phase: int) -> float:
+    """EDF used for confidence intervals.
+
+    ADEV/OADEV/MDEV/TDEV/HDEV: exact discrete power-law EDF
+    (:func:`ntpstats.edf.edf`). TOTDEV: NIST SP 1065 table 12 for FM noise
+    (``b * T/tau - c``), OADEV EDF for PM noise.
+    """
+    from .edf import edf as _edf
+
+    if kind == "totdev":
+        a = int(round(alpha)) if np.isfinite(alpha) else 0
+        table = {0: (1.500, 0.0), -1: (1.168, 0.222), -2: (0.927, 0.358)}
+        if a in table:
+            b, c = table[a]
+            return float(max(b * n_phase / m - c, 1.0))
+        return _edf("oadev", alpha, m, terms)
+    return _edf(kind, alpha, m, terms)
 
 
 def compute_many(x, tau0, kinds: Iterable[str] = ("oadev", "mdev", "tdev"), taus="octave") -> List[StabilityResult]:
@@ -367,34 +444,9 @@ def _fill_nan(a: np.ndarray) -> np.ndarray:
 
 
 def edf_approx(kind: str, N: int, m: int, alpha: float, terms: int) -> float:
-    """Equivalent degrees of freedom for a deviation estimate.
-
-    Overlapping ADEV uses the Howe-Allan-Barnes (1981) closed forms
-    (NIST SP 1065, table 5); these are also used as a (documented)
-    approximation for MDEV/TDEV/HDEV. Non-overlapping ADEV uses the number
-    of terms. See ROADMAP.md for the full Greenhall-Riley EDF algorithm.
-    """
-    if kind == "adev":
-        return float(max(terms, 1))
-    N = float(N)
-    m = float(m)
-    a = int(round(alpha)) if np.isfinite(alpha) else 0
-    try:
-        if a == 2:
-            edf = (N + 1) * (N - 2 * m) / (2 * (N - m))
-        elif a == 1:
-            edf = np.exp(np.sqrt(np.log((N - 1) / (2 * m)) * np.log((2 * m + 1) * (N - 1) / 4)))
-        elif a == 0:
-            edf = (3 * (N - 1) / (2 * m) - 2 * (N - 2) / N) * 4 * m * m / (4 * m * m + 5)
-        elif a == -1:
-            edf = 2 * (N - 2) / (2.3 * N - 4.9) if m == 1 else 5 * N * N / (4 * m * (N + 3 * m))
-        else:
-            edf = (N - 2) / m * ((N - 1) ** 2 - 3 * m * (N - 1) + 4 * m * m) / (N - 3) ** 2
-    except (ValueError, ZeroDivisionError, FloatingPointError):
-        edf = terms
-    if not np.isfinite(edf) or edf <= 0:
-        edf = terms
-    return float(max(min(edf, terms if kind != "oadev" else N), 1.0))
+    """Deprecated since 2.1: kept for API compatibility, now returns the
+    exact EDF from :func:`edf_for_result`."""
+    return edf_for_result(kind, alpha, m, terms, N)
 
 
 def _chi2_ppf(p: float, k: np.ndarray) -> np.ndarray:
@@ -414,3 +466,65 @@ def chi2_interval(dev: np.ndarray, edf: np.ndarray, ci: float = 0.683):
 
 
 NOISE_NAMES = {2: "white PM", 1: "flicker PM", 0: "white FM", -1: "flicker FM", -2: "random-walk FM"}
+
+
+# ------------------------------------------------------------ dynamic ADEV
+@dataclass
+class DynamicResult:
+    kind: str
+    tau0: float
+    times: np.ndarray  # window centre times (POSIX s)
+    taus: np.ndarray
+    dev: np.ndarray  # shape (len(times), len(taus)); NaN where not computable
+    window: float
+    step: float
+
+    def as_dict(self) -> dict:
+        return {
+            "kind": self.kind,
+            "tau0": self.tau0,
+            "times": self.times.tolist(),
+            "taus": self.taus.tolist(),
+            "dev": [[None if not np.isfinite(v) else float(v) for v in row] for row in self.dev],
+            "window": self.window,
+            "step": self.step,
+        }
+
+
+def dynamic(series, kind: str = "oadev", window: Optional[float] = None, step: Optional[float] = None,
+            taus="octave", tau0=None, max_gap=3.0, detrend=None) -> DynamicResult:
+    """Sliding-window stability ("dynamic ADEV") to expose non-stationarity.
+
+    ``window`` and ``step`` are in seconds (defaults: 1/8 of the record and
+    a quarter window). The tau grid is fixed by the window length so every
+    column is comparable.
+    """
+    from .analysis import detrend as _detrend
+
+    grid, x, tau0 = series.to_uniform(tau0=tau0, max_gap=max_gap)
+    if detrend:
+        ok = np.isfinite(x)
+        x = x.copy()
+        x[ok] = _detrend(grid[ok], x[ok], detrend)
+    n = x.size
+    span = grid[-1] - grid[0]
+    window = float(window or max(span / 8, 32 * tau0))
+    step = float(step or window / 4)
+    wn = max(int(round(window / tau0)), 8)
+    sn = max(int(round(step / tau0)), 1)
+    if wn > n:
+        raise ValueError("window longer than the record")
+    ms = tau_multipliers(wn, taus, max_m=_MAX_M[kind](wn))
+    if kind == "theo1":
+        ms = ms[ms % 2 == 0]
+    starts = np.arange(0, n - wn + 1, sn)
+    dev = np.full((starts.size, ms.size), np.nan)
+    for r, a in enumerate(starts):
+        seg = x[a: a + wn]
+        if np.isfinite(seg).sum() < wn // 2:
+            continue
+        res = compute(seg, tau0, kind, [int(m) for m in ms], ci=None, min_terms=2)
+        idx = np.searchsorted(ms * tau0 * (0.75 if kind == "theo1" else 1.0), res.taus)
+        dev[r, idx] = res.dev
+    taus_out = ms * tau0 * (0.75 if kind == "theo1" else 1.0)
+    return DynamicResult(kind, tau0, grid[starts] + wn * tau0 / 2, taus_out, dev, window, step)
