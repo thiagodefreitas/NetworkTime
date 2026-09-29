@@ -342,6 +342,65 @@ def cmd_watch(args):
         pass
 
 
+def cmd_bench(args):
+    from . import estimators as E
+    from .bench import load_scenarios, run_bench, summarize, to_csv
+
+    if args.list:
+        print("estimators:")
+        for name, e in sorted(E.available().items()):
+            print(f"  {name:12} {'multi ' if e.multi else '      '}{e.description}")
+        from .simulate import PRESETS
+
+        print("preset scenarios: " + ", ".join(PRESETS))
+        return 0
+    seeds = []
+    for part in args.seeds.split(","):
+        a, _, b = part.partition("-")
+        seeds += list(range(int(a), int(b) + 1)) if b else [int(a)]
+    scen = load_scenarios(args.scenarios or ["internet"])
+    names = args.estimators.split(",") if args.estimators else None
+    rows = run_bench(scen, names, seeds, duration=args.duration, warmup=args.warmup,
+                     progress=(lambda r: print(f"  {r['scenario']:>16} seed {r['seed']:<3} {r['estimator']:12} "
+                                              f"rms {format_seconds(r['rms'])}", file=sys.stderr)) if args.verbose else None)
+    table = summarize(rows)
+    if args.csv:
+        with open(args.csv, "w", encoding="utf-8") as fh:
+            fh.write(to_csv(rows))
+        print(f"wrote {args.csv}", file=sys.stderr)
+    if args.html:
+        from .report import bench_report
+
+        with open(args.html, "w", encoding="utf-8") as fh:
+            fh.write(bench_report(rows, table, params={"seeds": seeds, "scenarios": [n for n, _ in scen],
+                                                       "duration": args.duration, "warmup": args.warmup}))
+        print(f"wrote {args.html}", file=sys.stderr)
+    if args.json:
+        print(json.dumps(table, indent=2, default=float))
+        return 0
+    cur = None
+    for r in table:
+        if r["scenario"] != cur:
+            cur = r["scenario"]
+            print(f"\n== {cur}  ({r['runs']} seed(s))")
+            print(f"   {'estimator':14} {'rms':>10} {'± seeds':>10} {'bias':>10} {'p95 |e|':>10} {'MTIE 1h':>10} {'time':>8}")
+        print(f"   {r['estimator']:14} {format_seconds(r['rms']):>10} {format_seconds(r['rms_std']):>10} "
+              f"{format_seconds(r['bias']):>10} {format_seconds(r['p95_abs']):>10} {format_seconds(r['mtie_1h']):>10} "
+              f"{r['runtime_s'] * 1e3:>6.0f}ms")
+    return 0
+
+
+def cmd_report(args):
+    from .report import dataset_report
+
+    series = _load_args(args)
+    doc = dataset_report(series, kinds=args.kinds.split(","), detrend=args.detrend, ci=args.ci, inputs=args.files,
+                         title=args.title)
+    with open(args.output, "w", encoding="utf-8") as fh:
+        fh.write(doc)
+    print(f"wrote {args.output} ({len(doc) / 1024:.0f} kB, self-contained)")
+
+
 def cmd_ui(args):
     from .web.server import serve
 
@@ -413,6 +472,28 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-o", "--output", help="write measurements as CSV (with true_offset column)")
     s.add_argument("--benchmark", action="store_true", help="score the built-in estimators against the truth")
     s.set_defaults(func=cmd_simulate)
+
+    s = sub.add_parser("bench", help="benchmark estimators on simulated scenarios with ground truth")
+    s.add_argument("scenarios", nargs="*", help="preset names or TOML/JSON scenario files (default: internet)")
+    s.add_argument("-e", "--estimators", help="comma list (default: all registered, see --list)")
+    s.add_argument("--seeds", default="1-3", help="e.g. 1-10 or 1,4,7")
+    s.add_argument("--duration", type=float, help="override scenario duration, s")
+    s.add_argument("--warmup", type=float, default=1800.0, help="seconds excluded from scoring (default 1800)")
+    s.add_argument("--csv", help="write per-run rows")
+    s.add_argument("--html", help="write a self-contained HTML report")
+    s.add_argument("--json", action="store_true")
+    s.add_argument("--list", action="store_true", help="list estimators and preset scenarios")
+    s.add_argument("-v", "--verbose", action="store_true")
+    s.set_defaults(func=cmd_bench)
+
+    s = sub.add_parser("report", help="write a self-contained HTML report (offset, stability with CIs, network)")
+    _common(s)
+    s.add_argument("-o", "--output", default="ntpstats-report.html")
+    s.add_argument("-k", "--kinds", default="oadev,mdev,tdev")
+    s.add_argument("--detrend", choices=("linear", "quadratic"))
+    s.add_argument("--ci", type=float, default=0.683)
+    s.add_argument("--title", default="ntpstats report")
+    s.set_defaults(func=cmd_report)
 
     s = sub.add_parser("query", help="one-shot SNTP measurement")
     s.add_argument("servers", nargs="+")

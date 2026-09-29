@@ -11,7 +11,9 @@ synchronisation algorithms.
 It started as a Google Summer of Code 2012 project for the NTP Project (kept unchanged in
 [`legacy/`](legacy/)); version 2 is a complete rewrite. See
 [docs/STATE_OF_THE_ART.md](docs/STATE_OF_THE_ART.md) for what changed in NTP since 2012 and what
-was wrong with the original code, and [ROADMAP.md](ROADMAP.md) for where it is going.
+was wrong with the original code, [docs/INTEROP.md](docs/INTEROP.md) for live results against
+public NTP/NTS servers, [CHANGELOG.md](CHANGELOG.md) for releases and
+[ROADMAP.md](ROADMAP.md) for where it is going.
 
 ![Offset view with RTS smoother and ground truth](docs/img/ui-offset-light.png)
 
@@ -51,9 +53,18 @@ was wrong with the original code, and [ROADMAP.md](ROADMAP.md) for where it is g
 - **Estimators**: two-state Kalman filter with irregular sampling, noise parameters fitted
   from the data's ADEV, innovation gating, delay-aware measurement weighting and an
   RTS smoother.
-- **Simulator with ground truth**: power-law oscillator noise (white/flicker PM, white/flicker/
-  random-walk FM), frequency offset and drift, asymmetric queueing paths, packet loss. Score any
-  estimator with `analysis.compare(estimate, truth)`.
+- **Research bench**: simulated clocks and networks with ground truth, and pluggable
+  estimators scored by `ntpstats bench`:
+  - simulator: power-law oscillator noise (white/flicker PM, white/flicker/random-walk FM),
+    frequency offset, drift, temperature wander, asymmetric queueing paths, route changes,
+    congestion and outages, and multi-server scenarios with falsetickers;
+  - reference algorithms: Kalman/RTS, NTP clock filter, chrony-style regression,
+    RADclock-style feed-forward, and RFC 5905 select/cluster/combine;
+  - bring your own estimator via a small API or a package entry point; scenarios can be
+    presets or TOML files;
+  - reproducible reports as tables, CSV/JSON or self-contained HTML.
+- **Reports**: `ntpstats report` writes a single offline HTML file with charts, CI tables,
+  network analysis, parameters and input hashes (also a *Report* button in the UI).
 - **Measurement clients** (they never set the clock):
   - NTPv4 SNTP with a random transmit timestamp (data minimisation), origin check,
     Kiss-o'-Death and 2036 era handling;
@@ -139,6 +150,28 @@ ntpstats info capture.pcapng                        # NTP exchanges from a packe
 ntpstats stability /var/log/ptp4l.log -k tdev,mtie  # PTP servo offsets
 ```
 
+### Benchmarking synchronisation algorithms
+
+```bash
+ntpstats bench --list                                        # estimators and preset scenarios
+ntpstats bench internet falseticker examples/scenarios/*.toml --seeds 1-10 \
+        --html bench.html --csv bench.csv                    # full comparison
+python examples/04_custom_estimator.py                       # plug in your own algorithm
+```
+
+![Benchmark report](docs/img/benchmark-report.png)
+
+Example reports: [benchmark](docs/examples/benchmark-report.html),
+[peerstats analysis](docs/examples/peerstats-report.html) (download and open in a browser).
+
+Some findings the bench makes visible:
+- On a congested WAN, the delay-aware estimators (regression, feed-forward, min-delay,
+  delay-weighted Kalman) cut the error 10–30× compared with the raw measurements.
+- An asymmetric route change (`route-change` preset) biases *every* estimator by half the
+  one-way step, and no amount of filtering can see it.
+- RFC 5905 selection rejects falsetickers only when their error exceeds the root distance
+  (≈ delay/2). Smaller ones are indistinguishable from path asymmetry by design.
+
 Common options: `--format` (override detection), `--peer`, `--all-peers`,
 `--start/--end` (POSIX seconds or ISO 8601 UTC), `--outliers K` (drop > K·MAD after
 detrending), `--json`/`--csv` output.
@@ -187,7 +220,7 @@ regenerates the sample logs in `examples/data/` in each native format.
 
 ## Validation
 
-`pytest` runs about 130 tests, and none of them need network access:
+`pytest` runs about 150 tests, and none of them need network access:
 
 - every estimator is checked against a literal implementation of the NIST SP 1065 sums, against
   the analytic log-log slopes of the five power-law noise types, and against a frozen table of
@@ -219,11 +252,12 @@ their logs).
 
 ```
 src/ntpstats/     parsers, pcap, stability, edf, masks, analysis, network, filters, simulate,
-                  sntp (v4/v5), nts, sources (chronyc/ntpq), monitor, cli, plotting
+                  estimators, bench, report, sntp (v4/v5), nts, sources (chronyc/ntpq),
+                  monitor, cli, plotting
 src/ntpstats/web  stdlib HTTP server + static UI (uPlot vendored)
 tests/            pytest suite (+ frozen reference data)
 examples/         scripts and sample logs
-docs/             state-of-the-art notes, screenshots, screenshot generator
+docs/             state of the art, live interop results, example reports, screenshots
 legacy/           the original 2012 GSoC code, untouched
 ```
 

@@ -475,6 +475,16 @@ class Handler(BaseHTTPRequestHandler):
                     body = export_csv(sid, params)
                 elif what == "stability.csv":
                     body = export_stability_csv(sid, params)
+                elif what == "report.html":
+                    from ..report import dataset_report
+
+                    kinds = [k for k in _q(params, "kinds", "oadev,mdev,tdev").split(",") if k in KINDS]
+                    det = _q(params, "detrend", None)
+                    body = dataset_report([_prepare(sid, params)], kinds=kinds or ["oadev"],
+                                          detrend=None if det in (None, "none") else det,
+                                          ci=_q(params, "ci", 0.683, float) or 0.683, title=f"ntpstats report: {name}")
+                    return self._send(200, body.encode(), "text/html; charset=utf-8",
+                                      {"Content-Disposition": f'attachment; filename="{name}-report.html"'})
                 elif what == "summary.json":
                     body = json.dumps(_clean(summary(_prepare(sid, params))), indent=2)
                 else:

@@ -15,7 +15,7 @@ from ntpstats.sntp import NTPError, query, supports_v5
 
 NTP4 = ["time.cloudflare.com", "time.google.com", "ptbtime1.ptb.de", "time.nist.gov", "pool.ntp.org", "ntp.ubuntu.com"]
 NTS = ["time.cloudflare.com", "nts.netnod.se", "ptbtime1.ptb.de", "ntppool1.time.nl", "ntp.3eck.net"]
-V5 = ["time.cloudflare.com", "ptbtime1.ptb.de", "ntppool1.time.nl", "ntpd-rs.pendulum-project.org"]
+V5 = ["time.cloudflare.com", "ptbtime1.ptb.de", "ntppool1.time.nl", "time.google.com"]
 
 
 def row(cells):

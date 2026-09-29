@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT
+# Five servers: two honest near ones, one far, a falseticker (+40 ms) and a
+# server whose clock steps by -80 ms after 6 h. Use with multi-server
+# estimators (rfc5905, median) and compare with single-server ones.
+name = "pool-with-falsetickers"
+duration = 43200
+poll = 64
+
+[clock]
+freq_offset = -3e-6
+flicker_fm_adev = 3e-11
+
+[[servers]]
+name = "near-a"
+forward = { base = 3e-3 }
+backward = { base = 3e-3, queue_mean = 2e-3 }
+
+[[servers]]
+name = "near-b"
+forward = { base = 5e-3, queue_mean = 2e-3 }
+backward = { base = 5e-3 }
+
+[[servers]]
+name = "far"
+forward = { base = 40e-3, queue_mean = 4e-3 }
+backward = { base = 45e-3, queue_mean = 6e-3 }
+
+[[servers]]
+name = "falseticker"
+forward = { base = 6e-3 }
+backward = { base = 6e-3 }
+bias = 40e-3
+
+[[servers]]
+name = "stepper"
+forward = { base = 8e-3 }
+backward = { base = 8e-3 }
+step_at = 21600
+step = -80e-3

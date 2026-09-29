@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: MIT
+# A WAN client whose route changes after 8 h (+4 ms on the forward path only:
+# an unobservable asymmetry step) with an evening congestion period and a
+# daily temperature cycle driving the oscillator.
+name = "wan-route-change"
+duration = 86400
+poll = 64
+server_noise = 1e-6
+
+[clock]
+freq_offset = 5e-6
+drift = 1e-11
+white_fm_adev1 = 1e-9
+rw_fm_adev1 = 1e-11
+tempco = 1e-7          # 0.1 ppm/K
+temp_amplitude = 3.0   # +-3 K daily
+
+[forward]
+base = 5e-3
+queue_mean = 1e-3
+load = 0.5
+events = [
+  { start = 28800, base_delta = 4e-3 },
+  { start = 64800, end = 75600, queue_scale = 6.0, load = 0.9 },
+]
+
+[backward]
+base = 5e-3
+queue_mean = 3e-3
+load = 0.6

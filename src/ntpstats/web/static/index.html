@@ -36,6 +36,7 @@
       <option value="csv">CSV / columns</option>
       <option value="gsoc2012">2012 estimators.log</option>
     </select>
+    <button class="btn" id="report-btn" title="Download a self-contained HTML report of the active dataset">Report</button>
     <button class="btn" data-dialog="dlg-sim">Simulate</button>
     <button class="btn" data-dialog="dlg-live">Live <span id="live-dot" class="dot"></span></button>
     <button class="btn icon" id="theme" title="Toggle light/dark">◐</button>
@@ -190,6 +191,8 @@
         <option value="lan">LAN (16 s poll, µs-level paths)</option>
         <option value="internet" selected>Internet (64 s poll, ms-level asymmetric queueing)</option>
         <option value="congested">Congested (heavy asymmetric queueing, 2 % loss)</option>
+        <option value="route-change">Route change at 8 h + evening congestion, temperature wander</option>
+        <option value="falseticker">4 servers: one falseticker, one stepping (first server shown)</option>
       </select>
     </label>
     <label>Duration (hours) <input name="hours" type="number" value="24" min="0.1" step="0.1"></label>

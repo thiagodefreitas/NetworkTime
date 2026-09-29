@@ -646,6 +646,10 @@ function init() {
     const extra = b.dataset.csv === "stability.csv" ? { kinds: [...state.kinds].join(","), taus: $("#taus").value, ci: $("#ci").value } : {};
     location.href = `/api/export/${state.active}/${b.dataset.csv}?${params(extra)}`;
   }));
+  $("#report-btn").addEventListener("click", () => {
+    if (!state.active) return toast("select a dataset first", true);
+    location.href = `/api/export/${state.active}/report.html?${params({ kinds: [...state.kinds].filter((k) => k !== "mtie").join(",") || "oadev", ci: $("#ci").value })}`;
+  });
   $("#apply-zoom").addEventListener("click", () => {
     state.range = state.zoom;
     state.zoom = null;

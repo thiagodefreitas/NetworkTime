@@ -38,7 +38,7 @@ as [GitHub issues](https://github.com/thiagodefreitas/NetworkTime/issues).
 - Experimental NTPv5 (draft-ietf-ntp-ntpv5) client support, following the IETF work. ([#8](https://github.com/thiagodefreitas/NetworkTime/issues/8))
 - Prometheus/OpenMetrics exporter for `ntpstats monitor`. ([#6](https://github.com/thiagodefreitas/NetworkTime/issues/6))
 
-## 2.3 — Research bench
+## ✅ 2.3 — Research bench (released 2.3.0)
 - Pluggable estimator API and scenario files (YAML/TOML), with reproducible benchmark reports
   (HTML) comparing algorithms across scenarios and seeds. ([#9](https://github.com/thiagodefreitas/NetworkTime/issues/9))
 - Reference estimators: chrony-style regression, RADclock-style feed-forward, and RFC 5905

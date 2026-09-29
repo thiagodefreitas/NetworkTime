@@ -13,6 +13,34 @@ tests the code, tags `vX.Y.Z` and publishes a GitHub Release with the notes belo
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-09-29
+
+### Added
+- **Research bench**: pluggable estimator API (`ntpstats.estimators`, entry-point group
+  `ntpstats.estimators`) and `ntpstats bench`. It runs scenarios × seeds × estimators against
+  ground truth and reports RMS, bias, p95, max, MTIE(1 h) of the error and runtime, with a
+  30 min warm-up excluded by default. Output is a table, CSV, JSON or a self-contained HTML
+  report (#9).
+- **Scenario files** in TOML/JSON (`scenario_from_dict`) and two examples in
+  `examples/scenarios/` (#9).
+- **Reference estimators**: chrony-style weighted regression with a runs-test window,
+  RADclock-style feed-forward, RFC 5905 clock filter + selection (intersection), cluster and
+  combine for multiple servers with causal frequency propagation, and a median combiner
+  (#10).
+- **Simulator**: flicker FM/PM, temperature-driven frequency (tempco), path events (route
+  change, congestion, outage), multi-server scenarios with falsetickers and stepping servers
+  (`simulate_multi`), and new presets `route-change` and `falseticker` (#11).
+- **Self-contained HTML reports**: `ntpstats report FILES -o report.html` and a *Report* button
+  in the UI. Offset, stability with CI bands and a noise table, network wedge, input SHA-256
+  hashes and parameters are embedded, and the file works offline (#12).
+- **Live interop** workflow: weekly/on-demand queries of public NTPv4 and NTS servers plus the
+  NTPv5 probe from GitHub runners, with a first snapshot in `docs/INTEROP.md` (all five NTS
+  servers tested authenticated successfully).
+- `examples/04_custom_estimator.py`: plugging your own algorithm into the bench.
+
+### Changed
+- GitHub Actions updated to `actions/checkout@v5` and `actions/setup-python@v6` (Node 24).
+
 ## [2.2.0] - 2026-09-29
 
 ### Fixed
@@ -83,7 +111,8 @@ First release of the rewrite. The 2012 Google Summer of Code prototype is kept u
 - Allan deviation τ₀ was hard-coded to 32 s (≈33× error on loopstats data); irregular sampling
   and gaps were ignored. See `docs/STATE_OF_THE_ART.md`.
 
-[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/thiagodefreitas/NetworkTime/releases/tag/v2.0.0
