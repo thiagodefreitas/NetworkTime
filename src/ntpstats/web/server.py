@@ -38,8 +38,10 @@ from ..monitor import Monitor
 from ..network import delay_stats, floor_packet_percentage, min_delay_filter, wedge
 from ..simulate import PRESETS, simulate_ntp
 from ..parsers import ParseError, load
+from ..pcap import is_capture
 from ..series import TimeSeries
 from ..sntp import NTPError, query
+from ..sources import SourceError
 from ..masks import check as mask_check
 from ..masks import load_mask
 from ..stability import DESCRIPTIONS, KINDS, TIME_KINDS, dynamic, identify_noise, series_stability
@@ -313,14 +315,14 @@ def _monitor_sample(r):
         if sid is None:
             return
         old = STORE.datasets[sid]
-        t = (r.t1 + r.t4) / 2
-        extra = {
-            "delay": np.append(old.extra.get("delay", np.array([])), r.delay),
-            "stratum": np.append(old.extra.get("stratum", np.array([])), r.stratum),
-        }
-        STORE.datasets[sid] = TimeSeries(
-            np.append(old.t, t), np.append(old.offset, r.offset), old.name, "live", extra, old.meta
-        )
+        if isinstance(r, dict):  # local daemon sample (sources.LocalWatch)
+            t, off = float(r["time"]), float(r["offset"])
+            vals = {k: float(r[k]) for k in old.extra if isinstance(r.get(k), (int, float))}
+        else:
+            t, off = (r.t1 + r.t4) / 2, r.offset
+            vals = {"delay": r.delay, "stratum": float(r.stratum)}
+        extra = {k: np.append(v, vals.get(k, np.nan)) for k, v in old.extra.items()}
+        STORE.datasets[sid] = TimeSeries(np.append(old.t, t), np.append(old.offset, off), old.name, "live", extra, old.meta)
 
 
 def _monitor_error(server, exc):
@@ -330,22 +332,32 @@ def _monitor_error(server, exc):
 
 
 def api_monitor_start(body):
+    source = str(body.get("source", "sntp"))
     servers = [s.strip() for s in str(body.get("servers", "")).replace(",", " ").split() if s.strip()]
     interval = float(body.get("interval", 64))
-    if not servers:
-        raise ValueError("no server given")
     if interval < 1:
         raise ValueError("interval must be >= 1 s")
+    if source == "sntp" and not servers:
+        raise ValueError("no server given")
     api_monitor_stop({})
     with STORE.lock:
-        sid = STORE.add(
-            TimeSeries(np.array([]), np.array([]), f"live: {', '.join(servers)}", "live",
-                       {"delay": np.array([]), "stratum": np.array([])}, {"peer": servers[0]})
-        )
+        out = body.get("log") or None
+        if source in ("chrony", "ntpd"):
+            from ..sources import NUMERIC_EXTRAS, LocalWatch
+
+            cols = {k: np.array([]) for k in NUMERIC_EXTRAS[source]}
+            label, servers = f"live: local {source}", [f"local {source}"]
+            mon = LocalWatch(source, interval, out_path=out, on_sample=_monitor_sample, on_error=_monitor_error)
+        else:
+            version = int(body.get("version", 4))
+            cols = {"delay": np.array([]), "stratum": np.array([])}
+            label = f"live{' NTPv5' if version == 5 else ''}: {', '.join(servers)}"
+            mon = Monitor(servers, interval, out_path=out, on_sample=_monitor_sample, on_error=_monitor_error,
+                          version=version)
+        sid = STORE.add(TimeSeries(np.array([]), np.array([]), label, "live", cols, {"peer": servers[0]}))
         STORE.monitor_id = sid
         STORE.monitor_log = []
-        out = body.get("log") or None
-        STORE.monitor = Monitor(servers, interval, out_path=out, on_sample=_monitor_sample, on_error=_monitor_error).start()
+        STORE.monitor = mon.start()
     return {"id": sid, "servers": servers, "interval": interval}
 
 
@@ -490,10 +502,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if route == ["upload"]:
                 name = unquote(self.headers.get("X-Filename") or "upload")
-                text = self._body().decode("utf-8", errors="replace")
+                body = self._body()
                 fmt = _q(params, "format", "auto")
                 tau0 = _q(params, "tau0", None, float)
-                series = load(io.StringIO(text), fmt=fmt, tau0=tau0, name=name)
+                src = body if is_capture(body[:4]) else io.StringIO(body.decode("utf-8", errors="replace"))
+                series = load(src, fmt=fmt, tau0=tau0, name=name)
                 ids = [STORE.add(s) for s in series]
                 return self._json([STORE.describe(i) for i in ids])
             if route == ["mask"]:
@@ -505,7 +518,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(dict(mask.as_dict(), id=mid))
             body = json.loads(self._body() or b"{}")
             if route == ["query"]:
-                r = query(str(body.get("server", "")).strip(), timeout=float(body.get("timeout", 2.0)))
+                r = query(str(body.get("server", "")).strip(), timeout=float(body.get("timeout", 2.0)),
+                          version=int(body.get("version", 4)))
                 return self._json(r.as_dict())
             if route == ["simulate"]:
                 return self._json(api_simulate(body))
@@ -520,7 +534,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._error(404, "unknown endpoint")
         except KeyError:
             return self._error(404, "unknown dataset")
-        except (ValueError, ParseError, NTPError, OSError) as exc:
+        except (ValueError, ParseError, NTPError, SourceError, OSError) as exc:
             return self._error(400, str(exc))
         except Exception as exc:  # pragma: no cover
             traceback.print_exc()

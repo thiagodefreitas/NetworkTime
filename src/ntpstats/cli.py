@@ -57,6 +57,12 @@ def _load_args(args) -> List[TimeSeries]:
     return out
 
 
+def _family(args) -> int:
+    import socket
+
+    return socket.AF_INET if getattr(args, "ipv4", False) else socket.AF_INET6 if getattr(args, "ipv6", False) else 0
+
+
 def _utc(t: float) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(t))
 
@@ -250,12 +256,31 @@ def cmd_query(args):
     from .sntp import KissOfDeath, NTPError, query
 
     rc = 0
+    nts_sessions = {}
+    if args.probe_v5:
+        from .sntp import supports_v5
+
+        for server in args.servers:
+            try:
+                ok = supports_v5(server, timeout=args.timeout, family=_family(args))
+                print(f"{server}: NTPv5 ({'draft-09 upgrade supported' if ok else 'not offered'})")
+            except (NTPError, OSError) as exc:
+                print(f"{server}: {exc}")
+                rc = 1
+        return rc
     for server in args.servers:
         for i in range(args.count):
             if i:
                 time.sleep(args.spacing)
             try:
-                r = query(server, timeout=args.timeout)
+                if args.nts:
+                    from .nts import NTSSession
+
+                    if server not in nts_sessions:
+                        nts_sessions[server] = NTSSession(server, timeout=args.timeout, family=_family(args))
+                    r = nts_sessions[server].query()
+                else:
+                    r = query(server, timeout=args.timeout, version=5 if args.ntpv5 else 4, family=_family(args))
             except KissOfDeath as exc:
                 print(f"{server}: {exc}")
                 return 2
@@ -266,9 +291,11 @@ def cmd_query(args):
             if args.json:
                 print(json.dumps(r.as_dict()))
             else:
+                v5 = f" NTPv5 {r.timescale} era {r.era} ({r.draft or 'no draft id'})" if r.version == 5 else ""
+                v5 += " [NTS authenticated]" if r.auth == "nts" else ""
                 print(f"{server} ({r.address}) stratum {r.stratum} refid {r.refid}: offset {format_seconds(r.offset)}, "
                       f"delay {format_seconds(r.delay)}, root delay {format_seconds(r.root_delay)}, "
-                      f"root disp {format_seconds(r.root_dispersion)}, leap {r.leap}")
+                      f"root disp {format_seconds(r.root_dispersion)}, leap {r.leap}{v5}")
     return rc
 
 
@@ -286,10 +313,31 @@ def cmd_monitor(args):
     def err(server, exc):
         print(f"{_utc(time.time())} {server:24} error: {exc}", file=sys.stderr, flush=True)
 
-    m = Monitor(args.servers, args.interval, out_path=args.output, on_sample=show, on_error=err, count=args.count)
+    m = Monitor(args.servers, args.interval, out_path=args.output, on_sample=show, on_error=err, count=args.count,
+                version=5 if args.ntpv5 else 4, nts=args.nts)
     print(f"logging to {args.output}; Ctrl+C to stop", file=sys.stderr)
     try:
         m.run()
+    except KeyboardInterrupt:
+        pass
+
+
+def cmd_watch(args):
+    from .sources import LocalWatch
+
+    def show(d):
+        print(f"{_utc(d['time'])} {args.daemon:6} offset {format_seconds(d['offset']):>10}  "
+              f"freq {d.get('frequency_ppm', float('nan')):+.3f} ppm", flush=True)
+
+    def err(src, exc):
+        print(f"{_utc(time.time())} {src}: {exc}", file=sys.stderr, flush=True)
+
+    cmd = args.command_override.split() if args.command_override else None
+    w = LocalWatch(args.daemon, args.interval, out_path=args.output, on_sample=show, on_error=err,
+                   count=args.count, cmd=cmd)
+    print(f"watching local {args.daemon}, logging to {args.output}; Ctrl+C to stop", file=sys.stderr)
+    try:
+        w.run()
     except KeyboardInterrupt:
         pass
 
@@ -372,6 +420,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--spacing", type=float, default=2.0)
     s.add_argument("--timeout", type=float, default=2.0)
     s.add_argument("--json", action="store_true")
+    s.add_argument("--ntpv5", action="store_true", help="use the experimental NTPv5 draft-09 format")
+    s.add_argument("--probe-v5", action="store_true", help="only test whether servers offer NTPv5 (upgrade probe)")
+    s.add_argument("--nts", action="store_true", help="authenticate with NTS, RFC 8915 (pip install 'ntpstats[nts]')")
+    fam = s.add_mutually_exclusive_group()
+    fam.add_argument("-4", dest="ipv4", action="store_true", help="IPv4 only")
+    fam.add_argument("-6", dest="ipv6", action="store_true", help="IPv6 only")
     s.set_defaults(func=cmd_query)
 
     s = sub.add_parser("monitor", help="poll servers periodically and log offsets to CSV")
@@ -379,7 +433,17 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-o", "--output", default="ntpstats-monitor.csv")
     s.add_argument("-i", "--interval", type=float, default=64.0)
     s.add_argument("-n", "--count", type=int, help="stop after N rounds")
+    s.add_argument("--ntpv5", action="store_true", help="use the experimental NTPv5 draft-09 format")
+    s.add_argument("--nts", action="store_true", help="authenticate with NTS, RFC 8915 (pip install 'ntpstats[nts]')")
     s.set_defaults(func=cmd_monitor)
+
+    s = sub.add_parser("watch", help="log offset/frequency of the local chrony or ntpd/NTPsec (no log files needed)")
+    s.add_argument("daemon", choices=("chrony", "ntpd"))
+    s.add_argument("-o", "--output", default="ntpstats-watch.csv")
+    s.add_argument("-i", "--interval", type=float, default=16.0)
+    s.add_argument("-n", "--count", type=int, help="stop after N samples")
+    s.add_argument("--command-override", metavar="CMD", help="e.g. 'ssh host chronyc' to watch a remote host")
+    s.set_defaults(func=cmd_watch)
 
     s = sub.add_parser("ui", help="start the local web UI")
     s.add_argument("files", nargs="*")

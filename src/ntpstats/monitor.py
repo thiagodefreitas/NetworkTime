@@ -51,7 +51,12 @@ class Monitor:
         on_sample: Optional[Callable[[NTPResult], None]] = None,
         on_error: Optional[Callable[[str, Exception], None]] = None,
         count: Optional[int] = None,
+        version: int = 4,
+        nts: bool = False,
     ):
+        self.version = int(version)
+        self.nts = bool(nts)
+        self._sessions: Dict[str, object] = {}
         self.servers = list(servers)
         if not self.servers:
             raise ValueError("at least one server is required")
@@ -96,7 +101,7 @@ class Monitor:
                     if now < next_due[server]:
                         continue
                     try:
-                        r = query(server)
+                        r = self._query(server)
                     except KissOfDeath as exc:
                         if exc.code == "RATE":
                             self._backoff[server] = min(self._backoff[server] * 2, 64)
@@ -121,6 +126,14 @@ class Monitor:
         finally:
             if fh:
                 fh.close()
+
+    def _query(self, server: str) -> NTPResult:
+        if self.nts:
+            from .nts import NTSSession
+
+            sess = self._sessions.setdefault(server, NTSSession(server))
+            return sess.query()
+        return query(server) if self.version == 4 else query(server, version=self.version)
 
     def _error(self, server: str, exc: Exception) -> None:
         if self.on_error:

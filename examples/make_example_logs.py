@@ -16,7 +16,7 @@ import time
 
 import numpy as np
 
-from ntpstats.simulate import ClockModel, PathModel, Scenario, simulate_ntp
+from ntpstats.simulate import PRESETS, ClockModel, PathModel, Scenario, simulate_ntp
 
 OUT = os.path.join(os.path.dirname(__file__), "data")
 NTP_UNIX = 2208988800
@@ -67,14 +67,14 @@ def main():
             t4 = t1 + d + 20e-6
             fh.write(f"{day} {sec:.3f} 192.0.2.10 192.0.2.99 {t1:.9f} {t2:.9f} {t3:.9f} {t4:.9f} 0 4 4 1 6 -24 0.000000 0.000000 GPS\n")
 
-    # --- chrony measurements.log (offset sign: local - source)
+    # --- chrony measurements.log (theta; positive = local clock slow, as ntpd)
     hdr = ("========================================================================================================================\n"
            "   Date (UTC) Time     IP Address   L St 123 567 ABCD  LP RP Score    Offset  Peer del. Peer disp.  Root del. Root disp. Refid     MTxRx\n"
            "========================================================================================================================\n")
     rows = []
     for addr, s in sims.items():
         for t, x, d in zip(s.t, s.offset, s.extra["delay"]):
-            rows.append((t, f"{chrony_ts(t)} {addr:15s} N  2 111 111 1111   6  6 0.00 {-x: .3e} {d: .3e}  1.200e-06  1.526e-05  1.068e-04 C0000201 4B K K"))
+            rows.append((t, f"{chrony_ts(t)} {addr:15s} N  2 111 111 1111   6  6 0.00 {x: .3e} {d: .3e}  1.200e-06  1.526e-05  1.068e-04 C0000201 4B K K"))
     with open(os.path.join(OUT, "chrony-measurements.log"), "w") as fh:
         fh.write(hdr + "\n".join(r for _, r in sorted(rows)) + "\n")
 
@@ -90,6 +90,53 @@ def main():
         fh.write(hdr)
         for t, x, f, d in zip(s.t, resid, freq, s.extra["delay"]):
             fh.write(f"{chrony_ts(t)} 192.0.2.10       2 {f:10.3f} {0.05:10.3f} {-x: .3e} N  2  {abs(x) / 3: .3e} {0.0: .3e}  {d: .3e}  3.472e-04  {d / 2 + 3.5e-4: .3e}\n")
+    # --- linuxptp: ptp4l + phc2sys stdout (offsets in ns, local - reference)
+    from dataclasses import replace
+
+    lan = replace(PRESETS["lan"], duration=1800, poll=1, seed=12,
+                  clock=ClockModel(freq_offset=0, drift=0, white_fm_adev1=2e-10, rw_fm_adev1=0, white_pm=3e-9),
+                  forward=PathModel(base=600e-9, queue_mean=40e-9, load=0.2),
+                  backward=PathModel(base=600e-9, queue_mean=30e-9, load=0.2), server_noise=4e-9)
+    ptp, _ = simulate_ntp(lan)
+    mono0 = 5374018.0
+    lines = []
+    for i, (t, x, d) in enumerate(zip(ptp.t, ptp.offset, ptp.extra["delay"])):
+        mono = mono0 + (t - ptp.t[0])
+        state = 0 if i < 2 else (1 if i == 2 else 2)
+        lines.append(f"ptp4l[{mono:.3f}]: master offset {int(round(-x * 1e9)):10d} s{state} freq {int(-38601 + 3 * np.sin(i / 60)):+7d} path delay {int(round(d / 2 * 1e9)):9d}")
+        lines.append(f"phc2sys[{mono + 0.4:.3f}]: CLOCK_REALTIME phc offset {int(round(np.random.default_rng(i).normal(0, 12))):9d} s2 freq {-37046 + i % 5:+7d} delay {540 + i % 7:6d}")
+    with open(os.path.join(OUT, "linuxptp.log"), "w") as fh:
+        fh.write("ptp4l[5374017.500]: port 1 (eth0): INITIALIZING to LISTENING on INIT_COMPLETE\n")
+        fh.write("\n".join(lines) + "\n")
+
+    # --- chrony refclocks.log (PPS, cooked offset: positive = local slow)
+    rng = np.random.default_rng(13)
+    with open(os.path.join(OUT, "chrony-refclocks.log"), "w") as fh:
+        fh.write("===============================================================================\n"
+                 "   Date (UTC) Time         Refid  DP L P  Raw offset   Cooked offset      Disp.\n"
+                 "===============================================================================\n")
+        t0 = 1.7e9
+        for i in range(3600):
+            raw = rng.normal(0, 150e-9) + 2e-7 * np.sin(i / 600)
+            fh.write(f"{chrony_ts(t0 + i)}.000000 PPS0    {i % 16:2d} N 1 {raw: .6e} {-raw + rng.normal(0, 5e-9): .6e}  1.000e-06\n")
+    # --- packet capture of SNTP exchanges (client side), reusing the simulated peer
+    import sys
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, "tests"))
+    from capture_util import ether, ntp64, ntp_request, ntp_response, pcap_bytes
+
+    s = sims["198.51.100.7"]
+    frames = []
+    for i, (t, x, d) in enumerate(list(zip(s.t, s.offset, s.extra["delay"]))[:240]):
+        cookie = int.from_bytes(os.urandom(8), "big")
+        fwd = d * 0.45
+        t2 = t + fwd + x
+        t3 = t2 + 2e-5
+        c4 = t + d + 2e-5
+        frames.append((t, ether("192.0.2.99", "198.51.100.7", 40000 + i % 20000, 123, ntp_request(cookie))))
+        frames.append((c4, ether("198.51.100.7", "192.0.2.99", 123, 40000 + i % 20000, ntp_response(cookie, t2, t3))))
+    with open(os.path.join(OUT, "ntp-capture.pcap"), "wb") as fh:
+        fh.write(pcap_bytes(frames, nano=True))
     print(f"wrote example logs to {OUT}")
 
 

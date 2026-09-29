@@ -9,8 +9,9 @@ Sign convention
     offset = server_time - local_time      (seconds)
 
 i.e. a *positive* offset means the local clock is *behind* the reference.
-chrony logs use the opposite sign; the chrony parsers negate on import so
-every series in this package can be compared directly.
+Some sources use the opposite sign (chrony tracking/statistics logs,
+linuxptp); the parsers normalise on import so every series in this
+package can be compared directly.
 """
 
 from __future__ import annotations

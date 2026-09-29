@@ -24,6 +24,7 @@ dependencies = ["numpy>=1.22"]
 
 [project.optional-dependencies]
 plot = ["matplotlib>=3.6"]
+nts = ["pyOpenSSL>=23.2", "cryptography>=42"]
 test = ["pytest>=7"]
 
 [project.urls]

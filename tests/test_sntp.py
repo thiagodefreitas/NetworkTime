@@ -127,3 +127,93 @@ def test_monitor_writes_csv(server, tmp_path, monkeypatch):
     from ntpstats.parsers import load_one
     s = load_one(str(out))
     assert len(s) == 3 and s.offset.mean() == pytest.approx(0.25, abs=0.01)
+
+
+# ------------------------------------------------------------------ NTPv5
+class FakeV5Server(FakeServer):
+    """Answers draft-09 NTPv5 requests and the v4 'NTP5DRFT' upgrade probe."""
+
+    def __init__(self, offset=0.25, timescale=0, synced=True):
+        super().__init__(offset=offset)
+        self.timescale = timescale
+        self.synced = synced
+
+    def run(self):
+        while True:
+            try:
+                data, addr = self.sock.recvfrom(2048)
+            except OSError:
+                return
+            self.requests.append(data)
+            vn = (data[0] >> 3) & 7
+            t2 = time.time() + self.offset + (37 if self.timescale == 1 else 0)
+            if vn == 5:
+                cookie = data[24:32]
+                hdr = bytearray(48)
+                hdr[0] = (0 << 6) | (5 << 3) | 4
+                hdr[1], hdr[2], hdr[3] = 1, 4, -20 & 0xFF
+                struct.pack_into("!II", hdr, 4, int(0.001 * 2 ** 28), int(0.002 * 2 ** 28))
+                struct.pack_into("!BBH", hdr, 12, self.timescale, 0, 0x1 if self.synced else 0)
+                hdr[16:24] = b"S" * 8
+                hdr[24:32] = cookie
+                struct.pack_into("!QQ", hdr, 32, to_ntp(t2), to_ntp(t2 + 1e-5))
+                self.sock.sendto(bytes(hdr) + sntp._ef(sntp.EF_DRAFT_ID, sntp.NTPV5_DRAFT.encode()), addr)
+            else:
+                reply = bytearray(self._pkt(2, bytes([192, 0, 2, 1]), data[40:48], t2))
+                if data[16:24] == sntp.NTPV5_UPGRADE:
+                    reply[16:24] = sntp.NTPV5_UPGRADE
+                self.sock.sendto(bytes(reply), addr)
+
+
+@pytest.fixture
+def v5server(request):
+    srv = FakeV5Server(**getattr(request, "param", {}))
+    srv.start()
+    yield srv
+    srv.close()
+
+
+def test_ntpv5_query(v5server):
+    r = sntp.query("127.0.0.1", port=v5server.port, version=5)
+    assert r.version == 5 and r.timescale == "utc" and r.draft == sntp.NTPV5_DRAFT
+    assert r.offset == pytest.approx(0.25, abs=0.01)
+    # 4.28 fixed point: 2^-28 s ~ 3.7 ns resolution
+    assert r.root_delay == pytest.approx(0.001, abs=4e-9) and r.root_dispersion == pytest.approx(0.002, abs=4e-9)
+    req = v5server.requests[0]
+    assert (req[0] >> 3) & 7 == 5 and len(req) == 76  # header + draft-id EF
+    assert req[24:32] != b"\0" * 8 and req[32:48] == b"\0" * 16
+
+
+@pytest.mark.parametrize("v5server", [{"timescale": 1}], indirect=True)
+def test_ntpv5_tai_timescale(v5server):
+    r = sntp.query_v5("127.0.0.1", port=v5server.port)
+    assert r.timescale == "tai" and r.offset == pytest.approx(0.25, abs=0.01)
+
+
+@pytest.mark.parametrize("v5server", [{"synced": False}], indirect=True)
+def test_ntpv5_unsynchronised(v5server):
+    with pytest.raises(sntp.NTPError):
+        sntp.query_v5("127.0.0.1", port=v5server.port)
+
+
+def test_ntpv5_upgrade_probe(v5server, server):
+    assert sntp.supports_v5("127.0.0.1", port=v5server.port) is True
+    assert sntp.supports_v5("127.0.0.1", port=server.port) is False
+
+
+def test_ntpv5_era_mapping():
+    # Era 1 begins 2036-02-07; a v5 timestamp with era=1 must map past 2036.
+    assert sntp._ntp_to_unix(0, 2085978496 + 10) == pytest.approx(2085978496)
+
+
+def test_falls_back_to_next_address(server, monkeypatch):
+    real = socket.getaddrinfo
+
+    def fake(host, port, *a, **k):
+        good = real("127.0.0.1", port, socket.AF_INET, socket.SOCK_DGRAM)
+        bad = [(socket.AF_INET, socket.SOCK_DGRAM, 17, "", ("256.0.0.1", port))]  # unusable
+        return bad + good
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake)
+    r = sntp.query("dual-stack.example", port=server.port)
+    assert r.offset == pytest.approx(0.25, abs=0.01)

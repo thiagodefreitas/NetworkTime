@@ -35,7 +35,7 @@ jobs:
           fi
       - if: steps.check.outputs.created == 'true'
         run: |
-          pip install -e ".[test,plot]" build
+          pip install -e ".[test,plot,nts]" build
           pytest -q
           python -m build
       - if: steps.check.outputs.created == 'true'

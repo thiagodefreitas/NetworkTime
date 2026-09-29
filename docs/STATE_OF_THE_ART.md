@@ -18,7 +18,7 @@ protocol on the wire, and ntpd still writes `loopstats`/`peerstats` in the same 
 | NTP daemons | ntpd almost everywhere | **chrony** is the default on RHEL/Fedora/SUSE and, since 25.10, on Ubuntu (with NTS on by default); **NTPsec** is maintained as a hardened ntpd fork with its own `ntpviz` plots; ntpd 4.2.8p18 (May 2024) is still the latest reference release |
 | Log formats understood | ntpd `loopstats` only | ntpd/NTPsec `loopstats`, `peerstats`, `rawstats`; chrony `tracking`, `measurements`, `statistics`; CSV |
 | Security | unauthenticated, or symmetric MD5 keys | **NTS** (RFC 8915, TLS 1.3 key establishment and AEAD-protected packets); MD5 MACs deprecated (RFC 8573); BCP RFC 8633; source-port randomisation (RFC 9109); client data minimisation (random transmit timestamp) |
-| Protocol evolution | NTPv4 | NTPv4 plus extension fields (RFC 7822); **NTPv5** in the IETF NTP WG (draft-ietf-ntp-ntpv5-09, July 2026: client/server only, legacy modes removed) |
+| Protocol evolution | NTPv4 | NTPv4 plus extension fields (RFC 7822); **NTPv5** in the IETF NTP WG (draft-ietf-ntp-ntpv5-09, July 2026: client/server only, legacy modes removed, cookies instead of origin timestamps, timescale and era fields). ntpd-rs ships an experimental draft-09 implementation; chrony 4.9 does not implement NTPv5 yet but supports NTP-over-PTP (RFC 10030) |
 | Accuracy frontier | ms over the Internet, sub-ms on a LAN | NTP with hardware timestamping reaches tens of ns to µs on LANs (chrony `hwtimestamp`); **PTP / IEEE 1588-2019** (and White Rabbit) for ns; cloud providers expose PTP-disciplined clocks to VMs |
 | Leap seconds | smeared by some operators | CGPM 2022 decided to stop inserting leap seconds by 2035; smearing (e.g. Google) is widely deployed |
 | Time horizon | — | **2036 NTP era rollover** (32-bit seconds wrap on 7 Feb 2036), which clients must handle |
@@ -48,7 +48,9 @@ protocol on the wire, and ntpd still writes `loopstats`/`peerstats` in the same 
   share is exploiting the minimum-delay (floor) packets, which is the idea behind the network
   view and the delay-weighted Kalman filter here.
 
-**What `ntpstats` 2 does with this**: it ingests all current log formats; implements the
+**What `ntpstats` 2 does with this**: it ingests all current log formats (including PTP and
+packet captures), measures servers with NTPv4, NTS and experimental NTPv5 clients, can watch a
+local chrony/ntpd directly; implements the
 standard estimators with confidence intervals, noise identification and correct gap handling;
 provides network-delay metrics and reference estimators; and includes a simulator with ground
 truth, so an algorithm can be *validated* rather than just plotted.
@@ -82,6 +84,9 @@ Every item above is addressed in v2, and items 1–3 and 6 are covered by regres
 ## Sources
 
 - NTP 4.2.8p18 release: <https://www.nwtime.org/news/ntp-4-2-8p18-released/>
+- chrony NEWS / chrony.conf(5) (log formats and sign conventions): <https://chrony-project.org/>
+- ntpd-rs (experimental NTPv5 draft-09): <https://github.com/pendulum-project/ntpd-rs>
+- linuxptp (`ptp4l`, `phc2sys`, `ts2phc` message formats): <https://github.com/richardcochran/linuxptp>
 - Ubuntu 25.10 adopts chrony with NTS: <https://www.phoronix.com/news/Ubuntu-25.10-Chrony>,
   <https://www.omgubuntu.co.uk/2025/06/ubuntu-chrony-nts-default-25-10>
 - NTPv5 draft: <https://datatracker.ietf.org/doc/draft-ietf-ntp-ntpv5/>

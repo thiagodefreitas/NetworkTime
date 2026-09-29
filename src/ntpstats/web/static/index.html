@@ -30,6 +30,9 @@
       <option value="chrony-tracking">chrony tracking.log</option>
       <option value="chrony-measurements">chrony measurements.log</option>
       <option value="chrony-statistics">chrony statistics.log</option>
+      <option value="chrony-refclocks">chrony refclocks.log</option>
+      <option value="linuxptp">linuxptp (ptp4l/phc2sys/ts2phc)</option>
+      <option value="pcap">pcap / pcapng capture</option>
       <option value="csv">CSV / columns</option>
       <option value="gsoc2012">2012 estimators.log</option>
     </select>
@@ -45,7 +48,7 @@
     <ul id="datasets" class="datasets"></ul>
     <div id="empty-side" class="empty-side">
       <p>No data yet.</p>
-      <p>Open <code>loopstats</code>, <code>peerstats</code>, <code>rawstats</code>, chrony <code>tracking/measurements/statistics</code> logs or CSV — or drop files here.</p>
+      <p>Open ntpd/NTPsec <code>loopstats</code>, <code>peerstats</code>, <code>rawstats</code>, chrony <code>tracking/measurements/statistics/refclocks</code>, linuxptp logs, pcap captures or CSV — or drop files here.</p>
       <button class="btn small" id="demo">Load a simulated demo</button>
     </div>
   </aside>
@@ -199,7 +202,20 @@
   <form method="dialog">
     <h3>Live measurement</h3>
     <p class="note">SNTP queries from this machine (random transmit timestamp, KoD aware). Please poll public servers no faster than every 64 s.</p>
+    <label>Source
+      <select name="source">
+        <option value="sntp">SNTP queries to servers</option>
+        <option value="chrony">local chrony (chronyc -c tracking)</option>
+        <option value="ntpd">local ntpd / NTPsec (ntpq -c rv)</option>
+      </select>
+    </label>
     <label>Servers <input name="servers" value="pool.ntp.org" placeholder="time.cloudflare.com, ptbtime1.ptb.de"></label>
+    <label>Protocol
+      <select name="version">
+        <option value="4">NTPv4</option>
+        <option value="5">NTPv5 (draft-09, experimental)</option>
+      </select>
+    </label>
     <label>Interval (s) <input name="interval" type="number" value="64" min="1"></label>
     <div id="live-status" class="note"></div>
     <div id="query-result" class="kv"></div>

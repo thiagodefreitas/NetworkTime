@@ -47,6 +47,25 @@ CHRONY_STATS = """\
 2016-08-10 05:40:50 203.0.113.15     6.261e-03 -3.247e-03  2.220e-03  1.874e-06  1.080e-06 7.8e-02  16   0   8  0.00
 2016-08-10 05:41:54 203.0.113.15     6.261e-03 -3.100e-03  2.220e-03  1.874e-06  1.080e-06 7.8e-02  16   0   8  0.00
 """
+CHRONY_REFCLOCKS = """\
+2009-11-30 14:33:27.000000 PPS2    7 N 1  4.900000e-07 -6.741777e-07  1.000e-06
+2009-11-30 14:33:28.000000 PPS2    8 N 1  4.800000e-07 -6.000000e-07  1.000e-06
+2009-11-30 14:33:28.000000 PPS2    - N -       -       -5.000000e-07  1.000e-06
+"""
+# Formats from linuxptp clock.c / phc2sys.c / ts2phc.c pr_info() calls.
+PTP4L = """\
+ptp4l[5374018.735]: master offset         -2 s2 freq  -1843 path delay       529
+ptp4l[5374019.735]: master offset          4 s2 freq  -1836 path delay       530
+ptp4l[5374020.735]: rms    3 max    4 freq  -1840 +/-   5 delay   530 +/-   1
+phc2sys[5374019.001]: CLOCK_REALTIME phc offset        -52 s2 freq  -37046 delay   1234
+phc2sys[5374020.001]: CLOCK_REALTIME phc offset         48 s2 freq  -36990 delay   1230
+ts2phc[5374019.500]: /dev/ptp0 offset          2 s2 freq      +5
+ts2phc[5374020.500]: /dev/ptp0 offset         -1 s2 freq      +3 holdover
+"""
+PTP_JOURNAL = """\
+2026-09-29T10:00:00.735000+0000 host ptp4l[812]: [5374018.735] master offset -2 s2 freq -1843 path delay 529
+2026-09-29T10:00:01.735000+0000 host ptp4l[812]: [5374019.735] master offset 4 s2 freq -1836 path delay 530
+"""
 
 
 def test_mjd_conversion():
@@ -57,7 +76,8 @@ def test_mjd_conversion():
 @pytest.mark.parametrize("text,fmt", [
     (LOOPSTATS, "loopstats"), (PEERSTATS, "peerstats"), (RAWSTATS, "rawstats"),
     (CHRONY_TRACKING, "chrony-tracking"), (CHRONY_MEAS, "chrony-measurements"),
-    (CHRONY_STATS, "chrony-statistics"), ("1,2\n3,4\n", "csv"),
+    (CHRONY_STATS, "chrony-statistics"), (CHRONY_REFCLOCKS, "chrony-refclocks"), (PTP4L, "linuxptp"),
+    ("1,2\n3,4\n", "csv"),
     ("x INFO Logged: [off, 46.38, time, 1338047915.2]\n", "gsoc2012"),
 ])
 def test_detect(text, fmt):
@@ -96,7 +116,9 @@ def test_chrony_sign_is_normalised():
     assert tr.extra["max_error"][0] == pytest.approx(8.304e-3)
     meas = load(CHRONY_MEAS)
     by_peer = {s.meta["peer"]: s for s in meas}
-    assert by_peer["203.0.113.15"].offset[0] == pytest.approx(4.966e-3)
+    # chrony.conf(5): theta, "positive indicates that the local clock is slow of
+    # the remote source" == ntpd convention -> kept as logged (bug in 2.0/2.1).
+    assert by_peer["203.0.113.15"].offset[0] == pytest.approx(-4.966e-3)
     assert by_peer["203.0.113.15"].extra["delay"][0] == pytest.approx(0.2296)
     (st,) = load(CHRONY_STATS)
     assert st.offset[0] == pytest.approx(3.247e-3)
@@ -131,3 +153,30 @@ def test_legacy_2012_files():
 def test_unknown_mjd_log():
     with pytest.raises(ParseError):
         detect_format(["55973 789.370 127.127.20.0 $GPRMC,foo"])
+
+
+def test_chrony_refclocks():
+    (s,) = load(CHRONY_REFCLOCKS)
+    assert len(s) == 2 and s.meta["peer"] == "PPS2"
+    assert s.offset[0] == pytest.approx(-6.741777e-07)  # cooked, positive = local slow
+    assert s.extra["raw_error"][0] == pytest.approx(4.9e-7) and s.extra["pps"][0] == 1
+
+
+def test_linuxptp_programs_and_units():
+    by = {s.meta["peer"]: s for s in load(PTP4L)}
+    assert set(by) == {"ptp4l", "ptp4l (summary)", "phc2sys CLOCK_REALTIME phc", "ts2phc /dev/ptp0"}
+    p = by["ptp4l"]
+    assert p.offset[0] == pytest.approx(2e-9)  # master offset -2 ns (local - master) -> +2 ns
+    assert p.extra["delay"][0] == pytest.approx(529e-9)
+    assert p.extra["frequency_ppm"][0] == pytest.approx(-1.843)
+    assert p.extra["servo_state"][0] == 2
+    assert p.meta["time_base"] == "monotonic" and p.t[0] == pytest.approx(5374018.735)
+    assert by["phc2sys CLOCK_REALTIME phc"].extra["delay"][1] == pytest.approx(1230e-9)
+    assert len(by["ts2phc /dev/ptp0"]) == 2
+    assert by["ptp4l (summary)"].offset[0] == pytest.approx(3e-9)
+
+
+def test_linuxptp_journal_maps_to_utc():
+    (s,) = load(PTP_JOURNAL)
+    assert s.meta["time_base"] == "utc"
+    assert s.t[0] == pytest.approx(1790676000.735, abs=1e-3)

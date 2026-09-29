@@ -215,11 +215,10 @@ async function uploadFiles(files) {
   let last = null;
   for (const f of files) {
     try {
-      const text = await f.text();
       const res = await api(`/api/upload?format=${encodeURIComponent(fmt)}`, {
         method: "POST",
-        body: text,
-        headers: { "X-Filename": encodeURIComponent(f.name), "Content-Type": "text/plain" },
+        body: await f.arrayBuffer(),  // binary-safe (pcap/pcapng)
+        headers: { "X-Filename": encodeURIComponent(f.name), "Content-Type": "application/octet-stream" },
       });
       last = res[0]?.id ?? last;
       toast(`Loaded ${f.name}: ${res.map((r) => `${r.samples} samples`).join(", ")}`);
@@ -689,11 +688,11 @@ function init() {
     try {
       if (action === "query") {
         const server = String(f.get("servers")).split(/[\s,]+/)[0];
-        const r = await api("/api/query", { method: "POST", body: { server } });
+        const r = await api("/api/query", { method: "POST", body: { server, version: +f.get("version") } });
         $("#query-result").textContent =
-          `${r.server} (${r.address})  stratum ${r.stratum}  refid ${r.refid}\noffset ${fmtSec(r.offset)}   delay ${fmtSec(r.delay)}\nroot delay ${fmtSec(r.root_delay)}   root disp ${fmtSec(r.root_dispersion)}   leap ${r.leap}`;
+          `${r.server} (${r.address})  NTPv${r.version}  stratum ${r.stratum}  ${r.version === 5 ? `timescale ${r.timescale} era ${r.era}` : `refid ${r.refid}`}\noffset ${fmtSec(r.offset)}   delay ${fmtSec(r.delay)}\nroot delay ${fmtSec(r.root_delay)}   root disp ${fmtSec(r.root_dispersion)}   leap ${r.leap}`;
       } else if (action === "start") {
-        const r = await api("/api/monitor/start", { method: "POST", body: { servers: f.get("servers"), interval: +f.get("interval") } });
+        const r = await api("/api/monitor/start", { method: "POST", body: { source: f.get("source"), servers: f.get("servers"), interval: +f.get("interval"), version: +f.get("version") } });
         await refreshDatasets(r.id);
         toast(`Monitoring ${r.servers.join(", ")}`);
         render();

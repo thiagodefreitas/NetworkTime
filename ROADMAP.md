@@ -18,7 +18,7 @@ as [GitHub issues](https://github.com/thiagodefreitas/NetworkTime/issues).
 - Lightweight web UI (stdlib server + uPlot), CLI, and matplotlib report figures.
 - Test suite validated without third-party stability libraries; CI on Python 3.9–3.13.
 
-## 2.1 — Deeper statistics
+## ✅ 2.1 — Deeper statistics (released 2.1.0)
 - Full Greenhall–Riley EDF algorithm for every estimator (MDEV/TDEV/HDEV currently use the
   closed-form OADEV EDF as an approximation). ([#1](https://github.com/thiagodefreitas/NetworkTime/issues/1))
 - Long-τ estimators: total deviation (TOTDEV, MTOT), Theo1/TheoH; time-interval error (TIE)
@@ -28,7 +28,7 @@ as [GitHub issues](https://github.com/thiagodefreitas/NetworkTime/issues).
   standards text is shipped (e.g. ITU-T G.8261.1/G.8262/G.8271.1). ([#4](https://github.com/thiagodefreitas/NetworkTime/issues/4))
 - Frequency-data input and phase↔frequency conversion (ntpd `drift`, chrony `Freq`).
 
-## 2.2 — More sources
+## ✅ 2.2 — More sources (released 2.2.0)
 - PTP: linuxptp (`ptp4l`, `phc2sys`, `ts2phc`) logs and PHC offsets. ([#5](https://github.com/thiagodefreitas/NetworkTime/issues/5))
 - Live daemons: poll `chronyc -c` (tracking/sources/sourcestats) and NTPsec `ntpmon`/`ntpq`
   mode-6 variables. ([#6](https://github.com/thiagodefreitas/NetworkTime/issues/6))

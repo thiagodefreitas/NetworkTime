@@ -22,11 +22,19 @@ was wrong with the original code, and [ROADMAP.md](ROADMAP.md) for where it is g
 
 ## Highlights
 
-- **Every common log format, auto-detected**: ntpd/NTPsec `loopstats`, `peerstats` (per-peer,
-  picks the `sys.peer` automatically), `rawstats` (offset/delay recomputed from the four
-  on-wire timestamps), chrony `tracking.log`, `measurements.log`, `statistics.log`, generic
-  CSV, and the 2012 `estimators.log`. Sign conventions are normalised (chrony reports
-  *local − reference*; everything here is *reference − local*, like ntpd).
+- **Every common source, auto-detected**:
+  - ntpd/NTPsec `loopstats`, `peerstats` (per peer, `sys.peer` picked automatically) and
+    `rawstats` (offset/delay recomputed from the four on-wire timestamps);
+  - chrony `tracking.log`, `measurements.log`, `statistics.log` and `refclocks.log`
+    (GNSS/PPS reference clocks);
+  - **PTP**: linuxptp `ptp4l`, `phc2sys`, `ts2phc` output from stdout, syslog or journald
+    (monotonic stamps are mapped to UTC when the journal prefix is present);
+  - **packet captures** (pcap/pcapng, including nanosecond and hardware timestamps): NTP
+    exchanges are matched and measured from the capture host's clock;
+  - generic CSV and the 2012 `estimators.log`.
+
+  Every sign convention is normalised to *reference − local*, following each implementation's
+  documentation (table below).
 - **Stability analysis done right**: non-overlapping and overlapping ADEV, MDEV, TDEV,
   overlapping Hadamard, total deviation (TOTDEV), Theo1, MTIE (O(N log N)) and TIErms, each with
   - χ² confidence intervals from the **exact** equivalent degrees of freedom of the discrete
@@ -46,9 +54,15 @@ was wrong with the original code, and [ROADMAP.md](ROADMAP.md) for where it is g
 - **Simulator with ground truth**: power-law oscillator noise (white/flicker PM, white/flicker/
   random-walk FM), frequency offset and drift, asymmetric queueing paths, packet loss. Score any
   estimator with `analysis.compare(estimate, truth)`.
-- **SNTP client & monitor**: random transmit timestamp (client data minimisation), origin check,
-  Kiss-o'-Death and unsynchronised-server handling, 2036 era rollover, polite polling with
-  RATE back-off. Logs to CSV that the analyser reads back.
+- **Measurement clients** (they never set the clock):
+  - NTPv4 SNTP with a random transmit timestamp (data minimisation), origin check,
+    Kiss-o'-Death and 2036 era handling;
+  - **NTS** (RFC 8915): NTS-KE over TLS 1.3 with certificate and host-name checks, AES-SIV
+    authenticated exchanges and cookie renewal (optional extra `ntpstats[nts]`);
+  - experimental **NTPv5** (draft-ietf-ntp-ntpv5-09): v5 header with cookies, timescale and
+    era, plus the NTPv4→v5 upgrade probe;
+  - a polite `monitor` (RATE back-off, jitter), and `watch`, which samples the local
+    **chrony** (`chronyc -c tracking`) or **ntpd/NTPsec** (`ntpq -c rv`) without log files.
 - **Lightweight UI**: `ntpstats ui` starts a local web app. It runs on the Python standard
   library HTTP server with one static page and [uPlot](https://github.com/leeoniya/uPlot) (≈50 kB,
   bundled, MIT), so there is no Qt, Electron, Node or CDN, and it works offline. Light and dark
@@ -62,8 +76,9 @@ was wrong with the original code, and [ROADMAP.md](ROADMAP.md) for where it is g
 ```bash
 pip install git+https://github.com/thiagodefreitas/NetworkTime.git       # core + UI
 pip install "ntpstats[plot] @ git+https://github.com/thiagodefreitas/NetworkTime.git"  # + matplotlib figures
+pip install "ntpstats[nts] @ git+https://github.com/thiagodefreitas/NetworkTime.git"   # + NTS client (pyOpenSSL, cryptography)
 # from a checkout, for development:
-pip install -e ".[test,plot]" && pytest
+pip install -e ".[test,plot,nts]" && pytest
 ```
 
 Python ≥ 3.9.
@@ -113,14 +128,38 @@ Scenario 'internet': 1350 exchanges, poll 64 s, seed 1
    min-delay filter (8)                 112 µs     761 ns     248 µs     752 µs
 ```
 
+More measurement commands:
+
+```bash
+ntpstats query time.cloudflare.com --nts            # NTS-authenticated (pip install 'ntpstats[nts]')
+ntpstats query ntpd-rs.example.net --ntpv5          # experimental NTPv5 draft-09
+ntpstats query pool.ntp.org --probe-v5              # does the server offer NTPv5?
+ntpstats watch chrony -i 16 -o chrony-live.csv      # local daemon, no log files needed
+ntpstats info capture.pcapng                        # NTP exchanges from a packet capture
+ntpstats stability /var/log/ptp4l.log -k tdev,mtie  # PTP servo offsets
+```
+
 Common options: `--format` (override detection), `--peer`, `--all-peers`,
 `--start/--end` (POSIX seconds or ISO 8601 UTC), `--outliers K` (drop > K·MAD after
 detrending), `--json`/`--csv` output.
 
+### Sign conventions
+
+| Source | Logged as | ntpstats |
+|---|---|---|
+| ntpd/NTPsec loopstats, peerstats, rawstats, `ntpq rv` | reference − local | kept |
+| chrony `measurements.log` (θ), `refclocks.log` (cooked), `chronyc tracking` "System time" | reference − local ("positive = local slow") | kept |
+| chrony `tracking.log`, `statistics.log`, `chronyc sourcestats` | local − reference ("positive = local fast") | negated |
+| linuxptp `master offset` / `offset` (ns) | local − reference | negated, converted to s |
+| pcap captures | computed from server T2/T3 and capture times | reference − capture host |
+
 ### Enabling the logs
 
-- **chrony** (`/etc/chrony/chrony.conf` or `/etc/chrony.conf`): `log tracking measurements statistics`
+- **chrony** (`/etc/chrony/chrony.conf` or `/etc/chrony.conf`): `log tracking measurements statistics refclocks`
   and `logdir /var/log/chrony`.
+- **linuxptp**: run `ptp4l`/`phc2sys` with `-m` (stdout) or collect
+  `journalctl -u ptp4l -o short-iso-precise`, which gives UTC time stamps.
+- **captures**: `tcpdump -i eth0 -j adapter_unsynced --time-stamp-precision=nano -w ntp.pcap udp port 123`.
 - **ntpd / NTPsec** (`ntp.conf`): `statsdir /var/log/ntpstats/`, `statistics loopstats peerstats rawstats`,
   `filegen peerstats file peerstats type day enable` (same for the others).
 
@@ -148,7 +187,7 @@ regenerates the sample logs in `examples/data/` in each native format.
 
 ## Validation
 
-`pytest` runs about 70 tests, and none of them need network access:
+`pytest` runs about 130 tests, and none of them need network access:
 
 - every estimator is checked against a literal implementation of the NIST SP 1065 sums, against
   the analytic log-log slopes of the five power-law noise types, and against a frozen table of
@@ -158,8 +197,12 @@ regenerates the sample logs in `examples/data/` in each native format.
 - parsers are checked on the line layouts from the ntpd and chrony documentation, and by
   cross-checking that the same simulated peer reads identically from peerstats, rawstats and
   chrony logs;
-- the SNTP client is checked against a local fake server (offset, delay, KoD, spoofed replies,
-  timeouts, 2036 rollover);
+- the SNTP, NTPv5 and NTS clients are checked against local test servers (offset, delay, KoD,
+  spoofed replies, timeouts, 2036 rollover, TAI timescale, forged NTS responses, certificate
+  mismatch);
+- the pcap/pcapng readers are checked on synthesised captures (VLAN tags, nanosecond
+  resolution, NTPv4 and v5 matching), and the linuxptp parser on the exact `pr_info` formats from
+  the linuxptp source;
 - the web API is checked, including its CSRF, Host-header and path-traversal protections.
 
 CI runs on Python 3.9, 3.11 and 3.13.
@@ -175,7 +218,8 @@ their logs).
 ## Project layout
 
 ```
-src/ntpstats/     parsers, stability, analysis, network, filters, simulate, sntp, monitor, cli, plotting
+src/ntpstats/     parsers, pcap, stability, edf, masks, analysis, network, filters, simulate,
+                  sntp (v4/v5), nts, sources (chronyc/ntpq), monitor, cli, plotting
 src/ntpstats/web  stdlib HTTP server + static UI (uPlot vendored)
 tests/            pytest suite (+ frozen reference data)
 examples/         scripts and sample logs
