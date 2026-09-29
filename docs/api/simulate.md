@@ -1,0 +1,3 @@
+# ntpstats.simulate
+
+::: ntpstats.simulate

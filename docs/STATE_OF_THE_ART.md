@@ -57,7 +57,7 @@ truth, so an algorithm can be *validated* rather than just plotted.
 
 ## 3. What was wrong in the 2012 code (review)
 
-The original code is preserved unchanged in [`legacy/`](../legacy/). A review found:
+The original code is preserved unchanged in [`legacy/`](https://github.com/thiagodefreitas/NetworkTime/tree/master/legacy). A review found:
 
 1. **Wrong τ axis and wrong ADEV values.** `allanDevMills()` hard-coded the base averaging
    time to 32 s regardless of the data. loopstats are written at the poll interval (the sample

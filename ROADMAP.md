@@ -49,6 +49,6 @@ as [GitHub issues](https://github.com/thiagodefreitas/NetworkTime/issues).
 ## UX and infrastructure (2.4.0: performance, lint, coverage, Docker, security review done)
 - A single-file self-contained HTML report export. ([#12](https://github.com/thiagodefreitas/NetworkTime/issues/12))
 - Large-file performance: streaming parsers, >10 M samples, background computation. ([#13](https://github.com/thiagodefreitas/NetworkTime/issues/13))
-- PyPI release, documentation site, container image. ([#14](https://github.com/thiagodefreitas/NetworkTime/issues/14))
-- Type checking (mypy), linting (ruff), coverage in CI; cross-validation against published
-  datasets and Stable32 results. ([#14](https://github.com/thiagodefreitas/NetworkTime/issues/14))
+- ✅ PyPI release (trusted publishing on tags), documentation site, wiki, container image. ([#14](https://github.com/thiagodefreitas/NetworkTime/issues/14))
+- ✅ Type checking (mypy), linting (ruff), coverage in CI.
+- Cross-validation against published datasets and Stable32 results. ([#14](https://github.com/thiagodefreitas/NetworkTime/issues/14))

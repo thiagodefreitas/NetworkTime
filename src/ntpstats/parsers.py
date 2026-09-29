@@ -42,7 +42,7 @@ import io
 import os
 import re
 from collections import OrderedDict
-from typing import Iterable, List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence
 
 import numpy as np
 
@@ -296,7 +296,7 @@ def parse_peerstats(lines, name="peerstats") -> List[TimeSeries]:
         addrs, status = [r[2] for r in rows], [r[3] for r in rows]
     if not a.size:
         raise ParseError("no usable peerstats lines")
-    cache = {}
+    cache: Dict[str, int] = {}
     sel = np.array([cache[v] if v in cache else cache.setdefault(v, _peer_status_select(v)) for v in status])
     t = mjd_to_unix(a[:, 0], a[:, 1])
     out = []

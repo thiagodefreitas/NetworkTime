@@ -1,0 +1,50 @@
+# Getting started
+
+## Install
+
+```bash
+pip install ntpstats                 # core + web UI (numpy only)
+pip install "ntpstats[plot]"         # + matplotlib figures
+pip install "ntpstats[nts]"          # + NTS client (pyOpenSSL, cryptography)
+# development
+git clone https://github.com/thiagodefreitas/NetworkTime && cd NetworkTime
+pip install -e ".[test,plot,nts,docs]" && pytest
+```
+
+Python 3.9 or newer.
+
+## The web UI
+
+```bash
+ntpstats ui /var/log/chrony/measurements.log /var/log/ntpstats/peerstats
+```
+
+This opens `http://127.0.0.1:8123`: a local page served by the Python standard library with a
+bundled chart library. It has no external requests and works offline. Drop more files onto the
+page, tick datasets to compare them, drag on a chart to zoom and *Analyze zoomed range*, and use
+*Report* to download a self-contained HTML report.
+
+## First analyses
+
+```bash
+ntpstats info /var/log/ntpstats/loopstats.20260928          # summary statistics
+ntpstats stability /var/log/chrony/tracking.log -k oadev,mdev,tdev --ci 0.95
+ntpstats network /var/log/ntpstats/peerstats --peer 192.0.2.10
+ntpstats report peerstats --all-peers -o report.html          # offline HTML report
+ntpstats query time.cloudflare.com --nts                      # authenticated measurement
+ntpstats simulate --preset internet --benchmark               # estimators vs ground truth
+```
+
+Sample data for every format is in
+[`examples/data`](https://github.com/thiagodefreitas/NetworkTime/tree/master/examples/data).
+`python examples/make_example_logs.py` regenerates it.
+
+## Docker
+
+```bash
+docker build -t ntpstats .
+docker run --rm -p 8123:8123 -v "$PWD:/data" ntpstats ui /data/peerstats --host 0.0.0.0 --no-browser
+```
+
+!!! warning
+    The UI has no authentication. Only expose it (`--host 0.0.0.0`) on trusted networks.

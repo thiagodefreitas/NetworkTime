@@ -299,13 +299,13 @@ class NTSSession:
     def cookies_left(self) -> int:
         return len(self.keys.cookies) if self.keys else 0
 
-    def _ensure_keys(self):
+    def _ensure_keys(self) -> NTSKeys:
         if self.keys is None or not self.keys.cookies:
             self.keys = key_exchange(self.host, self.ke_port, self.timeout, self.verify, self.cafile, self.family)
+        return self.keys
 
     def query(self) -> NTPResult:
-        self._ensure_keys()
-        keys = self.keys
+        keys = self._ensure_keys()
         want = max(0, 8 - len(keys.cookies) - 1)
         pkt, xmt, uid = build_request(keys, placeholders=min(want, 7))
         from .sntp import _udp_socket

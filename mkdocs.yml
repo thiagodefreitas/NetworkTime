@@ -1,7 +1,11 @@
 site_name: ntpstats
-site_description: "NTP / network-time offset, delay and frequency-stability analysis"
+site_description: "NTP / PTP / network-time offset, delay and frequency-stability analysis"
 site_author: "Thiago de Freitas"
 site_url: "https://thiagodefreitas.github.io/NetworkTime/"
+copyright: "© 2012–2026 Thiago de Freitas · MIT License"
+repo_name: thiagodefreitas/NetworkTime
+repo_url: https://github.com/thiagodefreitas/NetworkTime
+edit_uri: edit/master/docs/
 
 theme:
   name: material
@@ -23,23 +27,41 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
-repo_name: thiagodefreitas/NetworkTime
-repo_url: https://github.com/thiagodefreitas/NetworkTime
+exclude_docs: |
+  *.py
+  __pycache__/
 
 nav:
   - Home: index.md
-  - Format Guide: format_guide.md
-  - Statistics Primer: statistics_primer.md
-  - API Reference: api_reference.md
-  - Interop: INTEROP.md
-  - State of the Art: STATE_OF_THE_ART.md
-  - Cross-validation: cross_validation.md
+  - Getting started: getting-started.md
+  - CLI: cli.md
+  - Formats: formats.md
+  - Statistics: statistics.md
+  - Network & estimators: network.md
+  - Validation: validation.md
+  - API:
+      - Overview: api/index.md
+      - series: api/series.md
+      - parsers: api/parsers.md
+      - stability: api/stability.md
+      - edf: api/edf.md
+      - analysis: api/analysis.md
+      - network: api/network.md
+      - filters: api/filters.md
+      - estimators: api/estimators.md
+      - simulate: api/simulate.md
+      - bench: api/bench.md
+      - sntp: api/sntp.md
+      - nts: api/nts.md
+      - masks: api/masks.md
+      - report: api/report.md
+  - Live interop: INTEROP.md
+  - State of the art: STATE_OF_THE_ART.md
 
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
   - pymdownx.superfences
   - admonition
   - def_list
@@ -49,3 +71,13 @@ markdown_extensions:
 
 plugins:
   - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: false
+            show_root_heading: false
+            members_order: source
+            filters: ["!^_"]

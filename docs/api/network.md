@@ -1,0 +1,3 @@
+# ntpstats.network
+
+::: ntpstats.network

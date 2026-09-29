@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import struct
 from collections import OrderedDict
-from typing import Dict, Iterator, List, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 
@@ -160,7 +160,7 @@ def _v6(b: bytes) -> str:
     return ":".join(f"{w:x}" for w in words)
 
 
-def _ntp_ts(raw: int, ref: float, era: int = None) -> float:
+def _ntp_ts(raw: int, ref: float, era: Optional[int] = None) -> float:
     base = (raw >> 32) + (raw & 0xFFFFFFFF) / _ERA - NTP_UNIX_DELTA
     if era is not None:
         return base + era * _ERA

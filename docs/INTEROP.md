@@ -1,6 +1,6 @@
 # Live interoperability results
 
-The [Live interop](../.github/workflows/interop.yml) workflow runs every Monday (and on demand)
+The [Live interop](https://github.com/thiagodefreitas/NetworkTime/blob/master/.github/workflows/interop.yml) workflow runs every Monday (and on demand)
 on GitHub-hosted runners and queries public servers with every ntpstats client. The latest
 results are in the workflow's job summary. Below is the first run, kept as a reference.
 

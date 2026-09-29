@@ -27,7 +27,7 @@ plot = ["matplotlib>=3.6"]
 nts = ["pyOpenSSL>=23.2", "cryptography>=42"]
 test = ["pytest>=7", "tomli>=2; python_version < '3.11'"]
 toml = ["tomli>=2; python_version < '3.11'"]
-docs = ["mkdocs>=1.4", "mkdocs-material>=9.0"]
+docs = ["mkdocs>=1.5,<2", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
 
 [project.urls]
 Homepage = "https://github.com/thiagodefreitas/NetworkTime"
@@ -60,4 +60,6 @@ ignore = ["E501"]
 source = ["ntpstats"]
 
 [tool.mypy]
+# third-party modules without stubs (pyOpenSSL, matplotlib extras); ntpstats itself is checked fully
 ignore_missing_imports = true
+warn_unused_ignores = true

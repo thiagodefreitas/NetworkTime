@@ -8,6 +8,9 @@ TDEV, Hadamard, MTIE, floor packet percentage) with confidence intervals and noi
 identification. A built-in simulator with **ground truth** turns it into a test bench for
 synchronisation algorithms.
 
+📖 **Documentation:** [thiagodefreitas.github.io/NetworkTime](https://thiagodefreitas.github.io/NetworkTime/)
+· [Wiki](https://github.com/thiagodefreitas/NetworkTime/wiki) · `pip install ntpstats`
+
 It started as a Google Summer of Code 2012 project for the NTP Project (kept unchanged in
 [`legacy/`](legacy/)); version 2 is a complete rewrite. See
 [docs/STATE_OF_THE_ART.md](docs/STATE_OF_THE_ART.md) for what changed in NTP since 2012 and what
@@ -38,7 +41,8 @@ public NTP/NTS servers, [CHANGELOG.md](CHANGELOG.md) for releases and
   Every sign convention is normalised to *reference − local*, following each implementation's
   documentation (table below).
 - **Stability analysis done right**: non-overlapping and overlapping ADEV, MDEV, TDEV,
-  overlapping Hadamard, total deviation (TOTDEV), Theo1, MTIE (O(N log N)) and TIErms, each with
+  overlapping Hadamard, total and modified total deviation (TOTDEV, MTOT), Theo1, TheoBR, TheoH,
+  MTIE (O(N log N)) and TIErms, each with
   - χ² confidence intervals from the **exact** equivalent degrees of freedom of the discrete
     power-law model (Monte Carlo verified),
   - per-τ power-law noise identification (lag-1 autocorrelation method),
@@ -87,11 +91,12 @@ public NTP/NTS servers, [CHANGELOG.md](CHANGELOG.md) for releases and
 ## Install
 
 ```bash
-pip install git+https://github.com/thiagodefreitas/NetworkTime.git       # core + UI
-pip install "ntpstats[plot] @ git+https://github.com/thiagodefreitas/NetworkTime.git"  # + matplotlib figures
-pip install "ntpstats[nts] @ git+https://github.com/thiagodefreitas/NetworkTime.git"   # + NTS client (pyOpenSSL, cryptography)
+pip install ntpstats                # core + UI (numpy only)
+pip install "ntpstats[plot]"        # + matplotlib figures
+pip install "ntpstats[nts]"         # + NTS client (pyOpenSSL, cryptography)
+pip install git+https://github.com/thiagodefreitas/NetworkTime.git   # latest master
 # from a checkout, for development:
-pip install -e ".[test,plot,nts]" && pytest
+pip install -e ".[test,plot,nts,docs]" && pytest
 ```
 
 Python ≥ 3.9.

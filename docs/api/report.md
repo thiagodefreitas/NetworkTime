@@ -1,0 +1,3 @@
+# ntpstats.report
+
+::: ntpstats.report

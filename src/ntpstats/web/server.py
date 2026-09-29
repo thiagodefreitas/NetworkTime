@@ -26,7 +26,7 @@ import time
 import traceback
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import numpy as np
@@ -62,11 +62,11 @@ CSRF_HEADER = "X-NTPStats"
 
 # ------------------------------------------------------------------- state
 class Store:
-    def __init__(self):
+    def __init__(self) -> None:
         self.lock = threading.RLock()
         self.datasets: Dict[str, TimeSeries] = {}
         self._next = 1
-        self.monitor: Optional[Monitor] = None
+        self.monitor: Optional[Any] = None  # Monitor or sources.LocalWatch
         self.monitor_id: Optional[str] = None
         self.monitor_log: List[str] = []
         self.masks: Dict[str, object] = {}
@@ -592,6 +592,16 @@ class Handler(BaseHTTPRequestHandler):
         return self._error(404, "unknown endpoint")
 
 
+class _Server(ThreadingHTTPServer):
+    daemon_threads = True
+    any_host = False  # accept any Host header (explicit non-loopback bind)
+    extra_hosts: tuple = ()
+
+
+class _ServerV6(_Server):
+    address_family = socket.AF_INET6
+
+
 def serve(
     files=(),
     host: str = "127.0.0.1",
@@ -602,9 +612,7 @@ def serve(
     for path in files:
         for s in load(path, fmt=fmt):
             STORE.add(s)
-    server_cls = ThreadingHTTPServer
-    if ":" in host:  # IPv6 literal
-        server_cls = type("ThreadingHTTPServerV6", (ThreadingHTTPServer,), {"address_family": socket.AF_INET6})
+    server_cls = _ServerV6 if ":" in host else _Server  # IPv6 literal -> AF_INET6
     httpd = server_cls((host, port), Handler)
     httpd.daemon_threads = True
     if host not in ("127.0.0.1", "localhost", "::1"):

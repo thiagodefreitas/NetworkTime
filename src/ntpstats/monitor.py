@@ -110,7 +110,7 @@ class Monitor:
                         self._error(server, exc)
                     else:
                         self.samples += 1
-                        if writer:
+                        if writer is not None and fh is not None:
                             writer.writerow(result_row(r))
                             fh.flush()
                         if self.on_sample:
@@ -131,7 +131,9 @@ class Monitor:
         if self.nts:
             from .nts import NTSSession
 
-            sess = self._sessions.setdefault(server, NTSSession(server))
+            sess = self._sessions.get(server)
+            if not isinstance(sess, NTSSession):
+                sess = self._sessions[server] = NTSSession(server)
             return sess.query()
         return query(server) if self.version == 4 else query(server, version=self.version)
 

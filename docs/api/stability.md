@@ -1,0 +1,3 @@
+# ntpstats.stability
+
+::: ntpstats.stability
