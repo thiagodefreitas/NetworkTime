@@ -164,9 +164,61 @@ def naive_theo1(x, m, tau0):
     return np.sqrt(s / (0.75 * (N - m) * (m * tau0) ** 2))
 
 
+def naive_mtot(x, m, tau0):
+    N = len(x)
+    nsubs = N - 3 * m + 1
+    vals = []
+    for i in range(nsubs):
+        xs = np.array(x[i: i + 3 * m], dtype=float)
+        h1 = int(np.floor(3 * m / 2.0))
+        h2 = int(np.ceil(3 * m / 2.0))
+        mean1 = np.mean(xs[:h1])
+        mean2 = np.mean(xs[h2:])
+        if (3 * m) % 2:
+            slope = (mean2 - mean1) / ((0.5 * (3 * m - 1) + 1.0) * tau0)
+        else:
+            slope = (mean2 - mean1) / (0.5 * 3 * m * tau0)
+        x0 = xs - slope * np.arange(3 * m) * tau0
+        xstar = np.concatenate((x0[::-1], x0, x0[::-1]))
+        sq = 0.0
+        for j in range(6 * m):
+            a1 = np.mean(xstar[j: j + m])
+            a2 = np.mean(xstar[j + m: j + 2 * m])
+            a3 = np.mean(xstar[j + 2 * m: j + 3 * m])
+            sq += (a1 - 2 * a2 + a3) ** 2
+        vals.append(sq / (6 * m))
+    return np.sqrt(np.mean(vals) / (2 * (m * tau0) ** 2))
+
+
+def naive_theobr_ratio(x, tau0):
+    N = len(x)
+    n = N // 6 - 3
+    vals = []
+    for i in range(n + 1):
+        ma = 9 + 3 * i
+        mt = 12 + 4 * i
+        if N - 2 * ma <= 0 or N - mt <= 0:
+            continue
+        a = sum((x[j + 2 * ma] - 2 * x[j + ma] + x[j]) ** 2 for j in range(N - 2 * ma))
+        avar = a / (2 * (ma * tau0) ** 2 * (N - 2 * ma))
+        tvar = naive_theo1(x, mt, tau0) ** 2
+        if tvar > 0:
+            vals.append(avar / tvar)
+    return float(np.mean(vals))
+
+
+def naive_theobr(x, m, tau0):
+    return naive_theo1(x, m, tau0) * np.sqrt(naive_theobr_ratio(x, tau0))
+
+
 @pytest.mark.parametrize("m", [1, 2, 5, 16, 60])
 def test_totdev_textbook(phase, m):
     assert st.compute(phase, 2.0, "totdev", [m], ci=None).dev[0] == pytest.approx(naive_totdev(phase, m, 2.0), rel=1e-12)
+
+
+@pytest.mark.parametrize("m", [1, 2, 5, 16, 40])
+def test_mtot_textbook(phase, m):
+    assert st.compute(phase, 2.0, "mtot", [m], ci=None).dev[0] == pytest.approx(naive_mtot(phase, m, 2.0), rel=1e-12)
 
 
 @pytest.mark.parametrize("m", [2, 4, 10, 64])
@@ -180,6 +232,39 @@ def test_theo1_unbiased_for_white_fm():
     x = powerlaw_phase(1 << 14, 0, 1.0, rng=8)
     r = st.compute(x, 1.0, "theo1", [16, 64, 256], ci=None)
     np.testing.assert_allclose(r.dev, 1 / np.sqrt(r.taus), rtol=0.1)
+
+
+@pytest.mark.parametrize("m", [12, 20, 64, 128])
+def test_theobr_textbook(phase, m):
+    r = st.compute(phase, 2.0, "theobr", [m], ci=None)
+    assert r.taus[0] == pytest.approx(0.75 * m * 2.0)
+    assert r.dev[0] == pytest.approx(naive_theobr(phase, m, 2.0), rel=1e-12)
+
+
+def test_theoh_piecewise_definition(phase):
+    N = len(phase)
+    tau0 = 2.0
+    short_m = 10
+    long_m = int(0.25 * (N - 1))
+    r = st.compute(phase, tau0, "theoh", [short_m, long_m], ci=None)
+    assert r.taus[0] == pytest.approx(short_m * tau0)
+    assert r.dev[0] == pytest.approx(st.compute(phase, tau0, "adev", [short_m], ci=None).dev[0], rel=1e-12)
+    theo_m = 2 * max(1, round(long_m / 1.5))
+    assert r.taus[1] == pytest.approx(0.75 * theo_m * tau0)
+    assert r.dev[1] == pytest.approx(st.compute(phase, tau0, "theobr", [theo_m], ci=None).dev[0], rel=1e-12)
+
+
+def test_mtot_white_fm_slope():
+    x = powerlaw_phase(2 ** 15, 0, 1.0, rng=10)
+    r = st.compute(x, 1.0, "mtot", [4, 8, 16, 32, 64, 128], ci=None)
+    fit = np.polyfit(np.log10(r.taus), np.log10(r.dev), 1)[0]
+    assert fit == pytest.approx(-0.5, abs=0.15)
+
+
+def test_theoh_unbiased_for_white_fm():
+    x = powerlaw_phase(1 << 14, 0, 1.0, rng=11)
+    r = st.compute(x, 1.0, "theoh", [8, 16, 64, 128, 256], ci=None)
+    np.testing.assert_allclose(r.dev, 1 / np.sqrt(r.taus), rtol=0.3)
 
 
 def test_tierms_random_walk():

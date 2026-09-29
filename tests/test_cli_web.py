@@ -25,6 +25,9 @@ def test_cli_stability_table_and_csv(capsys):
     main(["stability", os.path.join(EX, "peerstats.example"), "--peer", "192.0.2.10", "-k", "oadev,tdev,mtie"])
     out = capsys.readouterr().out
     assert "Allan deviation (overlapping)" in out and "Time deviation" in out and "white PM" in out
+    main(["stability", os.path.join(EX, "peerstats.example"), "--peer", "192.0.2.10", "-k", "mtot,theobr,theoh", "--ci", "0"])
+    out2 = capsys.readouterr().out
+    assert "Modified total deviation" in out2 and "TheoBR deviation" in out2 and "TheoH deviation" in out2
     main(["stability", os.path.join(EX, "chrony-tracking.log"), "--csv", "-k", "mdev"])
     assert capsys.readouterr().out.startswith("tau,mdev,err,n,lo,hi,edf,alpha")
 
@@ -75,7 +78,8 @@ def test_web_static_and_info(base_url):
     html = call(base_url + "/", raw=True)
     assert "uPlot.iife.min.js" in html and "Thiago de Freitas" in html
     assert "uPlot" in call(base_url + "/vendor/uPlot.iife.min.js", raw=True)[:2000]
-    assert "oadev" in call(base_url + "/api/info")["kinds"]
+    kinds = call(base_url + "/api/info")["kinds"]
+    assert "oadev" in kinds and "mtot" in kinds and "theoh" in kinds and "theobr" in kinds
 
 
 def test_web_upload_and_analyses(base_url):
@@ -88,6 +92,8 @@ def test_web_upload_and_analyses(base_url):
     st = call(f"{base_url}/api/stability/{sid}?kinds=oadev,mdev,mtie&ci=0.95")
     assert [r["kind"] for r in st["results"]] == ["oadev", "mdev", "mtie"]
     assert st["results"][0]["lo"][0] < st["results"][0]["dev"][0] < st["results"][0]["hi"][0]
+    st2 = call(f"{base_url}/api/stability/{sid}?kinds=mtot,theobr,theoh&ci=0")
+    assert [r["kind"] for r in st2["results"]] == ["mtot", "theobr", "theoh"]
     net = call(f"{base_url}/api/network/{sid}")
     assert net["stats"]["delay_min"] > 0 and net["fpp"]["pct"]
     hist = call(f"{base_url}/api/histogram/{sid}?bins=20")

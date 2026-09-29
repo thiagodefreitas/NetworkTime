@@ -23,7 +23,10 @@ Estimators
 ``hdev``   overlapping Hadamard deviation (insensitive to linear frequency
            drift, useful for NTP-disciplined clocks with aging/thermal drift)
 ``totdev`` total deviation (reflection-extended ADEV, tighter at long tau)
+``mtot``   modified total deviation (long-tau MDEV counterpart)
 ``theo1``  Theo1 (Howe), reaches tau = 0.75 * record length
+``theobr`` bias-removed Theo1 (TheoBR)
+``theoh``  TheoH (ADEV at short tau, TheoBR at long tau)
 ``mtie``   maximum time interval error (ITU-T G.810)
 ``tierms`` RMS time interval error (ITU-T G.810)
 """
@@ -36,7 +39,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 
-KINDS = ("adev", "oadev", "mdev", "tdev", "hdev", "totdev", "theo1", "mtie", "tierms")
+KINDS = ("adev", "oadev", "mdev", "tdev", "hdev", "totdev", "mtot", "theo1", "theobr", "theoh", "mtie", "tierms")
 
 #: Short description used in the UI / CLI.
 DESCRIPTIONS = {
@@ -46,7 +49,10 @@ DESCRIPTIONS = {
     "tdev": "Time deviation [s]",
     "hdev": "Hadamard deviation (overlapping)",
     "totdev": "Total deviation",
+    "mtot": "Modified total deviation",
     "theo1": "Theo1 deviation (tau = 0.75 m tau0)",
+    "theobr": "TheoBR deviation (bias-removed Theo1)",
+    "theoh": "TheoH deviation (ADEV + TheoBR)",
     "mtie": "Max. time interval error [s]",
     "tierms": "RMS time interval error [s]",
 }
@@ -228,6 +234,38 @@ def _totdev(x, m, tau0):
     return np.sqrt(ms / (2 * tau * tau)), n
 
 
+def _mtot(x, m, tau0):
+    """Modified total deviation (NIST SP 1065 eq. (27), phase form)."""
+    N = x.size
+    nsubs = N - 3 * m + 1
+    if nsubs < 1:
+        return np.nan, 0
+    vals = []
+    for i in range(nsubs):
+        xs = x[i: i + 3 * m]
+        if not np.all(np.isfinite(xs)):
+            continue
+        h1 = int(np.floor(3 * m / 2.0))
+        h2 = int(np.ceil(3 * m / 2.0))
+        mean1 = float(np.mean(xs[:h1]))
+        mean2 = float(np.mean(xs[h2:]))
+        if (3 * m) % 2:
+            slope = (mean2 - mean1) / ((0.5 * (3 * m - 1) + 1.0) * tau0)
+        else:
+            slope = (mean2 - mean1) / (0.5 * 3 * m * tau0)
+        idx = np.arange(3 * m, dtype=float)
+        x0 = xs - slope * idx * tau0
+        xstar = np.concatenate((x0[::-1], x0, x0[::-1]))
+        w = _window_sums(xstar, m)
+        d2 = (w[2 * m: 8 * m] - 2.0 * w[m: 7 * m] + w[: 6 * m]) / float(m)
+        vals.append(float(np.mean(d2 * d2)))
+    n = len(vals)
+    if n == 0:
+        return np.nan, 0
+    var = float(np.mean(vals)) / (2.0 * (m * tau0) ** 2)
+    return np.sqrt(var), n
+
+
 def _theo1(x, m, tau0):
     """Theo1 (NIST SP 1065 eq. (31)); m even, result belongs to tau = 0.75 m tau0."""
     N = x.size
@@ -247,6 +285,47 @@ def _theo1(x, m, tau0):
     return np.sqrt(var), n
 
 
+def _theobr_ratio(x, tau0):
+    """TheoBR bias-removal factor kf (average AVAR/THEO1 variance ratio)."""
+    N = x.size
+    n = N // 6 - 3
+    if n < 0:
+        return np.nan
+    total, cnt = 0.0, 0
+    for i in range(n + 1):
+        da, _ = _oadev(x, 9 + 3 * i, tau0)
+        dt, _ = _theo1(x, 12 + 4 * i, tau0)
+        if np.isfinite(da) and np.isfinite(dt) and dt > 0:
+            total += (da * da) / (dt * dt)
+            cnt += 1
+    return np.nan if cnt == 0 else total / cnt
+
+
+def _theobr(x, m, tau0):
+    d, n = _theo1(x, m, tau0)
+    kf = _theobr_ratio(x, tau0)
+    return d * np.sqrt(kf), n
+
+
+def _theoh_theo_m(m: int) -> int:
+    return int(2 * max(1, round(m / 1.5)))
+
+
+def _theoh_tau(m: int, n_phase: int, tau0: float) -> float:
+    if m <= 0.2 * (n_phase - 1):
+        return float(m) * tau0
+    return 0.75 * _theoh_theo_m(m) * tau0
+
+
+def _theoh(x, m, tau0):
+    N = x.size
+    if m <= 0.2 * (N - 1):
+        d, n = _adev(x, m, tau0)
+    else:
+        d, n = _theobr(x, _theoh_theo_m(m), tau0)
+    return d, n, _theoh_tau(m, N, tau0)
+
+
 def _tierms(x, m, tau0):
     """RMS time interval error, sqrt(mean((x[i+m] - x[i])^2)) (ITU-T G.810)."""
     d = x[m:] - x[:-m]
@@ -255,7 +334,7 @@ def _tierms(x, m, tau0):
 
 
 _ESTIMATORS = {"adev": _adev, "oadev": _oadev, "mdev": _mdev, "tdev": _tdev, "hdev": _hdev,
-               "totdev": _totdev, "theo1": _theo1, "tierms": _tierms}
+               "totdev": _totdev, "mtot": _mtot, "theo1": _theo1, "theobr": _theobr, "tierms": _tierms}
 
 _MAX_M = {
     "adev": lambda n: (n - 1) // 2,
@@ -264,7 +343,10 @@ _MAX_M = {
     "tdev": lambda n: (n - 1) // 3,
     "hdev": lambda n: (n - 1) // 3,
     "totdev": lambda n: (n - 1) // 2,
+    "mtot": lambda n: (n - 1) // 3,
     "theo1": lambda n: n - 1,
+    "theobr": lambda n: n - 1,
+    "theoh": lambda n: (3 * (n - 1)) // 4,
     "mtie": lambda n: n - 1,
     "tierms": lambda n: n - 1,
 }
@@ -293,10 +375,14 @@ def compute(
     if x.size < 3:
         raise ValueError("need at least 3 samples")
     ms = tau_multipliers(x.size, taus, max_m=_MAX_M[kind](x.size))
-    if kind == "theo1":
+    if kind in ("theo1", "theobr"):
         ms = ms[(ms % 2 == 0)]
+    taus_out = None
     if kind == "mtie":
         vals = _mtie_all(x, ms, tau0)
+    elif kind == "theoh":
+        vals = [_theoh(x, int(m), tau0) for m in ms]
+        taus_out = np.array([v[2] for v in vals], dtype=float)
     else:
         fn = _ESTIMATORS[kind]
         vals = [fn(x, int(m), tau0) for m in ms]
@@ -304,10 +390,13 @@ def compute(
     n = np.array([v[1] for v in vals], dtype=float)
     keep = np.isfinite(dev) & (n >= min_terms)
     ms, dev, n = ms[keep], dev[keep], n[keep]
+    if taus_out is not None:
+        taus_out = taus_out[keep]
     err = np.where(n > 0, dev / np.sqrt(np.maximum(n, 1)), np.nan) if kind != "mtie" else np.zeros_like(dev)
-    tau_scale = 0.75 if kind == "theo1" else 1.0
-    res = StabilityResult(kind=kind, tau0=float(tau0), taus=ms * float(tau0) * tau_scale, dev=dev, err=err, n=n)
-    if ci and kind not in ("mtie", "tierms", "theo1") and dev.size:
+    tau_scale = 0.75 if kind in ("theo1", "theobr") else 1.0
+    taus_final = taus_out if taus_out is not None else (ms * float(tau0) * tau_scale)
+    res = StabilityResult(kind=kind, tau0=float(tau0), taus=taus_final, dev=dev, err=err, n=n)
+    if ci and kind not in ("mtie", "tierms", "theo1", "theobr", "theoh", "mtot") and dev.size:
         n_phase = int(np.isfinite(x).sum())
         alpha = np.array([noise_alpha(x, int(m)) for m in ms], dtype=float)
         # Where identification fails (too few points) inherit the neighbour's value.
@@ -315,7 +404,7 @@ def compute(
         edf = np.array([edf_for_result(kind, a, int(m), int(k), n_phase) for m, a, k in zip(ms, alpha, n)])
         res.lo, res.hi = chi2_interval(dev, edf, ci)
         res.edf, res.alpha, res.ci = edf, alpha, float(ci)
-    elif kind in ("theo1", "tierms") and dev.size:
+    elif kind in ("theo1", "theobr", "theoh", "tierms", "mtot") and dev.size:
         res.alpha = _fill_nan(np.array([noise_alpha(x, max(int(m), 1)) for m in ms], dtype=float))
     return res
 
@@ -515,7 +604,7 @@ def dynamic(series, kind: str = "oadev", window: Optional[float] = None, step: O
     if wn > n:
         raise ValueError("window longer than the record")
     ms = tau_multipliers(wn, taus, max_m=_MAX_M[kind](wn))
-    if kind == "theo1":
+    if kind in ("theo1", "theobr"):
         ms = ms[ms % 2 == 0]
     starts = np.arange(0, n - wn + 1, sn)
     dev = np.full((starts.size, ms.size), np.nan)
@@ -524,7 +613,14 @@ def dynamic(series, kind: str = "oadev", window: Optional[float] = None, step: O
         if np.isfinite(seg).sum() < wn // 2:
             continue
         res = compute(seg, tau0, kind, [int(m) for m in ms], ci=None, min_terms=2)
-        idx = np.searchsorted(ms * tau0 * (0.75 if kind == "theo1" else 1.0), res.taus)
+        if kind == "theoh":
+            taus_target = np.array([_theoh_tau(int(m), wn, tau0) for m in ms], dtype=float)
+        else:
+            taus_target = ms * tau0 * (0.75 if kind in ("theo1", "theobr") else 1.0)
+        idx = np.searchsorted(taus_target, res.taus)
         dev[r, idx] = res.dev
-    taus_out = ms * tau0 * (0.75 if kind == "theo1" else 1.0)
+    if kind == "theoh":
+        taus_out = np.array([_theoh_tau(int(m), wn, tau0) for m in ms], dtype=float)
+    else:
+        taus_out = ms * tau0 * (0.75 if kind in ("theo1", "theobr") else 1.0)
     return DynamicResult(kind, tau0, grid[starts] + wn * tau0 / 2, taus_out, dev, window, step)
