@@ -1,0 +1,51 @@
+site_name: ntpstats
+site_description: "NTP / network-time offset, delay and frequency-stability analysis"
+site_author: "Thiago de Freitas"
+site_url: "https://thiagodefreitas.github.io/NetworkTime/"
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+repo_name: thiagodefreitas/NetworkTime
+repo_url: https://github.com/thiagodefreitas/NetworkTime
+
+nav:
+  - Home: index.md
+  - Format Guide: format_guide.md
+  - Statistics Primer: statistics_primer.md
+  - API Reference: api_reference.md
+  - Interop: INTEROP.md
+  - State of the Art: STATE_OF_THE_ART.md
+  - Cross-validation: cross_validation.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
