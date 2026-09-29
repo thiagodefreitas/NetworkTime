@@ -1,12 +1,24 @@
-# Creates tag vX.Y.Z and a GitHub Release whenever master carries a version
-# (ntpstats.__version__) that has not been released yet. Optionally publishes
-# to PyPI through trusted publishing when the repository variable
-# PYPI_PUBLISH is set to "true" (configure the "pypi" environment first).
+# Release on tags (vX.Y.Z): test, build, publish a GitHub Release with the
+# CHANGELOG section, then upload to PyPI with trusted publishing.
+#
+#   git tag v2.5.0 && git push origin v2.5.0        # normal path
+#   Actions > Release > Run workflow (tag: v2.5.0)  # creates the tag at the
+#                                                   # selected commit instead
+#
+# The tag must equal "v" + ntpstats.__version__ and CHANGELOG.md must contain a
+# "## [X.Y.Z]" section, otherwise nothing is released.
+#
+# PyPI: create a "pypi" environment in the repository settings and register this
+# workflow (release.yml, environment "pypi") as a trusted publisher on pypi.org.
 name: Release
 on:
   push:
-    branches: [master]
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to create and release, e.g. v2.5.0 (must match __version__)"
+        required: true
 
 permissions:
   contents: write
@@ -15,8 +27,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.v.outputs.version }}
-      created: ${{ steps.check.outputs.created }}
+      tag: ${{ steps.v.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -25,46 +36,56 @@ jobs:
         with:
           python-version: "3.12"
       - id: v
-        run: echo "version=$(python -c 'import re;print(re.search(r"__version__ = \"(.+?)\"", open("src/ntpstats/__init__.py").read()).group(1))')" >> "$GITHUB_OUTPUT"
-      - id: check
+        name: Check tag, version and changelog
+        env:
+          TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
         run: |
-          if git rev-parse -q --verify "refs/tags/v${{ steps.v.outputs.version }}" >/dev/null; then
-            echo "created=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "created=true" >> "$GITHUB_OUTPUT"
+          VERSION=$(python -c 'import re;print(re.search(r"__version__ = \"(.+?)\"", open("src/ntpstats/__init__.py").read()).group(1))')
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::tag $TAG does not match ntpstats.__version__ $VERSION"; exit 1
           fi
-      - if: steps.check.outputs.created == 'true'
+          if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section for $VERSION"; exit 1
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::tag $TAG already exists; push it or pick a new version"; exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Test and build
         run: |
-          pip install -e ".[test,plot,nts]" build
+          pip install -e ".[test,plot,nts]" build twine
           pytest -q
           python -m build
-      - if: steps.check.outputs.created == 'true'
-        name: Release notes from CHANGELOG
+          twine check dist/*
+      - name: Release notes from CHANGELOG
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
         run: |
           python - <<'PY'
-          import re
-          v = "${{ steps.v.outputs.version }}"
+          import os, re
+          v = os.environ["VERSION"]
           text = open("CHANGELOG.md", encoding="utf-8").read()
           m = re.search(r"^## \[" + re.escape(v) + r"\][^\n]*\n(.*?)(?=^## \[|^\[)", text, re.S | re.M)
-          open("notes.md", "w").write((m.group(1).strip() if m else f"ntpstats {v}") + "\n")
+          open("notes.md", "w").write(m.group(1).strip() + "\n")
           PY
-      - if: steps.check.outputs.created == 'true'
+      - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.v.outputs.version }}" dist/* \
-            --target "${{ github.sha }}" --title "ntpstats ${{ steps.v.outputs.version }}" --notes-file notes.md
-      - if: steps.check.outputs.created == 'true'
-        uses: actions/upload-artifact@v4
+          gh release create "${{ steps.v.outputs.tag }}" dist/* --target "${{ github.sha }}" \
+            --title "ntpstats ${{ steps.v.outputs.version }}" --notes-file notes.md
+      - uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
 
   pypi:
     needs: release
-    if: needs.release.outputs.created == 'true' && vars.PYPI_PUBLISH == 'true'
     runs-on: ubuntu-latest
-    environment: pypi
+    environment:
+      name: pypi
+      url: https://pypi.org/project/ntpstats/
     permissions:
       id-token: write
     steps:

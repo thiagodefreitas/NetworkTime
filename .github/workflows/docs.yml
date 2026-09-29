@@ -1,0 +1,32 @@
+# Build the documentation site (strict) on every PR and push; deploy it to the
+# gh-pages branch from master. In Settings > Pages choose "Deploy from a branch",
+# branch gh-pages, folder / (once).
+name: Docs
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[docs]"
+      - name: Build (strict)
+        run: mkdocs build --strict
+      - name: Deploy to gh-pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdocs gh-deploy --force --no-history

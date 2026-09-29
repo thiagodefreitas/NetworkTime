@@ -295,26 +295,28 @@ PRESETS: Dict[str, Scenario] = {
 
 
 def scenario_from_dict(d: dict) -> Scenario:
-    """Build a :class:`Scenario` from a plain dict (e.g. a TOML scenario file)::
+    """Build a :class:`Scenario` from a plain dict (e.g. a TOML scenario file).
 
-        name = "wan-route-change"
-        duration = 86400
-        poll = 64
-        seed = 1
-        [clock]
-        freq_offset = 5e-6
-        tempco = 1e-7
-        temp_amplitude = 3
-        [forward]
-        base = 5e-3
-        events = [{start = 28800, base_delta = 4e-3}]
-        [backward]
-        base = 5e-3
-        queue_mean = 3e-3
-        [[servers]]            # optional: multi-server
-        name = "a"
-        bias = 0.0
-        forward = {base = 4e-3}
+    ```toml
+    name = "wan-route-change"
+    duration = 86400
+    poll = 64
+    seed = 1
+    [clock]
+    freq_offset = 5e-6
+    tempco = 1e-7
+    temp_amplitude = 3
+    [forward]
+    base = 5e-3
+    events = [{start = 28800, base_delta = 4e-3}]
+    [backward]
+    base = 5e-3
+    queue_mean = 3e-3
+    [[servers]]            # optional: multi-server
+    name = "a"
+    bias = 0.0
+    forward = {base = 4e-3}
+    ```
     """
     d = dict(d)
     if "preset" in d:

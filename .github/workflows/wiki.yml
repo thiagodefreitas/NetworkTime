@@ -1,0 +1,44 @@
+# Keep the GitHub wiki in sync with docs/, CHANGELOG.md and ROADMAP.md.
+# The wiki is generated (see docs/sync_wiki.py): edit the repository files, not the wiki.
+name: Wiki
+on:
+  push:
+    branches: [master]
+    paths:
+      - "docs/**"
+      - "CHANGELOG.md"
+      - "ROADMAP.md"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Render and push wiki pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.wiki.git" wiki
+          python docs/sync_wiki.py wiki
+          cd wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "wiki already up to date"
+          else
+            git commit -m "Sync wiki from ${GITHUB_SHA::7}"
+            git push
+          fi

@@ -8,10 +8,34 @@ All notable changes to this project are documented here. The format follows
 - **MINOR**: new statistics, formats, commands or UI features (backwards compatible);
 - **PATCH**: bug fixes and documentation.
 
-A release happens automatically when a new version reaches `master`: the *Release* workflow
-tests the code, tags `vX.Y.Z` and publishes a GitHub Release with the notes below.
+Releases are made from `vX.Y.Z` tags (see CONTRIBUTING.md). The *Release* workflow checks the
+tag against the package version, tests, publishes a GitHub Release with the notes below and
+uploads to PyPI.
 
 ## [Unreleased]
+
+## [2.5.0] - 2026-09-29
+
+### Added
+- New stability statistics (#15, closes #2): **MTOT** (modified total deviation), **TheoBR**
+  (bias-removed Theo1) and **TheoH** (hybrid ADEV/TheoBR), in the CLI, API and UI.
+- **Documentation site** (MkDocs Material, `mkdocs build --strict` in CI) with getting started,
+  CLI, formats, statistics, network and estimators, validation, and an API reference generated
+  from docstrings (mkdocstrings). It is deployed to GitHub Pages from `master`.
+- **GitHub wiki** generated from `docs/`, `CHANGELOG.md` and `ROADMAP.md` (`docs/sync_wiki.py`,
+  *Wiki* workflow).
+- **Type checking**: mypy in CI, and the package is now mypy-clean.
+- Coverage XML report in CI.
+
+### Changed
+- **Releases are tag-driven** (`vX.Y.Z`), or created from *Run workflow* with a tag input. The
+  tag must match `__version__` and have a CHANGELOG section. Wheels and sdists are checked with
+  `twine` and published to **PyPI** through trusted publishing.
+- `docs` extra: `mkdocs>=1.5,<2`, `mkdocs-material`, `mkdocstrings[python]`.
+
+### Fixed
+- Type errors found by mypy: optional defaults, NTS session key handling, and Optional values in
+  report formatting.
 
 ## [2.4.0] - 2026-09-29
 
@@ -155,7 +179,8 @@ First release of the rewrite. The 2012 Google Summer of Code prototype is kept u
 - Allan deviation τ₀ was hard-coded to 32 s (≈33× error on loopstats data); irregular sampling
   and gaps were ignored. See `docs/STATE_OF_THE_ART.md`.
 
-[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.1.0...v2.2.0

@@ -16,7 +16,7 @@ from __future__ import annotations
 import io
 import os
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -51,7 +51,7 @@ class Mask:
         return {"name": self.name, "kind": self.kind, "taus": self.taus.tolist(), "limits": self.limits.tolist()}
 
 
-def load_mask(source, name: str = None, kind: str = None) -> Mask:
+def load_mask(source, name: Optional[str] = None, kind: Optional[str] = None) -> Mask:
     """Read a mask from a path, a file object, or mask text (a string that is
     not an existing file). ``kind`` overrides the statistic named in the header."""
     from .stability import KINDS
@@ -85,7 +85,7 @@ def load_mask(source, name: str = None, kind: str = None) -> Mask:
     k = (kind or header_kind or "tdev").lower()
     if k not in KINDS:
         raise ValueError(f"unknown mask kind {k!r}")
-    return Mask(np.array(taus), np.array(lims), name=label, kind=k)
+    return Mask(np.array(taus), np.array(lims), name=str(label), kind=k)
 
 
 def check(result: StabilityResult, mask: Mask) -> dict:

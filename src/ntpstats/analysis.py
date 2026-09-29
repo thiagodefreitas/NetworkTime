@@ -131,7 +131,7 @@ def summary(series: TimeSeries) -> Dict[str, object]:
     return out
 
 
-def format_seconds(v: float) -> str:
+def format_seconds(v: Optional[float]) -> str:
     """Pretty-print a time value with an SI prefix (e.g. 12.3 µs)."""
     if v is None or not np.isfinite(v):
         return "n/a"

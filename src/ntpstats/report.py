@@ -14,7 +14,7 @@ import html
 import json
 import os
 import time
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -129,8 +129,8 @@ def dataset_report(series: Sequence[TimeSeries], kinds=("oadev", "mdev", "tdev")
             f' · detrend: {detrend or "none"} · CI {"off" if not ci else f"{ci:.1%}"}</div>']
     for i, s in enumerate(series):
         c = PALETTE[i % len(PALETTE)]
-        sm = summary(s)
-        p = sm.get("percentiles", {})
+        sm: Dict[str, Any] = summary(s)
+        p: Dict[str, float] = sm.get("percentiles", {})
         body.append(f"<h2>{html.escape(s.name)} <span class=meta>({html.escape(s.source_format)})</span></h2>")
         body.append(_cards([
             ("Samples", f"{sm['samples']:,}"), ("Span", f"{sm['span_s'] / 3600:.2f} h"),
@@ -144,10 +144,10 @@ def dataset_report(series: Sequence[TimeSeries], kinds=("oadev", "mdev", "tdev")
                        "series": [{"label": "offset", "y": _f(y[idx]), "color": c, "width": 1}]})
         body.append(f'<h3>Offset</h3><div class="chart" id="off{i}"></div>')
         results = series_stability(s, kinds=kinds, ci=ci, detrend=detrend)
-        spec = {"id": f"stab{i}", "kind": "loglog", "x": None, "series": [], "xlabel": "τ", "xfmt": "tau",
-                "ylabel": "σ(τ) / time", "yfmt": "exp", "height": 360}
         taus = sorted({float(t) for r in results for t in r.taus})
-        spec["x"] = taus
+        stab_series: List[dict] = []
+        spec: Dict[str, Any] = {"id": f"stab{i}", "kind": "loglog", "x": taus, "series": stab_series, "xlabel": "τ",
+                                "xfmt": "tau", "ylabel": "σ(τ) / time", "yfmt": "exp", "height": 360}
         rows = []
         for j, r in enumerate(results):
             col = PALETTE[(i + j) % len(PALETTE)]
@@ -156,7 +156,7 @@ def dataset_report(series: Sequence[TimeSeries], kinds=("oadev", "mdev", "tdev")
             def pick(arr, m=m, taus=taus):
                 return [None if (arr is None or t not in m) else float(arr[m[t]]) for t in taus]
 
-            spec["series"].append({"label": r.kind.upper(), "y": pick(r.dev), "color": col, "points": True,
+            stab_series.append({"label": r.kind.upper(), "y": pick(r.dev), "color": col, "points": True,
                                    "lo": pick(r.lo) if r.lo is not None else None, "hi": pick(r.hi) if r.hi is not None else None})
             for k, t in enumerate(r.taus):
                 v = format_seconds(r.dev[k]) if r.kind in TIME_KINDS else f"{r.dev[k]:.3e}"
@@ -181,14 +181,17 @@ def dataset_report(series: Sequence[TimeSeries], kinds=("oadev", "mdev", "tdev")
                 ("Floor delay", format_seconds(ds["delay_min"])), ("Median delay", format_seconds(ds["delay_median"])),
                 ("Near floor", f"{ds['floor_fraction']:.1%}"), ("Asymmetry indicator", format_seconds(ds["asymmetry_indicator"])),
             ]) + f'<div class="chart" id="wedge{i}"></div>')
-    meta = {
+    inputs_meta: List[Dict[str, str]] = [
+        {"path": os.path.basename(p), "sha256": sha256(p)} for p in inputs if os.path.exists(p)
+    ]
+    meta: Dict[str, Any] = {
         "generated": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
         "version": __version__,
         "parameters": {"kinds": list(kinds), "detrend": detrend, "ci": ci},
-        "inputs": [{"path": os.path.basename(p), "sha256": sha256(p)} for p in inputs if os.path.exists(p)],
+        "inputs": inputs_meta,
     }
-    if meta["inputs"]:
-        body.append("<h2>Inputs</h2>" + _table(["file", "sha256"], [[d["path"], d["sha256"]] for d in meta["inputs"]]))
+    if inputs_meta:
+        body.append("<h2>Inputs</h2>" + _table(["file", "sha256"], [[d["path"], d["sha256"]] for d in inputs_meta]))
     return _shell(title, "\n".join(body), charts, meta)
 
 

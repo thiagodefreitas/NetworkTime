@@ -7,3 +7,6 @@ dist/
 .venv/
 ntpstats-monitor.csv
 ntpstats-report.png
+site/
+coverage.xml
+.coverage

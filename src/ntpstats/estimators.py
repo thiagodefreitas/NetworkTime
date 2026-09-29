@@ -38,7 +38,7 @@ Built-in reference algorithms
 from __future__ import annotations
 
 import math
-from typing import Callable, Dict, Sequence, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Union
 
 import numpy as np
 
@@ -69,7 +69,7 @@ def _entry_points() -> None:
     try:
         from importlib.metadata import entry_points
 
-        eps = entry_points()
+        eps: Any = entry_points()
         group = eps.select(group="ntpstats.estimators") if hasattr(eps, "select") else eps.get("ntpstats.estimators", [])
     except Exception:  # pragma: no cover
         return
@@ -137,7 +137,8 @@ def _runs_ok(res: np.ndarray) -> bool:
     return (_runs(s) - mu) / math.sqrt(var) > -1.96
 
 
-def regression(series: TimeSeries, max_samples: int = 64, min_samples: int = 6, sigma: float = None) -> TimeSeries:
+def regression(series: TimeSeries, max_samples: int = 64, min_samples: int = 6,
+               sigma: Optional[float] = None) -> TimeSeries:
     """Causal weighted linear regression per sample, chrony style.
 
     Weights are ``1 / (sigma^2 + q^2)`` with ``q`` the queueing error bound;
@@ -175,7 +176,8 @@ def regression(series: TimeSeries, max_samples: int = 64, min_samples: int = 6, 
 
 
 # ------------------------------------------------------- RADclock-style
-def feedforward(series: TimeSeries, rate_window: float = 6 * 3600, offset_window: int = 16, e_star: float = None) -> TimeSeries:
+def feedforward(series: TimeSeries, rate_window: float = 6 * 3600, offset_window: int = 16,
+                e_star: Optional[float] = None) -> TimeSeries:
     """Feed-forward estimator in the spirit of RADclock (Veitch, Ridoux et al.).
 
     * rate: slope between low-RTT packets separated by a long baseline
@@ -218,15 +220,14 @@ def _clock_filter(series: TimeSeries, stages: int = 8, freq_window: int = 64):
     """
     s = series.sorted()
     d = s.extra.get("delay", np.zeros(len(s)))
-    rows = []
+    rows = np.zeros((len(s), 6))
     for k in range(len(s)):
         a = max(0, k + 1 - stages)
         seg = np.arange(a, k + 1)
         order = seg[np.argsort(d[seg], kind="stable")]
         best = order[0]
         jitter = math.sqrt(np.mean((s.offset[order] - s.offset[best]) ** 2)) if order.size > 1 else 0.0
-        rows.append([s.t[k], s.offset[best], d[best], jitter, 0.0, s.t[best]])
-    rows = np.array(rows)
+        rows[k] = (s.t[k], s.offset[best], d[best], jitter, 0.0, s.t[best])
     for k in range(len(rows)):
         a = max(0, k + 1 - freq_window)
         # The filter repeats its pick while it stays the minimum-delay sample:

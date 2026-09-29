@@ -53,12 +53,13 @@ def parse_chronyc_tracking(text: str) -> Dict[str, object]:
     row = next(csv.reader(io.StringIO(text.strip())))
     if len(row) < 13:
         raise SourceError(f"unexpected chronyc tracking output: {text[:80]!r}")
-    d: Dict[str, object] = dict(zip(TRACKING_FIELDS, row))
+    raw = dict(zip(TRACKING_FIELDS, row))
+    d: Dict[str, object] = dict(raw)
     for k in TRACKING_FIELDS[2:13]:
-        d[k] = float(d[k])
+        d[k] = float(raw[k])
     # ntpd convention (reference - local): System time is already that way.
     d["offset"] = d["system_time"]
-    d["last_offset"] = -float(d["last_offset"])
+    d["last_offset"] = -float(raw["last_offset"])
     return d
 
 
@@ -180,7 +181,7 @@ class LocalWatch:
                         self.on_error(self.servers[0], exc)
                 else:
                     self.samples += 1
-                    if writer:
+                    if writer is not None and fh is not None:
                         writer.writerow([f"{d['time']:.6f}", f"{d['offset']:.9e}"] + [d.get(k, "") for k in cols[2:]])
                         fh.flush()
                     if self.on_sample:

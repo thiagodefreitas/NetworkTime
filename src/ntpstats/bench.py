@@ -24,7 +24,7 @@ import json
 import os
 import time
 from dataclasses import replace
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -39,14 +39,16 @@ def _load_file(path: str) -> dict:
         raw = fh.read()
     if path.endswith(".json"):
         return json.loads(raw)
+    import importlib
+
     try:
-        import tomllib  # Python 3.11+
+        toml: Any = importlib.import_module("tomllib")  # Python 3.11+
     except ModuleNotFoundError:  # pragma: no cover
         try:
-            import tomli as tomllib
+            toml = importlib.import_module("tomli")
         except ModuleNotFoundError as exc:
             raise SystemExit("TOML scenarios need Python 3.11+ or `pip install tomli`") from exc
-    return tomllib.loads(raw.decode("utf-8"))
+    return toml.loads(raw.decode("utf-8"))
 
 
 def load_scenarios(specs: Iterable[str]) -> List[Tuple[str, Scenario]]:
@@ -100,7 +102,9 @@ def run_bench(scenarios: Sequence[Tuple[str, Scenario]], estimators: Optional[Se
     rows = []
     for sc_name, sc in scenarios:
         for seed in seeds:
-            s2 = replace(sc, seed=int(seed), **({"duration": float(duration)} if duration else {}))
+            s2 = replace(sc, seed=int(seed))
+            if duration:
+                s2 = replace(s2, duration=float(duration))
             meas, truth = simulate_multi(s2, name=sc_name)
             for e in ests:
                 if e.multi is False and not meas:
@@ -123,7 +127,7 @@ def run_bench(scenarios: Sequence[Tuple[str, Scenario]], estimators: Optional[Se
 
 def summarize(rows: Sequence[dict]) -> List[dict]:
     """Mean and standard deviation of each metric over seeds."""
-    groups = {}
+    groups: Dict[tuple, List[dict]] = {}
     for r in rows:
         groups.setdefault((r["scenario"], r["estimator"]), []).append(r)
     out = []

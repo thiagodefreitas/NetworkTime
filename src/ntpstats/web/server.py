@@ -26,7 +26,7 @@ import time
 import traceback
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import numpy as np
@@ -62,11 +62,11 @@ CSRF_HEADER = "X-NTPStats"
 
 # ------------------------------------------------------------------- state
 class Store:
-    def __init__(self):
+    def __init__(self) -> None:
         self.lock = threading.RLock()
         self.datasets: Dict[str, TimeSeries] = {}
         self._next = 1
-        self.monitor: Optional[Monitor] = None
+        self.monitor: Optional[Any] = None  # Monitor or sources.LocalWatch
         self.monitor_id: Optional[str] = None
         self.monitor_log: List[str] = []
         self.masks: Dict[str, object] = {}
@@ -116,7 +116,7 @@ def _decimate(t: np.ndarray, y: np.ndarray, max_points: int) -> np.ndarray:
         return np.arange(n)
     buckets = max(1, max_points // 2)
     edges = np.linspace(0, n, buckets + 1).astype(int)
-    idx = []
+    idx: List[int] = []
     yy = np.where(np.isfinite(y), y, 0.0)
     for a, b in zip(edges[:-1], edges[1:]):
         if b <= a:
@@ -124,8 +124,7 @@ def _decimate(t: np.ndarray, y: np.ndarray, max_points: int) -> np.ndarray:
         seg = yy[a:b]
         i, j = a + int(np.argmin(seg)), a + int(np.argmax(seg))
         idx.extend(sorted({i, j}))
-    idx = np.unique(np.array(idx + [0, n - 1]))
-    return idx
+    return np.unique(np.array(idx + [0, n - 1]))
 
 
 def _f(v):
@@ -592,6 +591,16 @@ class Handler(BaseHTTPRequestHandler):
         return self._error(404, "unknown endpoint")
 
 
+class _Server(ThreadingHTTPServer):
+    daemon_threads = True
+    any_host = False  # accept any Host header (explicit non-loopback bind)
+    extra_hosts: tuple = ()
+
+
+class _ServerV6(_Server):
+    address_family = socket.AF_INET6
+
+
 def serve(
     files=(),
     host: str = "127.0.0.1",
@@ -602,9 +611,7 @@ def serve(
     for path in files:
         for s in load(path, fmt=fmt):
             STORE.add(s)
-    server_cls = ThreadingHTTPServer
-    if ":" in host:  # IPv6 literal
-        server_cls = type("ThreadingHTTPServerV6", (ThreadingHTTPServer,), {"address_family": socket.AF_INET6})
+    server_cls = _ServerV6 if ":" in host else _Server  # IPv6 literal -> AF_INET6
     httpd = server_cls((host, port), Handler)
     httpd.daemon_threads = True
     if host not in ("127.0.0.1", "localhost", "::1"):
