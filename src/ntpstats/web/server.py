@@ -116,7 +116,7 @@ def _decimate(t: np.ndarray, y: np.ndarray, max_points: int) -> np.ndarray:
         return np.arange(n)
     buckets = max(1, max_points // 2)
     edges = np.linspace(0, n, buckets + 1).astype(int)
-    idx = []
+    idx: List[int] = []
     yy = np.where(np.isfinite(y), y, 0.0)
     for a, b in zip(edges[:-1], edges[1:]):
         if b <= a:
@@ -124,8 +124,7 @@ def _decimate(t: np.ndarray, y: np.ndarray, max_points: int) -> np.ndarray:
         seg = yy[a:b]
         i, j = a + int(np.argmin(seg)), a + int(np.argmax(seg))
         idx.extend(sorted({i, j}))
-    idx = np.unique(np.array(idx + [0, n - 1]))
-    return idx
+    return np.unique(np.array(idx + [0, n - 1]))
 
 
 def _f(v):

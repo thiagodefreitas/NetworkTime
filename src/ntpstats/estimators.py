@@ -220,15 +220,14 @@ def _clock_filter(series: TimeSeries, stages: int = 8, freq_window: int = 64):
     """
     s = series.sorted()
     d = s.extra.get("delay", np.zeros(len(s)))
-    rows = []
+    rows = np.zeros((len(s), 6))
     for k in range(len(s)):
         a = max(0, k + 1 - stages)
         seg = np.arange(a, k + 1)
         order = seg[np.argsort(d[seg], kind="stable")]
         best = order[0]
         jitter = math.sqrt(np.mean((s.offset[order] - s.offset[best]) ** 2)) if order.size > 1 else 0.0
-        rows.append([s.t[k], s.offset[best], d[best], jitter, 0.0, s.t[best]])
-    rows = np.array(rows)
+        rows[k] = (s.t[k], s.offset[best], d[best], jitter, 0.0, s.t[best])
     for k in range(len(rows)):
         a = max(0, k + 1 - freq_window)
         # The filter repeats its pick while it stays the minimum-delay sample:
