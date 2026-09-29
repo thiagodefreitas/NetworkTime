@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ntpstats"
+version = "2.0.0"
+description = "NTP / network-time offset, delay and frequency-stability analysis (ADEV, MDEV, TDEV, HDEV, MTIE) with a lightweight web UI"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "Thiago de Freitas", email = "thiagodefreitas@gmail.com"}]
+keywords = ["ntp", "chrony", "ntpsec", "allan deviation", "tdev", "mtie", "time synchronization", "clock"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Networking :: Time Synchronization",
+]
+dependencies = ["numpy>=1.22"]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.6"]
+test = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/thiagodefreitas/NetworkTime"
+Issues = "https://github.com/thiagodefreitas/NetworkTime/issues"
+
+[project.scripts]
+ntpstats = "ntpstats.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"ntpstats.web" = ["static/*", "vendor/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

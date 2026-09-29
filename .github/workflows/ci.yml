@@ -1,0 +1,23 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[test,plot]"
+      - run: pytest -q
+      - name: CLI smoke test
+        run: |
+          ntpstats info examples/data/loopstats.2012
+          ntpstats stability examples/data/peerstats.example --peer 192.0.2.10
+          ntpstats simulate --preset lan --duration 3600 --benchmark

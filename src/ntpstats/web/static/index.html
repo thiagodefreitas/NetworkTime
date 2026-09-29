@@ -1,0 +1,213 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com> -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ntpstats</title>
+<meta name="author" content="Thiago de Freitas">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%233b82f6'/%3E%3Cpath d='M16 7v9l6 4' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/vendor/uPlot.min.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14"/><path d="M16 7v9l6 4"/></svg>
+    <span>ntpstats</span><small id="version"></small>
+  </div>
+  <div class="actions">
+    <label class="btn primary" title="Open log files (or drop them anywhere)">
+      <input id="file-input" type="file" multiple hidden>
+      <span>Open logs…</span>
+    </label>
+    <select id="format" title="Input format">
+      <option value="auto">auto-detect</option>
+      <option value="loopstats">ntpd/NTPsec loopstats</option>
+      <option value="peerstats">ntpd/NTPsec peerstats</option>
+      <option value="rawstats">ntpd/NTPsec rawstats</option>
+      <option value="chrony-tracking">chrony tracking.log</option>
+      <option value="chrony-measurements">chrony measurements.log</option>
+      <option value="chrony-statistics">chrony statistics.log</option>
+      <option value="csv">CSV / columns</option>
+      <option value="gsoc2012">2012 estimators.log</option>
+    </select>
+    <button class="btn" data-dialog="dlg-sim">Simulate</button>
+    <button class="btn" data-dialog="dlg-live">Live <span id="live-dot" class="dot"></span></button>
+    <button class="btn icon" id="theme" title="Toggle light/dark">◐</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="side-head">Datasets <span class="hint">tick to compare</span></div>
+    <ul id="datasets" class="datasets"></ul>
+    <div id="empty-side" class="empty-side">
+      <p>No data yet.</p>
+      <p>Open <code>loopstats</code>, <code>peerstats</code>, <code>rawstats</code>, chrony <code>tracking/measurements/statistics</code> logs or CSV — or drop files here.</p>
+      <button class="btn small" id="demo">Load a simulated demo</button>
+    </div>
+  </aside>
+
+  <main>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="overview" class="active">Overview</button>
+      <button role="tab" data-tab="offset">Offset</button>
+      <button role="tab" data-tab="stability">Stability</button>
+      <button role="tab" data-tab="distribution">Distribution</button>
+      <button role="tab" data-tab="network">Network</button>
+    </nav>
+
+    <div class="controls">
+      <label>Detrend
+        <select id="detrend">
+          <option value="none">none</option>
+          <option value="linear">linear (freq.)</option>
+          <option value="quadratic">quadratic (drift)</option>
+        </select>
+      </label>
+      <label>Outliers
+        <select id="outliers">
+          <option value="">keep</option>
+          <option value="5">drop &gt; 5 MAD</option>
+          <option value="3">drop &gt; 3 MAD</option>
+        </select>
+      </label>
+      <span id="range-chip" class="chip" hidden></span>
+      <button id="apply-zoom" class="btn small" hidden>Analyze zoomed range</button>
+      <span class="grow"></span>
+      <span id="busy" class="busy" hidden></span>
+    </div>
+
+    <section id="tab-overview" class="tab active">
+      <div id="cards" class="cards"></div>
+      <div id="compare-table"></div>
+      <div id="welcome" class="welcome">
+        <h2>Network time analysis, 2026 edition</h2>
+        <p>Load clock-offset logs from <b>ntpd 4.2.8</b>, <b>NTPsec</b> or <b>chrony</b>, a CSV from <code>ntpstats monitor</code>,
+          or generate a simulated NTP exchange with known ground truth.</p>
+        <ul>
+          <li><b>Offset</b> — time series with detrending, outlier rejection, Kalman / RTS / min-delay overlays. Drag to zoom.</li>
+          <li><b>Stability</b> — ADEV, overlapping ADEV, MDEV, TDEV, Hadamard and MTIE with χ² confidence bands and automatic noise identification.</li>
+          <li><b>Network</b> — delay floor, offset-vs-delay wedge, asymmetry indicator and floor packet percentage (G.8260 style).</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="tab-offset" class="tab">
+      <div class="subcontrols">
+        <label>Overlay
+          <select id="overlay">
+            <option value="">none</option>
+            <option value="kalman">Kalman filter</option>
+            <option value="rts">RTS smoother</option>
+            <option value="mindelay">min-delay filter</option>
+          </select>
+        </label>
+        <label>Auxiliary
+          <select id="aux"></select>
+        </label>
+        <span class="grow"></span>
+        <button class="btn small" data-export="offset">PNG</button>
+        <button class="btn small" data-csv="series.csv">CSV</button>
+      </div>
+      <div class="chart" id="chart-offset"></div>
+      <div class="chart short" id="chart-aux"></div>
+      <p class="note" id="offset-note"></p>
+    </section>
+
+    <section id="tab-stability" class="tab">
+      <div class="subcontrols">
+        <div class="chips" id="kinds"></div>
+        <label>τ spacing
+          <select id="taus">
+            <option value="octave">octave</option>
+            <option value="decade">1-2-5</option>
+            <option value="dense">dense</option>
+            <option value="all">all</option>
+          </select>
+        </label>
+        <label>Confidence
+          <select id="ci">
+            <option value="0.683">68.3 %</option>
+            <option value="0.95">95 %</option>
+            <option value="0">off</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="slopes"> slope guides</label>
+        <span class="grow"></span>
+        <button class="btn small" data-export="stability">PNG</button>
+        <button class="btn small" data-csv="stability.csv">CSV</button>
+      </div>
+      <div class="chart tall" id="chart-stability"></div>
+      <div id="stability-table" class="table-wrap"></div>
+    </section>
+
+    <section id="tab-distribution" class="tab">
+      <div class="subcontrols">
+        <label>Bins <input type="number" id="bins" value="60" min="5" max="500" step="5"></label>
+        <span class="grow"></span>
+        <button class="btn small" data-export="hist">PNG</button>
+      </div>
+      <div class="chart tall" id="chart-hist"></div>
+      <p class="note">Histogram of the offset (after the selected detrending) with a Gaussian of equal mean and standard deviation. Heavy tails indicate queueing spikes or path changes.</p>
+    </section>
+
+    <section id="tab-network" class="tab">
+      <div id="net-cards" class="cards"></div>
+      <div class="grid2">
+        <div><h3>Offset vs. queueing delay (wedge)</h3><div class="chart" id="chart-wedge"></div></div>
+        <div><h3>Round-trip delay</h3><div class="chart" id="chart-delay"></div></div>
+      </div>
+      <h3>Floor packet percentage</h3>
+      <div class="chart short" id="chart-fpp"></div>
+      <p class="note" id="net-note"></p>
+    </section>
+  </main>
+</div>
+
+<dialog id="dlg-sim">
+  <form method="dialog">
+    <h3>Simulate NTP exchanges</h3>
+    <p class="note">Free-running oscillator (frequency offset, drift, white/random-walk FM) measured through an asymmetric
+      queueing network. The dataset carries a <code>true_offset</code> column so filters can be scored against ground truth.</p>
+    <label>Scenario
+      <select name="preset">
+        <option value="lan">LAN (16 s poll, µs-level paths)</option>
+        <option value="internet" selected>Internet (64 s poll, ms-level asymmetric queueing)</option>
+        <option value="congested">Congested (heavy asymmetric queueing, 2 % loss)</option>
+      </select>
+    </label>
+    <label>Duration (hours) <input name="hours" type="number" value="24" min="0.1" step="0.1"></label>
+    <label>Seed <input name="seed" type="number" value="1"></label>
+    <menu><button value="cancel" class="btn">Cancel</button><button value="ok" class="btn primary">Generate</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-live">
+  <form method="dialog">
+    <h3>Live measurement</h3>
+    <p class="note">SNTP queries from this machine (random transmit timestamp, KoD aware). Please poll public servers no faster than every 64 s.</p>
+    <label>Servers <input name="servers" value="pool.ntp.org" placeholder="time.cloudflare.com, ptbtime1.ptb.de"></label>
+    <label>Interval (s) <input name="interval" type="number" value="64" min="1"></label>
+    <div id="live-status" class="note"></div>
+    <div id="query-result" class="kv"></div>
+    <menu>
+      <button value="cancel" class="btn">Close</button>
+      <button value="query" class="btn">Query once</button>
+      <button value="stop" class="btn" id="live-stop">Stop</button>
+      <button value="start" class="btn primary">Start monitor</button>
+    </menu>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+<div id="drop" class="drop" hidden>Drop log files to load</div>
+
+<footer>ntpstats — © 2012–2026 Thiago de Freitas · MIT License</footer>
+
+<script src="/vendor/uPlot.iife.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

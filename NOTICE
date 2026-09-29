@@ -1,0 +1,15 @@
+ntpstats — NTP clock-offset and time-stability analysis toolkit
+Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+Licensed under the MIT License (see LICENSE). Commercial use is welcome;
+please keep the copyright notice and credit the author. If you use ntpstats
+in academic work, please cite it (see CITATION.cff).
+
+Originally developed during Google Summer of Code 2012 for the NTP Project.
+Original credits: Judah Levine, Harlan Stenn, Antonio Lima.
+The original 2012 prototype is kept unchanged under legacy/ and remains under
+its original license (GPL, see legacy/gsoc2012/COPYING); none of it is used by
+the new package.
+
+Bundled third-party component:
+* uPlot 1.6.32 (src/ntpstats/web/vendor/) — MIT License,
+  Copyright (c) 2022 Leon Sorokin. See src/ntpstats/web/vendor/uPlot.LICENSE.
