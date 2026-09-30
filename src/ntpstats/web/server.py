@@ -254,6 +254,14 @@ def api_histogram(sid, params):
     return {"id": sid, "name": s.name, "centers": _f(centers), "density": _f(counts), "gauss": _f(gauss), "mean": mu, "std": sd}
 
 
+def api_events(sid, params):
+    from ..events import detect, summary
+
+    s = _prepare(sid, params)
+    ev = detect(s)
+    return _clean({"id": sid, "name": s.name, "events": [e.as_dict() for e in ev], "summary": summary(ev)})
+
+
 def api_timeerror(sid, params):
     from ..timeerror import time_error
 
@@ -503,6 +511,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(api_histogram(route[1], params))
             if len(route) == 2 and route[0] == "network":
                 return self._json(api_network(route[1], params))
+            if len(route) == 2 and route[0] == "events":
+                return self._json(api_events(route[1], params))
             if len(route) == 2 and route[0] == "timeerror":
                 return self._json(api_timeerror(route[1], params))
             if len(route) == 2 and route[0] == "dynamic":

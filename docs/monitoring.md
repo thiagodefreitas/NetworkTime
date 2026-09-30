@@ -54,4 +54,6 @@ cd contrib && docker compose up --build
 The tests check that every metric the dashboard and rules use is exported, and that all their
 PromQL expressions parse.
 
+For CI checks (a GitHub Action and pytest assertions), see [Audit, events & CI checks](assurance.md).
+
 Please keep polling intervals at 64 s or more for servers you do not operate.

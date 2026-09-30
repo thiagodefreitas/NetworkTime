@@ -40,6 +40,7 @@ nav:
   - Network & estimators: network.md
   - PTP captures & time error: ptp.md
   - Sources, instruments & bounds: sources.md
+  - Audit, events & CI checks: assurance.md
   - Monitoring (Prometheus/Grafana): monitoring.md
   - Validation: validation.md
   - Stable32, TimeLab, allantools: migrating.md
@@ -64,6 +65,9 @@ nav:
       - sources: api/sources.md
       - bounds: api/bounds.md
       - profiles: api/profiles.md
+      - audit: api/audit.md
+      - events: api/events.md
+      - testing: api/testing.md
       - interop: api/interop.md
       - metrics: api/metrics.md
       - compat.allantools: api/compat.md

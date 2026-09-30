@@ -138,6 +138,78 @@ def cmd_info(args):
             print("   columns      " + ", ".join(f"{k[:-7]} {r[k]:.4g}" for k in extras))
 
 
+def cmd_audit(args):
+    from .audit import AuditConfig, audit, public, to_html
+    from .timeerror import _value
+
+    def val(v):
+        return None if v is None else _value(v)
+
+    cfg = AuditConfig(limit=_value(args.limit), window=_duration(args.window),
+                      reference_uncertainty=val(args.reference_uncertainty) or 0.0,
+                      asymmetry=val(args.asymmetry), upstream=val(args.upstream),
+                      max_gap=args.max_gap, min_coverage=args.min_coverage)
+    results = []
+    for s in _load_args(args):
+        ev = None
+        if args.events:
+            from .events import detect
+
+            ev = detect(s)
+        results.append(audit(s, cfg, ev))
+    if args.html:
+        with open(args.html, "w", encoding="utf-8") as fh:
+            fh.write(to_html(results, args.files))
+        print(f"wrote {args.html}", file=sys.stderr)
+    if args.json:
+        from .audit import manifest
+
+        print(json.dumps({"version": __version__, "inputs": manifest(args.files),
+                          "audit": [public(r) for r in results]}, indent=2, default=float))
+    else:
+        for r in results:
+            sm = r["summary"]
+            print(f"== {r['name']}  [{'PASS' if sm['passed'] else 'FAIL'}]  limit {format_seconds(r['limit'])}")
+            print(f"  bound max {format_seconds(sm['max_bound'])}, p99 {format_seconds(sm['p99_bound'])}, "
+                  f"median {format_seconds(sm['median_bound'])}")
+            print(f"  coverage {sm['coverage']:.2%} (unmonitored {sm['unmonitored_s'] / 3600:.2f} h); within limit "
+                  f"{sm['within_limit_fraction_of_period']:.2%} of the period")
+            print(f"  windows: {sm['windows']} ({sm['failing_windows']} failing, {sm['insufficient_windows']} "
+                  f"insufficient coverage)")
+            for k, v in r["rules"].items():
+                print(f"  {k:9} {v}")
+            for n in r["notes"]:
+                print(f"  note: {n}")
+    return 0 if all(r["summary"]["passed"] for r in results) else 3
+
+
+def cmd_events(args):
+    from .events import detect, summary
+
+    out = []
+    for s in _load_args(args):
+        ev = detect(s, step_k=args.step_k, freq_thresh=args.freq_threshold,
+                    min_freq_change=args.min_freq_change_ppm * 1e-6, floor_block=args.floor_block)
+        out.append({"name": s.name, "events": [e.as_dict() for e in ev], "summary": summary(ev)})
+        if args.json:
+            continue
+        print(f"== {s.name}  ({len(ev)} events)")
+        for e in ev:
+            if e.unit == "s/s":
+                mag = f"{e.magnitude * 1e6:+.3f} ppm"
+            else:
+                mag = f"{'+' if e.magnitude >= 0 else '-'}{format_seconds(abs(e.magnitude))}"
+            end = f" .. {_utc(e.end)}" if e.end else ""
+            extra = ""
+            if "path_changed" in e.detail:
+                extra = "  [path changed]" if e.detail["path_changed"] else "  [path unchanged]"
+            if e.kind == "delay_floor_change":
+                extra = f"  offset shift {format_seconds(float(e.detail['offset_shift']))} ({e.detail['interpretation']})"
+            print(f"  {_utc(e.time)}{end}  {e.kind:19} {mag:>12}  score {e.score:6.1f}{extra}")
+    if args.json:
+        print(json.dumps(out, indent=2, default=float))
+
+
 def cmd_prom(args):
     from .sources import prometheus_query_range
 
@@ -643,6 +715,30 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--max-gap", type=float, default=3.0, help="gaps longer than this many tau0 are not bridged")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_timeerror)
+
+    s = sub.add_parser("audit", help="UTC traceability evidence: per-sample error bound, windows, coverage, "
+                                     "HTML/JSON report with input hashes")
+    _common(s)
+    s.add_argument("--limit", required=True, help="maximum allowed error to UTC, e.g. 100us or 1ms")
+    s.add_argument("--window", default="1h", help="evaluation window (default 1h)")
+    s.add_argument("--reference-uncertainty", help="uncertainty of the top of the chain against UTC, e.g. 100ns")
+    s.add_argument("--asymmetry", help="path-asymmetry allowance when the log has no delay column")
+    s.add_argument("--upstream", help="source-to-UTC allowance when the log has no root delay/dispersion")
+    s.add_argument("--max-gap", type=float, default=3.0, help="a sample covers at most this many median intervals")
+    s.add_argument("--min-coverage", type=float, default=0.9, help="required monitored fraction (default 0.9)")
+    s.add_argument("--events", action="store_true", help="list detected events (steps, route changes, ...)")
+    s.add_argument("--html", help="write the report as a self-contained HTML file")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_audit)
+
+    s = sub.add_parser("events", help="detect phase steps, spikes, frequency changes, route changes and leap smears")
+    _common(s)
+    s.add_argument("--step-k", type=float, default=8.0, help="phase-step threshold in robust sigmas (default 8)")
+    s.add_argument("--freq-threshold", type=float, default=5.0, help="CUSUM threshold for frequency changes")
+    s.add_argument("--min-freq-change-ppm", type=float, default=0.1, help="smallest frequency change reported, ppm")
+    s.add_argument("--floor-block", type=int, default=16, help="samples per block for delay-floor tracking")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_events)
 
     s = sub.add_parser("prom", help="fetch a Prometheus range query (e.g. ntpd-rs or chrony_exporter offsets) "
                                     "to a JSON file any command can read")

@@ -374,6 +374,34 @@ async function renderOffset() {
   if (first.truth) notes.push("Simulated data: dashed green line is the true offset.");
   notes.push("Drag on the chart to zoom; double-click to reset.");
   $("#offset-note").textContent = notes.join(" ");
+  await renderEvents(ids[0]);
+}
+
+const EVENT_LABEL = { phase_step: "Phase step", spike: "Spike", frequency_change: "Frequency change",
+  delay_floor_change: "Delay-floor change", leap_smear: "Leap smear" };
+
+async function renderEvents(id) {
+  let r;
+  try {
+    r = await api(`/api/events/${id}?${params()}`);
+  } catch (e) {
+    $("#events").innerHTML = "";
+    return;
+  }
+  if (!r.events.length) {
+    $("#events").innerHTML = `<h3>Events</h3><p class="note">No steps, spikes, frequency or route changes detected.</p>`;
+    return;
+  }
+  const rows = r.events.map((e) => {
+    const mag = e.unit === "s/s" ? `${fmtNum(e.magnitude * 1e6, 3)} ppm` : fmtSec(e.magnitude);
+    let info = "";
+    if (e.detail && e.detail.path_changed !== undefined) info = e.detail.path_changed ? "path changed" : "path unchanged";
+    if (e.kind === "delay_floor_change") info = `offset shift ${fmtSec(e.detail.offset_shift)} — ${esc(e.detail.interpretation)}`;
+    if (e.kind === "leap_smear") info = `${fmtNum(e.detail.hours, 1)} h`;
+    return `<tr><td>${fmtDate(e.time)}</td><td>${EVENT_LABEL[e.kind] || esc(e.kind)}</td><td>${mag}</td><td>${Math.round(e.score)}</td><td>${info}</td></tr>`;
+  });
+  $("#events").innerHTML = `<h3>Events <span class="hint">robust change detection; see ntpstats events</span></h3>
+    <div class="table-wrap"><table><tr><th>Time</th><th>Event</th><th>Size</th><th>Score</th><th></th></tr>${rows.join("")}</table></div>`;
 }
 
 function onZoom(u) {

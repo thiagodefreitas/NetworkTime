@@ -28,3 +28,33 @@ jobs:
           ntpstats info examples/data/loopstats.2012
           ntpstats stability examples/data/peerstats.example --peer 192.0.2.10
           ntpstats simulate --preset lan --duration 3600 --benchmark
+
+  action:
+    # The repository's own GitHub Action (action.yml), installed from this checkout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Audit example chrony log (must pass)
+        uses: ./
+        with:
+          install: "."
+          command: audit
+          args: examples/data/chrony-tracking.log --limit 50ms
+      - name: Time error of example PTP capture (must pass)
+        uses: ./
+        with:
+          install: "."
+          command: timeerror
+          args: examples/data/ptp-capture.pcapng
+      - name: Bounds check that must fail
+        id: bounds
+        continue-on-error: true
+        uses: ./
+        with:
+          install: "."
+          command: bounds
+          args: examples/data/clockbound.txt examples/data/clockbound-reference.csv
+      - name: The failing check was reported as a failure
+        env:
+          RESULT: ${{ steps.bounds.outputs.result }}
+        run: test "$RESULT" = "fail"

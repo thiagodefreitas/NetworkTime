@@ -14,6 +14,30 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-09-30
+
+### Added
+- **UTC traceability audit** (#22): `ntpstats audit FILE --limit 100us`. It computes a per-sample
+  bound (|offset| + path + upstream + reference), stating the rule applied to each term (log
+  columns or user allowances). Windows (1 h) are judged pass/fail/insufficient; gaps count as
+  unmonitored, never as compliant. Output is text, JSON or a self-contained HTML report with the
+  tool version and SHA-256 hashes of the inputs, and the exit code is 3 on failure.
+- **Change detection** (#23): `ntpstats events` and `ntpstats.events`. It finds phase steps and
+  spikes (MAD against a rolling slope), frequency changes (binary segmentation, standardised
+  CUSUM), delay-floor (route) changes with an asymmetry hint, and leap smears. Phase and frequency
+  events are marked path changed/unchanged. The UI lists events under the Offset chart.
+- **GitHub Action** (#36): `uses: thiagodefreitas/NetworkTime@v2.10.0` runs stability, time
+  error, audit, bounds or events checks, writes a job summary and fails on exit code 3.
+  Arguments go through the environment, never through the shell. CI exercises it on the
+  examples.
+- **pytest assertions** (#36): `ntpstats.testing` (`assert_max_te`, `assert_time_error_within`,
+  `assert_stability_within`, `assert_audit_passes`, `assert_bounds_valid`, `assert_no_events`)
+  and a `timing_log` fixture registered as a pytest plugin.
+- "Audit, events & CI checks" docs page.
+
+### Fixed
+- `format_seconds(0)` printed "0 ps"; it now prints "0 s".
+
 ## [2.9.0] - 2026-09-30
 
 ### Added

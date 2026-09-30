@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
+name: ntpstats check
+description: >-
+  Check timing logs in CI with ntpstats: stability masks, telecom time error, UTC traceability
+  audit, clock-error bounds or change detection. Fails the job on a failed check and writes a
+  summary table to the job page.
+author: thiagodefreitas
+branding:
+  icon: clock
+  color: blue
+inputs:
+  command:
+    description: "ntpstats command: stability, timeerror, audit, bounds or events"
+    required: true
+  args:
+    description: "Arguments, e.g. 'logs/tracking.log --limit 1ms' (no shell expansion is performed)"
+    required: true
+  version:
+    description: "ntpstats version from PyPI (default: latest)"
+    required: false
+    default: ""
+  install:
+    description: "'pypi' (default) or a pip requirement/path to install instead, e.g. '.' for a checkout"
+    required: false
+    default: "pypi"
+  python-version:
+    description: "Python version"
+    required: false
+    default: "3.12"
+outputs:
+  result:
+    description: "'pass' or 'fail'"
+    value: ${{ steps.run.outputs.result }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install ntpstats
+      shell: bash
+      env:
+        NTPSTATS_VERSION: ${{ inputs.version }}
+        NTPSTATS_INSTALL: ${{ inputs.install }}
+      run: |
+        if [ "$NTPSTATS_INSTALL" = "pypi" ]; then
+          python -m pip install --quiet "ntpstats${NTPSTATS_VERSION:+==$NTPSTATS_VERSION}"
+        else
+          python -m pip install --quiet "$NTPSTATS_INSTALL"
+        fi
+    - id: run
+      name: Run ntpstats ${{ inputs.command }}
+      shell: bash
+      env:
+        NTPSTATS_COMMAND: ${{ inputs.command }}
+        NTPSTATS_ARGS: ${{ inputs.args }}
+      run: |
+        # word-split the arguments without evaluating them
+        read -r -a argv <<< "$NTPSTATS_ARGS"
+        python "$GITHUB_ACTION_PATH/contrib/action/summary.py" "$NTPSTATS_COMMAND" "${argv[@]}"

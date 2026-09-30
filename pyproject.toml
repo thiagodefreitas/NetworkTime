@@ -36,6 +36,9 @@ Issues = "https://github.com/thiagodefreitas/NetworkTime/issues"
 [project.scripts]
 ntpstats = "ntpstats.cli:main"
 
+[project.entry-points.pytest11]
+ntpstats = "ntpstats.testing"
+
 [tool.setuptools.dynamic]
 version = {attr = "ntpstats.__version__"}
 

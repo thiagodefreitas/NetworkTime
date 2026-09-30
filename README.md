@@ -69,6 +69,10 @@ are as valuable as code. Look for issues labelled
 - **Telecom time error**: max|TE|, cTE, dTE_L/dTE_H, max|TEL|, and MTIE/TDEV of dTE_L, checked
   against your own limits and masks (`ntpstats timeerror`, exit code 3 on failure). Input can be
   a PTP capture, a linuxptp log or a time-interval counter.
+- **Assurance**: `ntpstats audit` gives a per-sample error bound to UTC with stated assumptions,
+  coverage and an archivable HTML/JSON report with input hashes (MiFID II RTS 25, DORA, NIS2
+  evidence). `ntpstats events` finds steps, spikes, frequency and route changes and leap smears.
+  Timing checks run in CI through a **GitHub Action** or **pytest** assertions.
 - **Clock-error bounds checked, not trusted**: `ntpstats bounds` measures how often AWS
   ClockBound, fbclock or any `[earliest, latest]` window really contains true time.
 - **Works with the tools you have**:

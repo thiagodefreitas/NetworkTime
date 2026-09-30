@@ -29,6 +29,8 @@
 | `query` | one-shot measurement: NTPv4, `--nts`, `--ntpv5`, `--probe-v5`, `-4/-6` |
 | `monitor` | periodic SNTP/NTS/NTPv5 measurements to CSV (polite polling); `--metrics-port` serves OpenMetrics ([Monitoring](monitoring.md)) |
 | `watch` | sample the local chrony (`chronyc -c tracking`), ntpd (`ntpq -c rv`), ptp4l (`pmc`) or `ptpcheck`; `--metrics-port` as for `monitor` |
+| `audit` | UTC traceability evidence: per-sample error bound with stated assumptions, windows, coverage; HTML/JSON with input hashes; exit code 3 on failure ([Assurance](assurance.md)) |
+| `events` | phase steps, spikes, frequency changes, delay-floor (route) changes and leap smears |
 | `prom` | fetch a Prometheus range query (ntpd-rs, chrony_exporter, …) to a JSON file every command reads |
 | `bounds` | validate clock-error bounds (ClockBound, fbclock, CSV) against a reference; exit code 3 on violations |
 | `ui` | start the local web UI |

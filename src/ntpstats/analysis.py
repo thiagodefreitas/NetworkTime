@@ -136,6 +136,8 @@ def format_seconds(v: Optional[float]) -> str:
     if v is None or not np.isfinite(v):
         return "n/a"
     a = abs(v)
+    if a == 0:
+        return "0 s"
     for scale, unit in ((1, "s"), (1e-3, "ms"), (1e-6, "µs"), (1e-9, "ns")):
         if a >= scale:
             return f"{v / scale:.3g} {unit}"
