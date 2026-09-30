@@ -14,6 +14,8 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-09-30
+
 ### Added
 - **Cross-validation against NIST SP 1065** (#28). The NBS Monograph 140 data (table 30) and
   the 1000-point test suite (table 31) are regenerated in the tests. ADEV, OADEV, MDEV, TDEV,
@@ -33,6 +35,10 @@ uploads to PyPI.
 - **Grafana dashboard, Prometheus alert rules and a docker-compose stack** in `contrib/`, with a
   "Monitoring" docs page. Tests check that the dashboard and rules only use exported metrics.
 - Docs: "Stable32, TimeLab, allantools" migration page and a tools landscape page.
+- **Community on-ramp** (#38): Code of Conduct (Contributor Covenant 2.1), security policy,
+  issue forms (bug, feature, sample-data contribution), a pull request template, and "ways to
+  contribute" in CONTRIBUTING.
+- Releases also publish a container image to `ghcr.io/thiagodefreitas/ntpstats`.
 
 ### Changed
 - **MTOT is bias-corrected by default**, dividing by the factor for the noise type identified at

@@ -1,0 +1,30 @@
+name: Share a sample log or instrument export
+description: Help add a format (daemon, instrument, dataset) by sharing a small sample
+labels: ["data", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sample data is the fastest way to get a new format supported, and as valuable as code.
+        Please **anonymise** it first: replace addresses with 192.0.2.x / 2001:db8::x and remove
+        hostnames. A few hundred lines is plenty. Only share data you are allowed to share; it
+        will be published under the project's MIT license as test data.
+  - type: input
+    id: source
+    attributes:
+      label: Source
+      placeholder: "ntpd-rs 1.7 metrics, Calnex Paragon-neo CSV export, w32tm /stripchart, CGGTTS v2E..."
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample (paste, or attach a file)
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: meaning
+    attributes:
+      label: What the columns mean
+      description: Units, sign convention (reference − local or local − reference), time base, and a link to documentation if any.

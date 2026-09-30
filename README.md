@@ -23,7 +23,8 @@ relates to Stable32, TimeLab, allantools, linuxptp, PTP Track Hound and other to
 are as valuable as code. Look for issues labelled
 [`good first issue`](https://github.com/thiagodefreitas/NetworkTime/labels/good%20first%20issue),
 [`industry`](https://github.com/thiagodefreitas/NetworkTime/labels/industry) or
-[`research`](https://github.com/thiagodefreitas/NetworkTime/labels/research).
+[`research`](https://github.com/thiagodefreitas/NetworkTime/labels/research), and see
+[CONTRIBUTING.md](CONTRIBUTING.md). Using it in a paper? Please cite it ([CITATION.cff](CITATION.cff)).
 
 ![Offset view with RTS smoother and ground truth](docs/img/ui-offset-light.png)
 
@@ -48,8 +49,9 @@ are as valuable as code. Look for issues labelled
   Every sign convention is normalised to *reference − local*, following each implementation's
   documentation (table below).
 - **Stability analysis done right**: non-overlapping and overlapping ADEV, MDEV, TDEV,
-  overlapping Hadamard, total and modified total deviation (TOTDEV, MTOT), Theo1, TheoBR, TheoH,
-  MTIE (O(N log N)) and TIErms, each with
+  overlapping Hadamard, total, modified total and time total deviation (TOTDEV, MTOT, TTOT),
+  Theo1, TheoBR, TheoH, MTIE (O(N log N)) and TIErms. The results reproduce the **NIST SP 1065
+  test suites to 7 digits**, and each statistic comes with
   - χ² confidence intervals from the **exact** equivalent degrees of freedom of the discrete
     power-law model (Monte Carlo verified),
   - per-τ power-law noise identification (lag-1 autocorrelation method),
@@ -60,6 +62,12 @@ are as valuable as code. Look for issues labelled
     network TDEV/MTIE limits), with margins and PASS/FAIL,
   - **compare** a source against a reference (PPS, GNSS or a better server) to get the error's
     bias, RMS, TDEV and MTIE.
+- **Works with the tools you have**:
+  - Stable32 data files in and out (`ntpstats convert`);
+  - an **allantools-compatible API** (`from ntpstats.compat import allantools`);
+  - **Prometheus/OpenMetrics** from `monitor`/`watch`, including an error bound and rolling
+    TDEV, plus a Grafana dashboard, alert rules and a docker-compose stack in
+    [`contrib/`](contrib/).
 - **Network metrics**: delay floor and queueing distribution, Mills' offset-vs-delay *wedge*,
   asymmetry indicator, floor packet percentage (ITU-T G.8260-style), NTP clock-filter
   (minimum delay) selection.

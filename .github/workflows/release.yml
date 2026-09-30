@@ -1,5 +1,6 @@
 # Release on tags (vX.Y.Z): test, build, publish a GitHub Release with the
-# CHANGELOG section, then upload to PyPI with trusted publishing.
+# CHANGELOG section, upload to PyPI with trusted publishing, and push the
+# container image to ghcr.io/<owner>/ntpstats.
 #
 #   git tag v2.5.0 && git push origin v2.5.0        # normal path
 #   Actions > Release > Run workflow (tag: v2.5.0)  # creates the tag at the
@@ -94,3 +95,34 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  container:
+    # Container image on GitHub Container Registry: ghcr.io/<owner>/ntpstats:X.Y.Z and :latest
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: img
+        run: |
+          echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ntpstats" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.img.outputs.name }}:${{ steps.img.outputs.version }}
+            ${{ steps.img.outputs.name }}:latest
+          labels: org.opencontainers.image.version=${{ steps.img.outputs.version }}

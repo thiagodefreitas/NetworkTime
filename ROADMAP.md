@@ -31,33 +31,32 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 | Measurement research at Internet scale (NTP Pool studies in PACMCS'24 and NDSS'26, NTS adoption surveys) | Read public datasets and publish our own (#34, #30) |
 | Datacenter sync research (Huygens, Sundial, Firefly, SyncWise) and TSN simulation | Trace-driven bench, PTP servos, simulator interop (#29) |
 
-## Start here (quick wins, weeks)
-- **Stable32/TimeLab formats and an allantools-compatible API**: lowers the switching cost for
-  metrologists. ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33), good first issue)
-- **NIST SP 1065 NBS test vectors** in the tests, first step of cross-validation. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28), good first issue)
-- **Community on-ramp**: Zenodo DOI, Discussions, code of conduct, templates, conda-forge. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
-- **Grafana dashboard** for the existing monitor exporter. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36))
+## Done in 2.7 (quick wins)
+- ✅ NIST SP 1065 test suites reproduced to 7 digits, MTOT bias correction, TTOT. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28), first part)
+- ✅ Stable32 files, `ntpstats convert`, allantools-compatible API. ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33); TimeLab `.tim` waits for sample files)
+- ✅ Prometheus exporter, Grafana dashboard, alert rules, compose stack. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36), first part)
+- ✅ Code of conduct, security policy, issue forms, GHCR image. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38), first part; Discussions and Zenodo need the maintainer to switch them on)
 
 ## Releases
 
-### 2.7: PTP and telecom
+### 2.8: PTP and telecom
 - PTP in captures: offset, per-direction delay, PDV, NTS4PTP TLVs. ([#19](https://github.com/thiagodefreitas/NetworkTime/issues/19))
 - Time-error metrics: max|TE|, cTE, dTE_L/H, max|TEL|, 1PPS/TIC input. ([#20](https://github.com/thiagodefreitas/NetworkTime/issues/20))
 - More sources: ntpd-rs, facebook/time, w32tm, ClockBound, Time Card, pmc, chrony 4.9. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
 - Instrument import profiles (TIC/counters, Calnex, VIAVI, Keysight, Microchip exports). ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35))
 
-### 2.8: Trust and operations
+### 2.9: Trust and operations
 - UTC traceability and compliance report (`ntpstats audit`). ([#22](https://github.com/thiagodefreitas/NetworkTime/issues/22))
 - Anomaly and change-point detection. ([#23](https://github.com/thiagodefreitas/NetworkTime/issues/23))
-- Operations integration: dashboards, OpenTelemetry, a GitHub Action and a pytest plugin for timing checks in CI. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36))
+- Operations integration, remaining parts: OpenTelemetry, Prometheus import, a GitHub Action and a pytest plugin for timing checks in CI. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36))
 - Protocol watch: Roughtime, NTS pools, NTPv5, RFC 9769 interleaved mode. ([#24](https://github.com/thiagodefreitas/NetworkTime/issues/24))
 
-### 2.9: Metrology and research data
+### 2.10: Metrology and research data
 - Frequency domain and h_α noise fitting. ([#25](https://github.com/thiagodefreitas/NetworkTime/issues/25))
 - Holdover and time-error prediction. ([#26](https://github.com/thiagodefreitas/NetworkTime/issues/26))
 - Three-cornered hat and Groslambert covariance. ([#27](https://github.com/thiagodefreitas/NetworkTime/issues/27))
-- Cross-validation with NIST SP 1065, Stable32 and public data. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28))
-- Ecosystem interop: Stable32, TimeLab and the allantools API. ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33))
+- Cross-validation, remaining parts: Stable32 CIs/EDF, a public long-term dataset. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28))
+- Ecosystem interop, remaining parts: TimeLab `.tim`, `htotdev`. ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33))
 - Research data sources: RIPE Atlas, NTP Pool, NTS campaigns, CGGTTS, RINEX clock, Circular T. ([#34](https://github.com/thiagodefreitas/NetworkTime/issues/34))
 
 ### 3.0: Platform
@@ -98,3 +97,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.4 | Performance ([#13](https://github.com/thiagodefreitas/NetworkTime/issues/13)), lint, coverage, Docker, security review, `compare` |
 | 2.5 | MTOT, TheoBR, TheoH ([#15](https://github.com/thiagodefreitas/NetworkTime/issues/15)); docs site, wiki, mypy; tag-driven releases to PyPI |
 | 2.6 | Fast MTOT/Theo family on million-sample logs ([#18](https://github.com/thiagodefreitas/NetworkTime/issues/18)) |
+| 2.7 | NIST SP 1065 validation, MTOT bias correction, TTOT; Stable32 files and allantools API; Prometheus exporter and Grafana dashboard; community on-ramp |

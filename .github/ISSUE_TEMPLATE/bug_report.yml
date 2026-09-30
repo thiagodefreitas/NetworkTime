@@ -1,0 +1,30 @@
+name: Bug report
+description: Something is wrong (a crash, a wrong number, a parser that fails on your log)
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Command or code, and a small input file if possible (anonymise addresses, e.g. with 192.0.2.x).
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ntpstats version
+      placeholder: "ntpstats --version"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Python, OS, and the time daemon/instrument involved
+      placeholder: "Python 3.12, Debian 13, chrony 4.9"

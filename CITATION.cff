@@ -7,7 +7,7 @@ authors:
     email: "thiagodefreitas@gmail.com"
 license: MIT
 repository-code: "https://github.com/thiagodefreitas/NetworkTime"
-version: 2.6.0
+version: 2.7.0
 date-released: 2026-09-30
 keywords:
   - NTP

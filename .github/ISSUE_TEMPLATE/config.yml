@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/thiagodefreitas/NetworkTime/discussions
+    about: Ask how to analyse something, share results, or discuss an idea before opening an issue.
+  - name: Documentation
+    url: https://thiagodefreitas.github.io/NetworkTime/
+    about: Getting started, CLI, formats, statistics, monitoring and the API reference.
+  - name: Security vulnerability
+    url: https://github.com/thiagodefreitas/NetworkTime/security/advisories/new
+    about: Please report security issues privately.

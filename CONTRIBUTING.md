@@ -1,6 +1,24 @@
 # Contributing
 
-Issues and pull requests are welcome. See [ROADMAP.md](ROADMAP.md) for planned work.
+Issues and pull requests are welcome, from industry and research alike. See
+[ROADMAP.md](ROADMAP.md) for planned work and the [Code of Conduct](CODE_OF_CONDUCT.md) for how we
+work together. Report security issues privately ([SECURITY.md](SECURITY.md)).
+
+## Ways to contribute
+
+- **Share data.** A small, anonymised sample log or instrument export is the fastest way to get
+  a format supported (use the "Share a sample log" issue form). Stable32 outputs for
+  cross-checks are equally welcome.
+- **Pick a starter issue.** Issues labelled
+  [`good first issue`](https://github.com/thiagodefreitas/NetworkTime/labels/good%20first%20issue)
+  are self-contained, often a parser or a file format.
+- **Tell us your use case.** Industry (`industry`) and research (`research`) needs shape the
+  roadmap; comment on the issues you care about.
+- **Reproduce a published result.** Scripts or notebooks that reproduce figures from standards
+  or papers with ntpstats are welcome in `examples/`.
+- **Ask and show** in [Discussions](https://github.com/thiagodefreitas/NetworkTime/discussions).
+
+## Development
 
 ```bash
 pip install -e ".[test,plot,nts,docs]"
@@ -30,6 +48,7 @@ The project follows [Semantic Versioning](https://semver.org/) and keeps a
 1. Move the `[Unreleased]` notes into a new `## [X.Y.Z] - YYYY-MM-DD` section.
 2. Bump `__version__` in `src/ntpstats/__init__.py` and `version:` in `CITATION.cff`
    (`tests/test_version.py` checks that the three agree), and merge to `master`.
+   The release also pushes the container image to `ghcr.io/thiagodefreitas/ntpstats`.
 3. Tag the release: `git tag vX.Y.Z && git push origin vX.Y.Z`, or run *Actions → Release →
    Run workflow* with `tag = vX.Y.Z`, which creates the tag at the selected commit.
 
