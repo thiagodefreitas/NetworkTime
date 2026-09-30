@@ -47,8 +47,10 @@ Check the keys against the operators' own publications before relying on them. S
 added with `host:port=BASE64KEY`.
 
 Compatibility: ntpstats offers versions 1, draft-08, draft-11 and draft-12+ (0x8000000c).
-Cloudflare's server still speaks only draft-08, so without it the server has no version in
-common with the client and silently ignores the request. Responses in the older-draft form are
+Cloudflare's service documents draft-08 support. If a server does not answer the IETF request,
+ntpstats tries once with Google-Roughtime, the pre-IETF protocol: unframed messages, 64-byte
+nonces and hashes, microsecond timestamps. Some deployed servers still answer only that, and the
+output says which protocol answered. Chained nonces and malfeasance reports work across both. Responses in the older-draft form are
 accepted too (nonce-only Merkle leaf, microsecond timestamps). The JSON output reports which form
 each server used (`merkle_leaf`).
 

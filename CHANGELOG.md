@@ -32,9 +32,10 @@ uploads to PyPI.
   PM.
 
 ### Fixed
-- Roughtime: the client also offers draft-08 (0x80000008). Cloudflare's server supports only
-  draft-08 among the IETF versions and ignored requests without it (seen in the 2.11 live
-  interop run).
+- Roughtime: the client also offers draft-08 (0x80000008), and falls back to Google-Roughtime
+  (the pre-IETF protocol: unframed, 64-byte nonces, microseconds) when a server does not answer
+  the IETF request. Cloudflare's server did not answer in the 2.11 live interop run; the protocol
+  that answered is reported and recorded in the dataset.
 
 ## [2.12.0] - 2026-10-01
 

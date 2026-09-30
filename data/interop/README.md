@@ -33,7 +33,7 @@ for s in load("data/interop"):
 | `interleaved` | RFC 9769: the server answered in interleaved mode |
 | `offers_v5`, `timescale`, `draft` | NTPv5 upgrade probe and v5 response |
 | `ntp_server`, `cookies_left`, `denied`, `session` | NTS and NTS-pool details |
-| `midp`, `radius`, `merkle_leaf` | Roughtime signed time, radius (s) and Merkle-leaf form |
+| `midp`, `radius`, `merkle_leaf`, `protocol` | Roughtime signed time, radius (s), Merkle-leaf form, `ietf` or `google` (pre-IETF protocol) |
 | `responses`, `violations`, `local_offset_interval` | Roughtime chain summary |
 
 Caveats:

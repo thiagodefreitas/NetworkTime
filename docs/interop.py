@@ -152,7 +152,7 @@ def main(argv=None):
             row(["", f"error: {type(exc).__name__}: {exc}", "", "", ""])
 
     print("\n### Roughtime (draft-ietf-ntp-roughtime-19, chained, two rounds)\n")
-    row(["server", "version", "MIDP (UTC)", "radius", "offset", "rtt", "Merkle leaf"])
+    row(["server", "protocol", "MIDP (UTC)", "radius", "offset", "rtt", "Merkle leaf"])
     row(["---"] * 7)
     try:
         from ntpstats import roughtime as rt
@@ -160,8 +160,8 @@ def main(argv=None):
         m = rt.measure(rt.load_servers(), rounds=2, timeout=3, family=socket.AF_INET, spacing=0.5)
         for r in m.responses:
             record("roughtime", r.server, True, version=hex(r.version), midp=r.midp, radius=r.radi,
-                   offset=r.offset, delay=r.rtt, merkle_leaf=r.leaf)
-            row([r.server, hex(r.version), time.strftime("%H:%M:%S", time.gmtime(r.midp)), f"{r.radi:g} s",
+                   offset=r.offset, delay=r.rtt, merkle_leaf=r.leaf, protocol=r.protocol)
+            row([r.server, r.protocol if r.protocol == "google" else hex(r.version), time.strftime("%H:%M:%S", time.gmtime(r.midp)), f"{r.radi:g} s",
                  f"{r.offset:+.3f} s", format_seconds(r.rtt), r.leaf])
         for name, err in m.errors:
             record("roughtime", name, False, err)

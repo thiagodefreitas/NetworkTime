@@ -124,6 +124,13 @@ def unpacket(data: bytes) -> bytes:
     return data[12: 12 + n]
 
 
+def _message(data: bytes) -> Tuple[bytes, bool]:
+    """Message and whether it was IETF-framed (Google-Roughtime messages have no ROUGHTIM header)."""
+    if data[:8] == MAGIC:
+        return unpacket(data), True
+    return data, False
+
+
 def _u32(v: bytes) -> int:
     if len(v) != 4:
         raise RoughtimeError("bad uint32")
@@ -149,6 +156,16 @@ def build_request(nonce: bytes, public_key: Optional[bytes] = None,
     if size + 8 < min_size:
         msg[tag("ZZZZ")] = bytes(-(-(min_size - size - 8) // 4) * 4)
     return packet(encode(msg))
+
+
+def build_google_request(nonce: bytes, min_size: int = MIN_REQUEST) -> bytes:
+    """Google-Roughtime request: unframed message with a 64-byte NONC and PAD\\xff padding to ``min_size``."""
+    if len(nonce) != 64:
+        raise ValueError("Google-Roughtime nonces are 64 bytes")
+    msg = {tag("NONC"): nonce}
+    size = len(encode(msg))
+    msg[b"PAD\xff"] = bytes(max(0, min_size - size - 8))
+    return encode(msg)
 
 
 # ------------------------------------------------------------------ verification
@@ -202,6 +219,7 @@ class Response:
     mint: float = 0.0
     maxt: float = 0.0
     leaf: str = "request"  # what the Merkle leaf covered: "request" (draft-19) or "nonce" (older drafts)
+    protocol: str = "ietf"  # "ietf" or "google" (Google-Roughtime, the pre-IETF protocol)
 
     @property
     def rtt(self) -> float:
@@ -220,7 +238,8 @@ class Response:
     def as_dict(self) -> Dict[str, object]:
         return {"server": self.server, "midp": self.midp, "radi": self.radi, "version": hex(self.version),
                 "t_send": self.t_send, "t_recv": self.t_recv, "rtt": self.rtt, "offset": self.offset,
-                "bound": self.bound, "mint": self.mint, "maxt": self.maxt, "merkle_leaf": self.leaf}
+                "bound": self.bound, "mint": self.mint, "maxt": self.maxt, "merkle_leaf": self.leaf,
+                "protocol": self.protocol}
 
 
 def verify(request: bytes, response: bytes, public_key: bytes, server: str = "",
@@ -230,9 +249,13 @@ def verify(request: bytes, response: bytes, public_key: bytes, server: str = "",
     Raises :class:`RoughtimeError` on any failure. Older drafts that sign the
     nonce instead of the request, and microsecond timestamps, are accepted.
     """
-    req = decode(unpacket(request))
+    req_msg, framed = _message(request)
+    req = decode(req_msg)
     nonce = req.get(tag("NONC"), b"")
-    top = decode(unpacket(response))
+    resp_msg, resp_framed = _message(response)
+    if resp_framed != framed:
+        raise RoughtimeError("response framing does not match the request (IETF vs Google-Roughtime)")
+    top = decode(resp_msg)
     try:
         sig, srep_raw, cert_raw = top[tag("SIG")], top[tag("SREP")], top[tag("CERT")]
         path, index = top.get(tag("PATH"), b""), _u32(top[tag("INDX")])
@@ -249,7 +272,7 @@ def verify(request: bytes, response: bytes, public_key: bytes, server: str = "",
     if tag("TYPE") in top and _u32(top[tag("TYPE")]) != 1:
         raise RoughtimeError("TYPE is not 1 (response)")
     got = top.get(tag("NONC"), srep.get(tag("NONC")))
-    if got != nonce:
+    if got != nonce and (framed or got is not None):  # Google-Roughtime does not echo the nonce
         raise RoughtimeError("nonce does not match the request")
     ver_raw = srep.get(tag("VER"), top.get(tag("VER"), b""))
     version = _u32(ver_raw[:4]) if len(ver_raw) >= 4 else 0
@@ -276,7 +299,8 @@ def verify(request: bytes, response: bytes, public_key: bytes, server: str = "",
     if radi <= 0:
         raise RoughtimeError("RADI is zero")
     return Response(server=server, midp=midp, radi=radi, version=version, t_send=t_send, t_recv=t_recv,
-                    request=request, response=response, public_key=public_key, mint=mint, maxt=maxt, leaf=leaf)
+                    request=request, response=response, public_key=public_key, mint=mint, maxt=maxt, leaf=leaf,
+                    protocol="ietf" if framed else "google")
 
 
 # ------------------------------------------------------------------ servers and transport
@@ -342,7 +366,8 @@ def backoff(n: int, base: float = 1.0) -> float:
     return min(base * 1.5 ** (n - 1), 86400.0)
 
 
-def _exchange(server: Server, request: bytes, timeout: float, tcp: bool, family: int) -> Tuple[bytes, float, float]:
+def _exchange(server: Server, request: bytes, timeout: float, tcp: bool, family: int,
+              framed: bool = True) -> Tuple[bytes, float, float]:
     infos = socket.getaddrinfo(server.host, server.port, family, socket.SOCK_STREAM if tcp else socket.SOCK_DGRAM)
     af, st, proto, _, addr = infos[0]
     with socket.socket(af, st, proto) as sock:
@@ -363,14 +388,20 @@ def _exchange(server: Server, request: bytes, timeout: float, tcp: bool, family:
         while True:
             data, _ = sock.recvfrom(65536)
             t4 = time.time()
-            if data[:8] == MAGIC:
+            if (data[:8] == MAGIC) == framed:
                 return data, t1, t4
 
 
 def query(server: Server, nonce: Optional[bytes] = None, timeout: float = 3.0, tcp: bool = False,
           retries: int = 0, versions: Sequence[int] = DEFAULT_VERSIONS, family: int = 0,
-          sleep: Callable[[float], None] = time.sleep) -> Response:
-    """One verified exchange. UDP by default; ``tcp=True`` for paths that drop large datagrams."""
+          sleep: Callable[[float], None] = time.sleep, google_fallback: bool = True,
+          nonce64: Optional[bytes] = None) -> Response:
+    """One verified exchange. UDP by default; ``tcp=True`` for paths that drop large datagrams.
+
+    If the IETF request gets no answer, a Google-Roughtime request (the
+    pre-IETF protocol that some servers still answer, with ``nonce64``) is
+    tried once over UDP; :attr:`Response.protocol` says which one answered.
+    """
     nonce = nonce if nonce is not None else os.urandom(32)
     request = build_request(nonce, server.public_key, versions)
     last: Exception = RoughtimeError("no attempt")
@@ -380,6 +411,13 @@ def query(server: Server, nonce: Optional[bytes] = None, timeout: float = 3.0, t
         try:
             data, t1, t4 = _exchange(server, request, timeout, tcp, family)
             return verify(request, data, server.public_key, server.name, t1, t4)
+        except (OSError, RoughtimeError) as exc:
+            last = exc
+    if google_fallback and not tcp and isinstance(last, OSError):
+        greq = build_google_request(nonce64 if nonce64 is not None else hashlib.sha512(nonce).digest())
+        try:
+            data, t1, t4 = _exchange(server, greq, timeout, False, family, framed=False)
+            return verify(greq, data, server.public_key, server.name, t1, t4)
         except (OSError, RoughtimeError) as exc:
             last = exc
     raise last if isinstance(last, RoughtimeError) else RoughtimeError(f"{type(last).__name__}: {last}")
@@ -434,7 +472,8 @@ def measure(servers: Iterable[Server], rounds: int = 2, timeout: float = 3.0, tc
     """Query the servers in order, ``rounds`` times (two per draft-19 section 8.2), chaining nonces.
 
     Each nonce after the first is H(previous response || rand), so the
-    responses prove their order. Failed servers are recorded and skipped.
+    responses prove their order (for a Google-Roughtime fallback the full
+    64-byte SHA-512 of the same input). Failed servers are recorded and skipped.
     """
     q = query_fn or query
     seq = list(servers) * rounds
@@ -447,8 +486,12 @@ def measure(servers: Iterable[Server], rounds: int = 2, timeout: float = 3.0, tc
         if responses:
             r_bytes = rand(32)
             nonce = H(responses[-1].response + r_bytes)
+            nonce64 = hashlib.sha512(responses[-1].response + r_bytes).digest()
         else:
             nonce = rand(32)
+            nonce64 = hashlib.sha512(nonce).digest()
+        if q is query:
+            kw["nonce64"] = nonce64
         try:
             r = q(s, nonce=nonce, timeout=timeout, tcp=tcp, **kw)
         except RoughtimeError as exc:
@@ -470,7 +513,9 @@ def verify_report(report: Dict[str, object]) -> List[Response]:
         r = verify(req, resp, base64.b64decode(item["publicKey"]))
         if k:
             rnd = base64.b64decode(item["rand"])
-            if decode(unpacket(req)).get(tag("NONC")) != H(out[-1].response + rnd):
+            msg, framed = _message(req)
+            want = H(out[-1].response + rnd) if framed else hashlib.sha512(out[-1].response + rnd).digest()
+            if decode(msg).get(tag("NONC")) != want:
                 raise RoughtimeError(f"response {k}: nonce is not chained from response {k - 1}")
             r.rand = rnd
         out.append(r)

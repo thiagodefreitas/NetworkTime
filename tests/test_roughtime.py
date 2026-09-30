@@ -244,3 +244,63 @@ def test_udp_query_and_cli(udp_fakes, tmp_path, capsys):
     assert rc == 3 and not doc["consistent"] and doc["causal_violations"]
     assert len(json.loads(rep.read_text())["responses"]) == 4
     assert main(["roughtime", "--verify-report", str(rep)]) == 3
+
+
+class GoogleServer:
+    """Google-Roughtime (pre-IETF): unframed, 64-byte nonces and hashes, microseconds, '--' context."""
+
+    def __init__(self, now=T0):
+        self.lt, self.online, self.now = Ed25519PrivateKey.generate(), Ed25519PrivateKey.generate(), now
+        self.public_key = raw(self.lt)
+
+    def respond(self, request):
+        m = rt.decode(request)  # raises on framed (IETF) requests: this server ignores them
+        nonce = m[rt.tag("NONC")]
+        root = rt.H(b"\x00" + nonce, 64)
+        us = 10 ** 6
+        srep = rt.encode({rt.tag("ROOT"): root, rt.tag("MIDP"): struct.pack("<Q", self.now * us),
+                          rt.tag("RADI"): struct.pack("<I", 1 * us)})
+        dele = rt.encode({rt.tag("PUBK"): raw(self.online), rt.tag("MINT"): struct.pack("<Q", (self.now - 86400) * us),
+                          rt.tag("MAXT"): struct.pack("<Q", (self.now + 86400) * us)})
+        cert = rt.encode({rt.tag("SIG"): self.lt.sign(rt.CTX_DELEGATION_OLD + dele), rt.tag("DELE"): dele})
+        return rt.encode({rt.tag("SIG"): self.online.sign(rt.CTX_RESPONSE + srep), rt.tag("SREP"): srep,
+                          rt.tag("CERT"): cert, rt.tag("INDX"): struct.pack("<I", 0), rt.tag("PATH"): b""})
+
+
+def test_google_roughtime_verification():
+    g = GoogleServer()
+    req = rt.build_google_request(b"\x04" * 64)
+    assert req[:8] != rt.MAGIC and len(req) == 1024
+    r = rt.verify(req, g.respond(req), g.public_key, "g")
+    assert r.protocol == "google" and r.leaf == "nonce" and r.midp == T0 and r.radi == 1
+    with pytest.raises(rt.RoughtimeError):  # an IETF answer to a Google request is refused
+        rt.verify(req, rt.packet(g.respond(req)), g.public_key)
+
+
+def test_query_falls_back_to_google_roughtime():
+    g = GoogleServer()
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+
+    def serve():
+        while True:
+            try:
+                data, addr = sock.recvfrom(4096)
+            except OSError:
+                return
+            if data[:8] != rt.MAGIC:  # only Google-Roughtime requests get an answer
+                sock.sendto(g.respond(data), addr)
+
+    threading.Thread(target=serve, daemon=True).start()
+    try:
+        srv = rt.Server("g", g.public_key, "127.0.0.1", sock.getsockname()[1])
+        r = rt.query(srv, timeout=0.5)
+        assert r.protocol == "google" and r.midp == T0
+        with pytest.raises(rt.RoughtimeError):
+            rt.query(srv, timeout=0.3, google_fallback=False)
+        m = rt.measure([srv], rounds=2, timeout=0.5)
+        assert len(m.responses) == 2 and m.consistent
+        chain = rt.verify_report(json.loads(json.dumps(m.malfeasance_report())))  # 64-byte chained nonces
+        assert [c.protocol for c in chain] == ["google", "google"]
+    finally:
+        sock.close()
