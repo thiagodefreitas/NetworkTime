@@ -1,6 +1,6 @@
 # From a 2012 student project to a 2026 research tool
 
-*Author: Thiago de Freitas — reviewed September 2026.*
+*Author: Thiago de Freitas — reviewed 30 September 2026. Where this leads next: [ROADMAP](https://github.com/thiagodefreitas/NetworkTime/blob/master/ROADMAP.md).*
 
 This note answers three questions: **is the 2012 approach still applicable, how is network
 time measured and analysed today, and what had to change?**
@@ -15,10 +15,10 @@ protocol on the wire, and ntpd still writes `loopstats`/`peerstats` in the same 
 
 | Area | 2012 | 2026 |
 |---|---|---|
-| NTP daemons | ntpd almost everywhere | **chrony** is the default on RHEL/Fedora/SUSE and, since 25.10, on Ubuntu (with NTS on by default); **NTPsec** is maintained as a hardened ntpd fork with its own `ntpviz` plots; ntpd 4.2.8p18 (May 2024) is still the latest reference release |
+| NTP daemons | ntpd almost everywhere | **chrony** is the default on RHEL/Fedora/SUSE and, since 25.10, on Ubuntu (with NTS on by default); **NTPsec** is maintained as a hardened ntpd fork with its own `ntpviz` plots; ntpd 4.2.8p18 (May 2024) is still the latest reference release; **ntpd-rs** (Rust, NTS, experimental NTPv5) is being tested in Ubuntu 26.10 and is planned as the default in 27.04 |
 | Log formats understood | ntpd `loopstats` only | ntpd/NTPsec `loopstats`, `peerstats`, `rawstats`; chrony `tracking`, `measurements`, `statistics`; CSV |
 | Security | unauthenticated, or symmetric MD5 keys | **NTS** (RFC 8915, TLS 1.3 key establishment and AEAD-protected packets); MD5 MACs deprecated (RFC 8573); BCP RFC 8633; source-port randomisation (RFC 9109); client data minimisation (random transmit timestamp) |
-| Protocol evolution | NTPv4 | NTPv4 plus extension fields (RFC 7822); **NTPv5** in the IETF NTP WG (draft-ietf-ntp-ntpv5-09, July 2026: client/server only, legacy modes removed, cookies instead of origin timestamps, timescale and era fields). ntpd-rs ships an experimental draft-09 implementation; chrony 4.9 does not implement NTPv5 yet but supports NTP-over-PTP (RFC 10030) |
+| Protocol evolution | NTPv4 | NTPv4 plus extension fields (RFC 7822); **NTPv5** in the IETF NTP WG (draft-ietf-ntp-ntpv5-09, July 2026: client/server only, legacy modes removed, cookies instead of origin timestamps, timescale and era fields). ntpd-rs ships an experimental draft-09 implementation; chrony 4.9 does not implement NTPv5 yet but supports NTP-over-PTP (RFC 10030). Interleaved mode is RFC 9769 (2025); **Roughtime** was approved as an Experimental RFC in 2026; NTS pools are drafted in draft-ietf-ntp-nts-keyexchange-pool |
 | Accuracy frontier | ms over the Internet, sub-ms on a LAN | NTP with hardware timestamping reaches tens of ns to µs on LANs (chrony `hwtimestamp`); **PTP / IEEE 1588-2019** (and White Rabbit) for ns; cloud providers expose PTP-disciplined clocks to VMs |
 | Leap seconds | smeared by some operators | CGPM 2022 decided to stop inserting leap seconds by 2035; smearing (e.g. Google) is widely deployed |
 | Time horizon | — | **2036 NTP era rollover** (32-bit seconds wrap on 7 Feb 2036), which clients must handle |
