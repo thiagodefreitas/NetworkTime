@@ -6,7 +6,7 @@ authors:
     given-names: "Thiago"
 license: MIT
 repository-code: "https://github.com/thiagodefreitas/NetworkTime"
-version: 2.10.0
+version: 2.11.0
 date-released: 2026-09-30
 keywords:
   - NTP

@@ -49,8 +49,10 @@ def make_cert(tmp_path):
 
 
 class FakeNTS:
-    def __init__(self, cert, key, offset=0.125, tamper=False):
+    def __init__(self, cert, key, offset=0.125, tamper=False, pool=None):
         self.offset, self.tamper = offset, tamper
+        self.pool = pool  # NTS pool mode: hand out these server names, honouring deny records
+        self.denied = []
         self.cookies = {}
         self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp.bind(("127.0.0.1", 0))
@@ -87,7 +89,12 @@ class FakeNTS:
                 ck = os.urandom(64)
                 self.cookies[ck] = (c2s, s2c)
                 out += nts._record(nts.REC_COOKIE, ck, critical=False)
-            out += nts._record(nts.REC_SERVER, b"127.0.0.1", critical=False)
+            deny = [b.decode() for t, _, b in nts._parse_records(buf) if t == nts.REC_SERVER_DENY]
+            self.denied.append(deny)
+            name = b"127.0.0.1"
+            if self.pool:
+                name = next((n for n in self.pool if n not in deny), self.pool[0]).encode()
+            out += nts._record(nts.REC_SERVER, name, critical=False)
             out += nts._record(nts.REC_PORT, struct.pack("!H", self.udp.getsockname()[1]), critical=False)
             out += nts._record(nts.REC_END)
             c.sendall(out)
@@ -186,3 +193,13 @@ def test_nts_tls_errors_are_ntserrors():
             nts.key_exchange("127.0.0.1", s.getsockname()[1], verify=False, timeout=2)
     finally:
         s.close()
+
+
+def test_nts_pool_deny_records(pki):
+    srv = FakeNTS(*pki, pool=["a.pool.test", "b.pool.test", "c.pool.test"])
+    try:
+        sessions = nts.pool_sessions("localhost", n=3, ke_port=srv.tcp.getsockname()[1], cafile=pki[0])
+        assert [s.keys.server for s in sessions] == ["a.pool.test", "b.pool.test", "c.pool.test"]
+        assert srv.denied == [[], ["a.pool.test"], ["a.pool.test", "b.pool.test"]]
+    finally:
+        srv.close()

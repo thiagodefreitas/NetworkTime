@@ -26,5 +26,6 @@ A [`TimeSeries`](series.md) has `t` (POSIX seconds), `offset` (seconds, referenc
 | [`ntpstats.estimators`](estimators.md) | estimator API and reference algorithms |
 | [`ntpstats.simulate`](simulate.md) | clocks, paths, scenarios with ground truth |
 | [`ntpstats.bench`](bench.md) | benchmark runner |
-| [`ntpstats.sntp`](sntp.md), [`ntpstats.nts`](nts.md) | measurement clients |
+| [`ntpstats.sntp`](sntp.md), [`ntpstats.nts`](nts.md) | measurement clients (NTPv4, RFC 9769 interleaved, NTPv5, NTS, NTS pools) |
+| [`ntpstats.roughtime`](roughtime.md) | Roughtime client, chained measurements, malfeasance reports |
 | [`ntpstats.masks`](masks.md), [`ntpstats.report`](report.md) | masks, HTML reports |

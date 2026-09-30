@@ -42,6 +42,7 @@ nav:
   - Sources, instruments & bounds: sources.md
   - Audit, events & CI checks: assurance.md
   - Monitoring (Prometheus/Grafana): monitoring.md
+  - Protocols (Roughtime, NTS pools, RFC 9769): protocols.md
   - Validation: validation.md
   - Stable32, TimeLab, allantools: migrating.md
   - API:
@@ -58,6 +59,7 @@ nav:
       - bench: api/bench.md
       - sntp: api/sntp.md
       - nts: api/nts.md
+      - roughtime: api/roughtime.md
       - masks: api/masks.md
       - report: api/report.md
       - ptp: api/ptp.md

@@ -35,7 +35,7 @@ import socket
 import struct
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from .sntp import (
     _PACKET,
@@ -55,6 +55,8 @@ KEY_LEN = 32
 
 # NTS-KE record types
 REC_END, REC_NEXT_PROTO, REC_ERROR, REC_WARNING, REC_AEAD, REC_COOKIE, REC_SERVER, REC_PORT = range(8)
+#: NTP Server Deny (draft-ietf-ntp-nts-keyexchange-pool, IANA early allocation): ask a pool for another server
+REC_SERVER_DENY = 13
 # NTP extension field types
 EF_UID, EF_COOKIE, EF_COOKIE_PLACEHOLDER, EF_AUTH = 0x0104, 0x0204, 0x0304, 0x0404
 
@@ -142,7 +144,9 @@ def _tcp_connect(host, port, timeout, family=0):
 
 
 def key_exchange(host: str, port: int = 4460, timeout: float = 5.0, verify: bool = True,
-                 cafile: Optional[str] = None, family: int = 0) -> NTSKeys:
+                 cafile: Optional[str] = None, family: int = 0, deny: Sequence[str] = ()) -> NTSKeys:
+    """NTS-KE (RFC 8915). ``deny`` lists NTP server names already in use, sent
+    as NTP Server Deny records so that an NTS pool returns a different one."""
     SSL, _ = _deps()
     ctx = SSL.Context(SSL.TLS_CLIENT_METHOD)
     ctx.set_min_proto_version(SSL.TLS1_3_VERSION)
@@ -161,12 +165,12 @@ def key_exchange(host: str, port: int = 4460, timeout: float = 5.0, verify: bool
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, tv)
     conn = SSL.Connection(ctx, sock)
     try:
-        return _ke_session(conn, host, timeout, verify, SSL)
+        return _ke_session(conn, host, timeout, verify, SSL, deny)
     except SSL.Error as exc:
         raise NTSError(f"NTS-KE TLS error with {host}:{port}: {exc}") from exc
 
 
-def _ke_session(conn, host, timeout, verify, SSL) -> "NTSKeys":
+def _ke_session(conn, host, timeout, verify, SSL, deny: Sequence[str] = ()) -> "NTSKeys":
     try:
         conn.set_tlsext_host_name(host.encode())
         conn.set_connect_state()
@@ -177,6 +181,7 @@ def _ke_session(conn, host, timeout, verify, SSL) -> "NTSKeys":
             raise NTSError(f"certificate does not match host name {host}")
         conn.sendall(_record(REC_NEXT_PROTO, struct.pack("!H", PROTO_NTPV4))
                      + _record(REC_AEAD, struct.pack("!H", AEAD_AES_SIV_CMAC_256))
+                     + b"".join(_record(REC_SERVER_DENY, d.encode("ascii"), critical=False) for d in deny)
                      + _record(REC_END))
         buf = b""
         deadline = time.monotonic() + timeout
@@ -290,9 +295,10 @@ class NTSSession:
     """Keeps keys and cookies; performs a new key exchange when needed."""
 
     def __init__(self, host: str, ke_port: int = 4460, timeout: float = 5.0, verify: bool = True,
-                 cafile: Optional[str] = None, family: int = 0):
+                 cafile: Optional[str] = None, family: int = 0, deny: Sequence[str] = ()):
         self.host, self.ke_port, self.timeout, self.verify, self.cafile = host, ke_port, timeout, verify, cafile
         self.family = family
+        self.deny = tuple(deny)
         self.keys: Optional[NTSKeys] = None
 
     @property
@@ -301,7 +307,8 @@ class NTSSession:
 
     def _ensure_keys(self) -> NTSKeys:
         if self.keys is None or not self.keys.cookies:
-            self.keys = key_exchange(self.host, self.ke_port, self.timeout, self.verify, self.cafile, self.family)
+            self.keys = key_exchange(self.host, self.ke_port, self.timeout, self.verify, self.cafile, self.family,
+                                     deny=self.deny)
         return self.keys
 
     def query(self) -> NTPResult:
@@ -349,3 +356,25 @@ class NTSSession:
             root_delay=_short(rdelay), root_dispersion=_short(rdisp), refid=_refid(stratum, refid),
             auth="nts",
         )
+
+
+def pool_sessions(pool: str, n: int = 3, **kw) -> List[NTSSession]:
+    """Up to ``n`` sessions with *different* NTP servers from an NTS pool.
+
+    Each key exchange sends NTP Server Deny records (draft-ietf-ntp-nts-
+    keyexchange-pool) for the servers already obtained. A pool that ignores
+    them may return duplicates, which are dropped.
+    """
+    sessions: List[NTSSession] = []
+    seen: List[str] = []
+    for _ in range(2 * n):
+        if len(sessions) >= n:
+            break
+        s = NTSSession(pool, deny=list(seen), **kw)
+        keys = s._ensure_keys()
+        if keys.server in seen:
+            continue
+        seen.append(keys.server)
+        sessions.append(s)
+    return sessions
+

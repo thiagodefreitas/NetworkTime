@@ -16,6 +16,6 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[nts]"
-      - name: NTPv4 / NTS / NTPv5 probes
+      - name: NTPv4 / NTS / NTS pool / NTPv5 / Roughtime probes
         run: |
           python docs/interop.py | tee -a "$GITHUB_STEP_SUMMARY"

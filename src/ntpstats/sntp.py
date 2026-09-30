@@ -15,6 +15,10 @@ Improvements over the ``ntplib`` 0.1.9 copy used in 2012:
 * High-resolution local timestamps (``time.time_ns``) taken as close to the
   socket calls as Python allows.
 
+* **Interleaved mode** (RFC 9769, :func:`query_interleaved`): the server
+  returns the precise transmit time of its previous response, so software
+  timestamping on the server's send path no longer adds error.
+
 * Experimental **NTPv5** (draft-ietf-ntp-ntpv5-09): 48-octet v5 header with
   client/server cookies, timescale, era and flags, the draft-identification
   extension field, and the NTPv4 -> v5 upgrade probe (reference timestamp
@@ -87,6 +91,7 @@ class NTPResult:
     flags: int = 0  # NTPv5 flags word (0x1 synchronized, 0x2 interleaved, 0x4 authNAK)
     draft: str = ""  # NTPv5 draft identification echoed by the server
     auth: str = ""  # "nts" when the exchange was authenticated with NTS (RFC 8915)
+    interleaved: bool = False  # measured with the RFC 9769 interleaved mode (precise server transmit time)
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -197,17 +202,26 @@ def query(
     data, src, t1_ns, t4_ns = _exchange(server, port, timeout, family, _v4_request(version, nonce),
                                         lambda d: d[24:32] == nonce)
 
-    (b0, stratum, poll, prec, rdelay, rdisp, refid, _ref, org, rec, xmt) = _PACKET.unpack(data[:48])
-    leap, vn, mode = b0 >> 6, (b0 >> 3) & 7, b0 & 7
+    return _result(server, src, data, t1_ns, t4_ns)
+
+
+def _check(data: bytes) -> None:
+    b0, stratum, xmt = data[0], data[1], struct.unpack_from("!Q", data, 40)[0]
+    leap, mode = b0 >> 6, b0 & 7
     if mode not in (4, 5):
         raise NTPError(f"unexpected mode {mode} in reply")
     if stratum == 0:
-        raise KissOfDeath(refid.rstrip(b"\0").decode("ascii", errors="replace"))
+        raise KissOfDeath(data[12:16].rstrip(b"\0").decode("ascii", errors="replace"))
     if leap == 3 or stratum >= 16:
         raise NTPError("server is not synchronised (LI=3 / stratum 16)")
     if xmt == 0:
         raise NTPError("server transmit timestamp is zero")
 
+
+def _result(server: str, src, data: bytes, t1_ns: int, t4_ns: int) -> NTPResult:
+    _check(data)
+    (b0, stratum, poll, prec, rdelay, rdisp, refid, _ref, org, rec, xmt) = _PACKET.unpack(data[:48])
+    leap, vn = b0 >> 6, (b0 >> 3) & 7
     t1 = t1_ns / 1e9
     t4 = t4_ns / 1e9
     t2 = _ntp_to_unix(rec, t1)
@@ -304,6 +318,64 @@ def supports_v5(server: str, port: int = 123, timeout: float = 2.0, family: int 
     data, *_ = _exchange(server, port, timeout, family, _v4_request(4, nonce, NTPV5_UPGRADE),
                          lambda d: d[24:32] == nonce)
     return data[16:24] == NTPV5_UPGRADE
+
+
+def _unix_to_ntp(ns: int) -> int:
+    sec, rem = divmod(ns, 10 ** 9)
+    return (((sec + NTP_UNIX_DELTA) % _ERA) << 32) | ((rem << 32) // 10 ** 9)
+
+
+def query_interleaved(server: str, port: int = 123, timeout: float = 2.0, family: int = 0,
+                      spacing: float = 1.0) -> NTPResult:
+    """Two exchanges using the RFC 9769 interleaved client/server mode.
+
+    The first exchange is basic. The second request carries the server's
+    receive timestamp as origin and our receive time as its receive
+    timestamp; a server supporting the mode answers with origin equal to
+    that receive timestamp and, as transmit time, the precise transmit time
+    of its *first* response. The first exchange is then evaluated with it
+    (RFC 9769 section 2, first timestamp set) and ``interleaved`` is True.
+    Otherwise the second, basic, measurement is returned.
+    """
+    sock, addr = _udp_socket(server, port, family)
+    with sock:
+        sock.settimeout(timeout)
+
+        def exchange(pkt: bytes, accept):
+            t1 = time.time_ns()
+            sock.send(pkt)
+            deadline = time.monotonic() + timeout
+            while True:
+                try:
+                    data = sock.recv(2048)
+                except socket.timeout as exc:
+                    raise NTPError(f"timeout waiting for {server}") from exc
+                t4 = time.time_ns()
+                if len(data) >= 48 and accept(data):
+                    return data, t1, t4
+                if time.monotonic() > deadline:
+                    raise NTPError(f"no matching reply from {server}")
+
+        n1 = os.urandom(8)
+        d1, a1, b1 = exchange(_v4_request(4, n1), lambda d: d[24:32] == n1)
+        first = _result(server, addr, d1, a1, b1)
+        time.sleep(spacing)
+        n2 = os.urandom(8)
+        rx = _unix_to_ntp(b1).to_bytes(8, "big")
+        if rx == n2:  # RFC 9769: never send a receive timestamp equal to the transmit timestamp
+            n2 = bytes([n2[0] ^ 1]) + n2[1:]
+        req = bytearray(_v4_request(4, n2))
+        req[24:32], req[32:40] = d1[32:40], rx
+        d2, a2, b2 = exchange(bytes(req), lambda d: d[24:32] in (n2, rx))
+        if d2[24:32] != rx:
+            return _result(server, addr, d2, a2, b2)
+        _check(d2)
+        t3 = _ntp_to_unix(struct.unpack_from("!Q", d2, 40)[0], first.t1)
+        first.t3 = t3
+        first.offset = ((first.t2 - first.t1) + (t3 - first.t4)) / 2.0
+        first.delay = (b1 - a1) / 1e9 - (t3 - first.t2)
+        first.interleaved = True
+        return first
 
 
 def best_of(server: str, count: int = 4, spacing: float = 2.0, **kw) -> Optional[NTPResult]:

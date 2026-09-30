@@ -485,6 +485,20 @@ def cmd_query(args):
                 print(f"{server}: {exc}")
                 rc = 1
         return rc
+    if args.pool:
+        from .nts import NTSError, pool_sessions
+
+        for server in args.servers:
+            try:
+                sessions = pool_sessions(server, n=args.pool, timeout=args.timeout, family=_family(args))
+                for sess in sessions:
+                    r = sess.query()
+                    print(f"{server} -> {sess.keys.server}:{sess.keys.port} (denied: {', '.join(sess.deny) or '-'}): "
+                          f"offset {format_seconds(r.offset)}, delay {format_seconds(r.delay)} [NTS authenticated]")
+            except (NTSError, NTPError, OSError) as exc:
+                print(f"{server}: {exc}")
+                rc = 1
+        return rc
     for server in args.servers:
         for i in range(args.count):
             if i:
@@ -496,6 +510,10 @@ def cmd_query(args):
                     if server not in nts_sessions:
                         nts_sessions[server] = NTSSession(server, timeout=args.timeout, family=_family(args))
                     r = nts_sessions[server].query()
+                elif args.interleaved:
+                    from .sntp import query_interleaved
+
+                    r = query_interleaved(server, timeout=args.timeout, family=_family(args))
                 else:
                     r = query(server, timeout=args.timeout, version=5 if args.ntpv5 else 4, family=_family(args))
             except KissOfDeath as exc:
@@ -510,10 +528,60 @@ def cmd_query(args):
             else:
                 v5 = f" NTPv5 {r.timescale} era {r.era} ({r.draft or 'no draft id'})" if r.version == 5 else ""
                 v5 += " [NTS authenticated]" if r.auth == "nts" else ""
+                if args.interleaved:
+                    v5 += " [interleaved, RFC 9769]" if r.interleaved else " [server answered in basic mode]"
                 print(f"{server} ({r.address}) stratum {r.stratum} refid {r.refid}: offset {format_seconds(r.offset)}, "
                       f"delay {format_seconds(r.delay)}, root delay {format_seconds(r.root_delay)}, "
                       f"root disp {format_seconds(r.root_dispersion)}, leap {r.leap}{v5}")
     return rc
+
+
+def cmd_roughtime(args):
+    from . import roughtime as rt
+
+    if args.verify_report:
+        with open(args.verify_report, encoding="utf-8") as fh:
+            try:
+                chain = rt.verify_report(json.load(fh))
+            except (rt.RoughtimeError, KeyError, ValueError) as exc:
+                print(f"invalid report: {exc}")
+                return 1
+        bad = rt.causal_violations(chain)
+        print(f"{len(chain)} signed responses, chained in order; "
+              + (f"{len(bad)} causal violations: malfeasance proven" if bad else "times consistent"))
+        return 3 if bad else 0
+    try:
+        known = rt.load_servers(args.list)
+        servers = [rt.Server.parse(x, known) for x in args.servers] if args.servers else known
+    except (OSError, ValueError, KeyError) as exc:
+        raise SystemExit(f"roughtime: {exc}") from None
+    m = rt.measure(servers, rounds=args.rounds, timeout=args.timeout, tcp=args.tcp, retries=args.retries,
+                   family=_family(args))
+    doc = m.as_dict()
+    b = m.local_bound()
+    if args.json:
+        print(json.dumps(doc, indent=2))
+    else:
+        for r in m.responses:
+            print(f"{r.server:28s} {_utc(r.midp)} UTC +- {r.radi:g} s  offset {r.offset:+.3f} s  "
+                  f"(bound {r.bound:.3f} s, rtt {format_seconds(r.rtt)}, version {r.version:#x})")
+        for name, err in m.errors:
+            print(f"{name:28s} error: {err}")
+        if m.responses:
+            print(f"{len(m.responses)} signed responses: "
+                  + ("consistent" if m.consistent else f"{len(m.violations)} CAUSAL VIOLATIONS (malfeasance)"))
+            if b:
+                print(f"local clock: true - local within [{b[0]:+.3f}, {b[1]:+.3f}] s")
+    if not m.responses:
+        return 1
+    if not m.consistent and args.report:
+        with open(args.report, "w", encoding="utf-8") as fh:
+            json.dump(m.malfeasance_report(), fh, indent=2)
+        if not args.json:
+            print(f"malfeasance report written to {args.report}")
+    if not m.consistent or (args.check_local and (b is None or not b[0] <= 0 <= b[1])):
+        return 3
+    return 0
 
 
 def cmd_monitor(args):
@@ -877,11 +945,33 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true")
     s.add_argument("--ntpv5", action="store_true", help="use the experimental NTPv5 draft-09 format")
     s.add_argument("--probe-v5", action="store_true", help="only test whether servers offer NTPv5 (upgrade probe)")
+    s.add_argument("--pool", type=int, metavar="N",
+                   help="NTS pool: N sessions with different servers, using NTS-KE server deny records")
+    s.add_argument("--interleaved", action="store_true",
+                   help="RFC 9769 interleaved mode (two exchanges; precise server transmit time when supported)")
     s.add_argument("--nts", action="store_true", help="authenticate with NTS, RFC 8915 (pip install 'ntpstats[nts]')")
     fam = s.add_mutually_exclusive_group()
     fam.add_argument("-4", dest="ipv4", action="store_true", help="IPv4 only")
     fam.add_argument("-6", dest="ipv6", action="store_true", help="IPv6 only")
     s.set_defaults(func=cmd_query)
+
+    s = sub.add_parser("roughtime", help="signed coarse time from several Roughtime servers, "
+                       "with chained nonces and malfeasance reports (draft-ietf-ntp-roughtime-19)")
+    s.add_argument("servers", nargs="*", help="names from the list, or host:port=BASE64KEY (default: all listed)")
+    s.add_argument("--list", metavar="JSON", help="server list (draft-19 format; default: bundled list)")
+    s.add_argument("--rounds", type=int, default=2, help="query sequence repetitions (default 2, per the draft)")
+    s.add_argument("--timeout", type=float, default=3.0)
+    s.add_argument("--retries", type=int, default=0, help="retries with exponential backoff (1.5^n s)")
+    s.add_argument("--tcp", action="store_true", help="use TCP (paths that drop 1 KiB datagrams)")
+    s.add_argument("--report", metavar="FILE", help="write a malfeasance report here if servers disagree")
+    s.add_argument("--verify-report", metavar="FILE", help="only verify a malfeasance report")
+    s.add_argument("--check-local", action="store_true",
+                   help="exit 3 if the local clock is outside what the signed responses allow")
+    s.add_argument("--json", action="store_true")
+    fam = s.add_mutually_exclusive_group()
+    fam.add_argument("-4", dest="ipv4", action="store_true", help="IPv4 only")
+    fam.add_argument("-6", dest="ipv6", action="store_true", help="IPv6 only")
+    s.set_defaults(func=cmd_roughtime)
 
     s = sub.add_parser("monitor", help="poll servers periodically and log offsets to CSV")
     s.add_argument("servers", nargs="+")

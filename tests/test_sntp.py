@@ -217,3 +217,52 @@ def test_falls_back_to_next_address(server, monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", fake)
     r = sntp.query("dual-stack.example", port=server.port)
     assert r.offset == pytest.approx(0.25, abs=0.01)
+
+
+class InterleavedServer(threading.Thread):
+    """RFC 9769 server whose basic-mode transmit timestamps are 2 ms late (software timestamping)."""
+
+    def __init__(self, offset=0.25, supports=True):
+        super().__init__(daemon=True)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("127.0.0.1", 0))
+        self.port = self.sock.getsockname()[1]
+        self.offset, self.supports = offset, supports
+        self.saved = {}  # rx raw -> precise tx raw
+
+    def run(self):
+        while True:
+            try:
+                data, addr = self.sock.recvfrom(512)
+            except OSError:
+                return
+            t2 = to_ntp(time.time() + self.offset).to_bytes(8, "big")
+            org, rx, xmt = data[24:32], data[32:40], data[40:48]
+            precise = to_ntp(time.time() + self.offset).to_bytes(8, "big")
+            if self.supports and rx != xmt and org in self.saved:
+                out_org, out_tx = rx, self.saved.pop(org)
+            else:
+                out_org, out_tx = xmt, to_ntp(time.time() + self.offset + 0.002).to_bytes(8, "big")
+            self.saved[t2] = precise
+            head = struct.pack("!BBbbII4s", (4 << 3) | 4, 2, 6, -20, 0x00010000, 0x00008000, bytes([192, 0, 2, 1]))
+            self.sock.sendto(head + t2 + out_org + t2 + out_tx, addr)
+
+    def close(self):
+        self.sock.close()
+
+
+@pytest.mark.parametrize("supports", [True, False])
+def test_interleaved_mode(supports):
+    from ntpstats.sntp import query_interleaved
+
+    srv = InterleavedServer(supports=supports)
+    srv.start()
+    try:
+        r = query_interleaved("127.0.0.1", port=srv.port, timeout=2, spacing=0.05)
+    finally:
+        srv.close()
+    assert r.interleaved is supports
+    if supports:  # precise transmit time: no 1 ms bias from the late basic-mode timestamp
+        assert r.offset == pytest.approx(0.25, abs=5e-4)
+    else:
+        assert r.offset == pytest.approx(0.251, abs=5e-4)

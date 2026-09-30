@@ -104,8 +104,11 @@ are as valuable as code. Look for issues labelled
     Kiss-o'-Death and 2036 era handling;
   - **NTS** (RFC 8915): NTS-KE over TLS 1.3 with certificate and host-name checks, AES-SIV
     authenticated exchanges and cookie renewal (optional extra `ntpstats[nts]`);
+  - **NTS pools** (NTS-KE server deny records) and the **RFC 9769 interleaved mode**;
   - experimental **NTPv5** (draft-ietf-ntp-ntpv5-09): v5 header with cookies, timescale and
     era, plus the NTPv4→v5 upgrade probe;
+  - **Roughtime** (draft-19): signed time from several servers, chained so that a lying server
+    is provable (malfeasance reports), and an authenticated bound on the local clock's error;
   - a polite `monitor` (RATE back-off, jitter), and `watch`, which samples the local
     **chrony** (`chronyc -c tracking`) or **ntpd/NTPsec** (`ntpq -c rv`) without log files.
 - **Lightweight UI**: `ntpstats ui` starts a local web app. It runs on the Python standard
@@ -183,6 +186,8 @@ More measurement commands:
 ntpstats query time.cloudflare.com --nts            # NTS-authenticated (pip install 'ntpstats[nts]')
 ntpstats query ntpd-rs.example.net --ntpv5          # experimental NTPv5 draft-09
 ntpstats query pool.ntp.org --probe-v5              # does the server offer NTPv5?
+ntpstats query time.example.net --interleaved       # RFC 9769: precise server transmit time
+ntpstats roughtime --check-local                    # signed time; exit 3 if servers or this clock disagree
 ntpstats watch chrony -i 16 -o chrony-live.csv      # local daemon, no log files needed
 ntpstats info capture.pcapng                        # NTP exchanges from a packet capture
 ntpstats stability /var/log/ptp4l.log -k tdev,mtie  # PTP servo offsets

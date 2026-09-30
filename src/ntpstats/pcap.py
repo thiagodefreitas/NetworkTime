@@ -3,7 +3,8 @@
 """NTP and PTP exchanges from packet captures (pcap and pcapng), standard library only.
 
 **NTP.** Client requests (mode 3) are matched with server responses (mode 4)
-by the echoed origin timestamp (NTPv3/v4) or client cookie (NTPv5). Offsets
+by the echoed origin timestamp (NTPv3/v4) or client cookie (NTPv5), and
+RFC 9769 interleaved responses by the request's receive timestamp. Offsets
 are computed from the server timestamps T2/T3 in the response and the
 *capture* timestamps of the two packets as T1/T4::
 
@@ -221,8 +222,17 @@ def _ntp_ns(raw: int, ref_ns: int, era: Optional[int] = None) -> int:
 
 
 def ntp_exchanges(data: bytes, port: int = 123) -> Dict[Tuple[str, str], list]:
-    """Matched client/server exchanges per (client, server) pair."""
+    """Matched client/server exchanges per (client, server) pair.
+
+    Rows are ``(time, offset, delay, stratum, version, interleaved)``. With
+    RFC 9769 interleaved mode, a response whose origin equals the request's
+    *receive* timestamp carries the precise transmit time of the previous
+    response; that exchange's row is then recomputed with it and marked
+    ``interleaved = 1``.
+    """
     pending: Dict[Tuple[str, str, bytes], Tuple[int, int]] = {}
+    pending_i: Dict[Tuple[str, str, bytes], Tuple[bytes, int, bytes]] = {}  # request rx -> (server rx, c1, tx)
+    done: Dict[Tuple[str, str, bytes], Tuple[int, int, int, int]] = {}  # server rx -> (c1, t2, c4, row)
     out: "OrderedDict[Tuple[str, str], list]" = OrderedDict()
     for ts, lt, frame in packets(data):
         d = _ip_payload(lt, frame)
@@ -235,14 +245,35 @@ def ntp_exchanges(data: bytes, port: int = 123) -> Dict[Tuple[str, str], list]:
         if mode == 3:
             key = ntp[24:32] if vn == 5 else ntp[40:48]  # client cookie / transmit ts
             pending[(src, dst, key)] = (ts, vn)
+            org, rx = ntp[24:32], ntp[32:40]
+            if vn == 4 and any(org) and any(rx) and rx != key:
+                pending_i[(src, dst, rx)] = (org, ts, key)  # interleaved request (RFC 9769 section 2)
         elif mode == 4:
             key = ntp[24:32]  # v5 client cookie, or v4 origin timestamp: same octets
-            req = pending.pop((dst, src, key), None)
-            if req is None:
-                continue
-            c1, _ = req
             stratum = ntp[1]
             era = ntp[13] if vn == 5 else None
+            req = pending.pop((dst, src, key), None)
+            if req is None:
+                ireq = pending_i.pop((dst, src, key), None)
+                if ireq is None or stratum == 0:
+                    continue
+                named, c1_now, tx_now = ireq
+                pending.pop((dst, src, tx_now), None)
+                rows = out.setdefault((dst, src), [])
+                t2_now = _ntp_ns(struct.unpack_from("!Q", ntp, 32)[0], c1_now, era)
+                prev = done.pop((dst, src, named), None)
+                if prev is not None:  # the transmit timestamp is the precise one of the previous response
+                    c1, t2, c4, row = prev
+                    t3 = _ntp_ns(struct.unpack_from("!Q", ntp, 40)[0], c1, era)
+                    new = (c4 / 1e9, ((t2 - c1) + (t3 - c4)) / 2e9, ((c4 - c1) - (t3 - t2)) / 1e9,
+                           float(stratum), float(vn), 1.0)
+                    if row < 0:
+                        rows.append(new)
+                    else:
+                        rows[row] = new
+                done[(dst, src, ntp[32:40])] = (c1_now, t2_now, ts, -1)  # completed by the next response
+                continue
+            c1, _ = req
             t2 = _ntp_ns(struct.unpack_from("!Q", ntp, 32)[0], c1, era)
             t3 = _ntp_ns(struct.unpack_from("!Q", ntp, 40)[0], c1, era)
             if stratum == 0 or t3 <= 0:
@@ -250,7 +281,12 @@ def ntp_exchanges(data: bytes, port: int = 123) -> Dict[Tuple[str, str], list]:
             c4 = ts
             offset = ((t2 - c1) + (t3 - c4)) / 2e9
             delay = ((c4 - c1) - (t3 - t2)) / 1e9
-            out.setdefault((dst, src), []).append((c4 / 1e9, offset, delay, float(stratum), float(vn)))
+            rows = out.setdefault((dst, src), [])
+            rows.append((c4 / 1e9, offset, delay, float(stratum), float(vn), 0.0))
+            if vn == 4:
+                done[(dst, src, ntp[32:40])] = (c1, t2, c4, len(rows) - 1)
+    for rows in out.values():
+        rows.sort()
     return out
 
 
@@ -262,7 +298,7 @@ def parse_capture(data: bytes, name: str = "capture") -> List[TimeSeries]:
     for (client, server), rows in ntp_exchanges(data).items():
         a = np.array(rows)
         s = TimeSeries(a[:, 0], a[:, 1], name=f"{name} [{client} -> {server}]", source_format="pcap",
-                       extra={"delay": a[:, 2], "stratum": a[:, 3], "version": a[:, 4]},
+                       extra={"delay": a[:, 2], "stratum": a[:, 3], "version": a[:, 4], "interleaved": a[:, 5]},
                        meta={"peer": server, "client": client, "protocol": "ntp",
                              "note": "offset of server relative to the capture host clock"})
         series.append(s.sorted())
