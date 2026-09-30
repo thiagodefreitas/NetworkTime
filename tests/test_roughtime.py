@@ -83,7 +83,7 @@ def test_message_roundtrip_and_request_layout():
     assert req[:8] == b"ROUGHTIM" and len(rt.unpacket(req)) >= 1024
     m = rt.decode(rt.unpacket(req))
     assert m[rt.tag("TYPE")] == b"\x00" * 4 and m[rt.tag("SRV")] == rt.H(b"\xff" + b"\x03" * 32)
-    assert struct.unpack("<3I", m[rt.tag("VER")]) == (1, rt.VERSION_DRAFT_11, rt.VERSION_DRAFT)
+    assert struct.unpack("<4I", m[rt.tag("VER")]) == (1, rt.VERSION_DRAFT_08, rt.VERSION_DRAFT_11, rt.VERSION_DRAFT)
     assert set(m[rt.tag("ZZZZ")]) == {0}
     with pytest.raises(rt.RoughtimeError):
         rt.decode(struct.pack("<I", 2) + struct.pack("<I", 0) + rt.tag("NONC") + rt.tag("VER"))
@@ -97,6 +97,20 @@ def test_verify_single_and_batched(n):
         r = rt.verify(reqs[k], resp, srv.public_key, "fake", T0 - 0.01, T0 + 0.03)
         assert r.midp == T0 and r.radi == 3 and r.leaf == "request" and r.version == rt.VERSION_DRAFT
         assert r.offset == pytest.approx(-0.01) and r.bound == pytest.approx(3.02)
+
+
+def test_draft08_response_as_cloudflare_sends_it():
+    """Draft 08 (Cloudflare): VER and NONC at the top level, no TYPE or VERS, nonce leaf, seconds."""
+    srv = FakeServer(leaf="nonce")
+    req = rt.build_request(b"\x09" * 32, srv.public_key)
+    top = rt.decode(rt.unpacket(srv.respond([req])[0]))
+    srep = rt.encode({rt.tag("RADI"): struct.pack("<I", 1), rt.tag("MIDP"): struct.pack("<Q", T0),
+                      rt.tag("ROOT"): rt.H(b"\x00" + b"\x09" * 32)})
+    msg = {rt.tag("SREP"): srep, rt.tag("SIG"): srv.online.sign(rt.CTX_RESPONSE + srep), rt.tag("CERT"): top[rt.tag("CERT")],
+           rt.tag("VER"): struct.pack("<I", rt.VERSION_DRAFT_08), rt.tag("INDX"): struct.pack("<I", 0),
+           rt.tag("NONC"): b"\x09" * 32, rt.tag("PATH"): b""}
+    r = rt.verify(req, rt.packet(rt.encode(msg)), srv.public_key)
+    assert r.version == rt.VERSION_DRAFT_08 and r.leaf == "nonce" and r.midp == T0 and r.radi == 1
 
 
 def test_older_draft_semantics_accepted():

@@ -46,9 +46,11 @@ The server list follows the draft's JSON format (section 8.3). The bundled list 
 Check the keys against the operators' own publications before relying on them. Servers are
 added with `host:port=BASE64KEY`.
 
-Compatibility: ntpstats offers versions 1, draft-11 and draft-12+ (0x8000000c). It also
-accepts responses in the older-draft form (nonce-only Merkle leaf, microsecond timestamps). The
-JSON output reports which form each server used (`merkle_leaf`).
+Compatibility: ntpstats offers versions 1, draft-08, draft-11 and draft-12+ (0x8000000c).
+Cloudflare's server still speaks only draft-08, so without it the server has no version in
+common with the client and silently ignores the request. Responses in the older-draft form are
+accepted too (nonce-only Merkle leaf, microsecond timestamps). The JSON output reports which form
+each server used (`merkle_leaf`).
 
 Signature checks need `cryptography`: `pip install 'ntpstats[nts]'`.
 

@@ -9,6 +9,7 @@ ntpstats reads the data behind recent time-transfer and NTP measurement studies 
 | `circular-t` | BIPM Circular T, section 1 | UTC − UTC(k) for about 80 laboratories |
 | `ripe-atlas` | RIPE Atlas NTP measurements (API JSON) | offset and RTT per probe and server |
 | `ntppool` | NTP Pool monitoring logs | offset, RTT and score per monitor |
+| `interop` | the ntpstats open dataset (`data/interop/`, weekly since 2026) | NTP/NTS/NTPv5/Roughtime probes of public servers, with availability |
 
 All are auto-detected and work with every command: `info`, `stability`, `noise`, `hat` and
 `report`.
@@ -65,6 +66,20 @@ ntpstats hat pool.csv --all-peers         # which monitor paths are noisy?
 ```
 
 Please keep requests to public services modest.
+
+## The ntpstats open interop dataset
+
+Every week the Live interop workflow probes public NTP, NTS, NTS-pool, NTPv5 and Roughtime
+servers and appends the results to
+[`data/interop/`](https://github.com/thiagodefreitas/NetworkTime/tree/master/data/interop). The
+dataset is versioned with every release (Zenodo), and its schema is in the directory's README.
+
+```bash
+ntpstats dataset data/interop --test nts      # availability and offsets of NTS servers over time
+ntpstats stability data/interop --peer time.google.com -k oadev
+```
+
+A directory given to any command is read as the concatenation of its files.
 
 Synthetic examples of every format are in
 [`examples/data/`](https://github.com/thiagodefreitas/NetworkTime/tree/master/examples/data).

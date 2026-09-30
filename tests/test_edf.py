@@ -47,3 +47,26 @@ def test_ci_coverage_mdev_flicker_fm():
         r = st.compute(x, 1.0, "mdev", [8], ci=0.683)
         hits += r.lo[0] <= ref <= r.hi[0]
     assert 0.5 < hits / trials < 0.9
+
+
+def _sp1065_avar_edf(alpha, N, m):
+    """NIST SP 1065 Table 5: the approximate overlapping-AVAR EDF formulas (Stable32's simple method)."""
+    if alpha == 2:
+        return (N + 1) * (N - 2 * m) / (2 * (N - m))
+    if alpha == 1:
+        return np.exp(np.sqrt(np.log((N - 1) / (2 * m)) * np.log((2 * m + 1) * (N - 1) / 4)))
+    if alpha == 0:
+        return (3 * (N - 1) / (2 * m) - 2 * (N - 2) / N) * 4 * m * m / (4 * m * m + 5)
+    if alpha == -1:
+        return 2 * (N - 2) ** 2 / (2.3 * N - 4.9) if m == 1 else 5 * N * N / (4 * m * (N + 3 * m))
+    return (N - 2) / m * ((N - 1) ** 2 - 3 * m * (N - 1) + 4 * m * m) / (N - 3) ** 2
+
+
+@pytest.mark.parametrize("alpha,tol", [(2, 0.05), (1, 0.2), (0, 0.05), (-1, 0.1), (-2, 0.1)])
+def test_exact_edf_agrees_with_sp1065_approximations(alpha, tol):
+    """#28: the exact discrete EDF stays within the accuracy of SP 1065's published approximations."""
+    from ntpstats.edf import edf
+
+    N = 1025
+    for m in (1, 2, 4, 8, 16, 32, 64):
+        assert edf("oadev", alpha, m, N - 2 * m) == pytest.approx(_sp1065_avar_edf(alpha, N, m), rel=tol)

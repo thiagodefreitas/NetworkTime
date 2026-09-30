@@ -140,13 +140,31 @@ class Registry:
             out["tdev"] = list(zip(r.taus.tolist(), r.dev.tolist()))
         return out
 
-    def render(self) -> str:
+    def snapshot(self) -> Dict[str, Any]:
+        """Consistent copy of everything exported: gauges, rolling statistics, counters."""
         with self._lock:
             gauges = {s: dict(v) for s, v in self._gauges.items()}
             hist = {s: list(v) for s, v in self._hist.items()}
             samples = dict(self._samples)
             errors = dict(self._errors)
-        rolling = {s: self._rolling(h) for s, h in hist.items()}
+        return {"gauges": gauges, "rolling": {s: self._rolling(h) for s, h in hist.items()},
+                "samples": samples, "errors": errors}
+
+    def values(self) -> List[Tuple[str, str, str, float]]:
+        """Gauge rows ``(name, help, source, value)`` as exported (seconds unless the name says otherwise)."""
+        snap = self.snapshot()
+        rows = []
+        for name, help_ in _GAUGES:
+            key = name.rsplit("_seconds", 1)[0] if name.endswith("_seconds") else name
+            for src in sorted(snap["gauges"]):
+                v = snap["gauges"][src].get(key, snap["rolling"][src].get(key))
+                if isinstance(v, float):
+                    rows.append((name, help_, src, v))
+        return rows
+
+    def render(self) -> str:
+        snap = self.snapshot()
+        gauges, rolling, samples, errors = snap["gauges"], snap["rolling"], snap["samples"], snap["errors"]
         lines: List[str] = []
         for name, help_ in _GAUGES:
             key = name.rsplit("_seconds", 1)[0] if name.endswith("_seconds") else name

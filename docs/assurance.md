@@ -63,7 +63,7 @@ This repository is also a GitHub Action. It installs ntpstats, runs a check and 
 table to the job page. The job fails when the check fails (exit code 3).
 
 ```yaml
-- uses: thiagodefreitas/NetworkTime@v2.12.0
+- uses: thiagodefreitas/NetworkTime@v2.13.0
   with:
     command: timeerror                 # stability | timeerror | audit | bounds | events
     args: captures/bc-test.pcapng --limits limits/class-c.csv --mask limits/dte-l-mtie.csv

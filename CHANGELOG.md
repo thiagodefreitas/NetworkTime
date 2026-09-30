@@ -14,6 +14,28 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-10-01
+
+### Added
+- **Open interop dataset** (#30): the weekly Live interop run appends one JSON record per probe
+  (NTP, interleaved, NTS, NTS pool, NTPv5, Roughtime) to `data/interop/YYYY/YYYY-MM-DD.jsonl`,
+  committed with `[skip ci]`. The dataset ships with each release, so it is archived on Zenodo.
+  - Schema: `data/interop/README.md`.
+  - New `interop` input format: one series per test and server, with availability.
+  - `ntpstats dataset`: summary per server.
+  - A directory given to any command is read as the concatenation of its files.
+- **OpenTelemetry export** (#36): `monitor`/`watch --otlp [URL]` push the metrics as OTLP/HTTP
+  JSON, standard library only; the standard `OTEL_*` environment variables are honoured. The
+  payload is checked against the official OpenTelemetry protobuf definitions.
+- **Cross-validation** (#28): the exact EDF is compared with the SP 1065 table 5 approximations
+  used by Stable32: within 3 % for white PM/FM, 7 % for flicker/random-walk FM, 16 % for flicker
+  PM.
+
+### Fixed
+- Roughtime: the client also offers draft-08 (0x80000008). Cloudflare's server supports only
+  draft-08 among the IETF versions and ignored requests without it (seen in the 2.11 live
+  interop run).
+
 ## [2.12.0] - 2026-10-01
 
 ### Added

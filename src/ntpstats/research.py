@@ -372,6 +372,83 @@ def parse_ntppool(lines: Sequence[str], name: str = "ntppool") -> List[TimeSerie
     return out
 
 
+# ------------------------------------------------------------------ ntpstats open interop dataset
+def parse_interop(lines: Sequence[str], name: str = "interop") -> List[TimeSeries]:
+    """The ntpstats Live-interop dataset (JSON lines, ``data/interop/``): one series per test and server.
+
+    Failed probes carry no offset; they are counted in ``meta`` (``probes``,
+    ``failures``, ``availability``) and their times in ``meta["failure_times"]``.
+    """
+    groups: "OrderedDict[Tuple[str, str], Dict[str, list]]" = OrderedDict()
+    for ln in lines:
+        ln = ln.strip()
+        if not ln or not ln.startswith("{"):
+            continue
+        rec = json.loads(ln)
+        if "schema" not in rec or "test" not in rec:
+            continue
+        key = (str(rec["test"]), str(rec.get("server", "")))
+        g = groups.setdefault(key, {"t": [], "off": [], "delay": [], "stratum": [], "fail": [], "runs": []})
+        g["runs"].append(rec.get("run"))
+        if rec.get("ok") and rec.get("offset") is not None:
+            g["t"].append(float(rec["time"]))
+            g["off"].append(float(rec["offset"]))
+            g["delay"].append(float(rec.get("delay", np.nan)))
+            g["stratum"].append(float(rec.get("stratum", np.nan)))
+        elif not rec.get("ok"):
+            g["fail"].append(float(rec["time"]))
+    out = []
+    for (test, server), g in groups.items():
+        if not g["t"]:
+            continue
+        probes = len(g["t"]) + len(g["fail"])
+        out.append(_series(g["t"], g["off"], f"{name} [{test} {server}]", "interop",
+                           extra={"delay": g["delay"], "stratum": g["stratum"]},
+                           meta={"peer": server, "test": test, "probes": probes, "failures": len(g["fail"]),
+                                 "availability": len(g["t"]) / probes, "failure_times": g["fail"],
+                                 "runs": len(set(g["runs"])), "quantity": "server - runner clock"}))
+    if not out:
+        raise ResearchFormatError("interop dataset: no successful probes with an offset")
+    return out
+
+
+def interop_summary(lines: Sequence[str]) -> List[Dict[str, object]]:
+    """Per test and server: runs, availability, median offset/delay, last error (from the raw records)."""
+    groups: Dict[Tuple[str, str], Dict[str, Any]] = OrderedDict()
+    for ln in lines:
+        ln = ln.strip()
+        if not ln.startswith("{"):
+            continue
+        rec = json.loads(ln)
+        if "schema" not in rec or "test" not in rec:
+            continue
+        g = groups.setdefault((rec["test"], str(rec.get("server", ""))),
+                              {"ok": [], "off": [], "delay": [], "runs": set(), "err": [], "flags": []})
+        g["runs"].add(rec.get("run"))
+        g["ok"].append(bool(rec.get("ok")))
+        if rec.get("offset") is not None:
+            g["off"].append(float(rec["offset"]))
+        if rec.get("delay") is not None:
+            g["delay"].append(float(rec["delay"]))
+        if rec.get("error"):
+            g["err"].append((rec.get("run"), rec["error"]))
+        for k in ("interleaved", "offers_v5"):
+            if k in rec:
+                g["flags"].append((k, bool(rec[k])))
+    out = []
+    for (test, server), g in groups.items():
+        flags: Dict[str, List[bool]] = {}
+        for k, v in g["flags"]:
+            flags.setdefault(k, []).append(v)
+        out.append({"test": test, "server": server, "runs": len(g["runs"]), "probes": len(g["ok"]),
+                    "availability": sum(g["ok"]) / len(g["ok"]),
+                    "median_offset": float(np.median(g["off"])) if g["off"] else None,
+                    "median_delay": float(np.median(g["delay"])) if g["delay"] else None,
+                    **{k: sum(v) / len(v) for k, v in flags.items()},
+                    "last_error": g["err"][-1][1] if g["err"] else None})
+    return out
+
+
 def detect(lines: Sequence[str]) -> Optional[str]:
     head = "\n".join(lines[:40])
     first = lines[0] if lines else ""
@@ -384,6 +461,8 @@ def detect(lines: Sequence[str]) -> Optional[str]:
     if first.startswith("ts_epoch,") and "offset" in first:
         return "ntppool"
     h = head.lstrip()
+    if h.startswith("{") and '"schema"' in first and '"test"' in first:
+        return "interop"
     if (h.startswith("[") or h.startswith("{")) and '"type": "ntp"' in head.replace('"type":"ntp"', '"type": "ntp"'):
         return "ripe-atlas"
     return None

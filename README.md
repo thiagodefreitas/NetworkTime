@@ -15,7 +15,7 @@ It started as a Google Summer of Code 2012 project for the NTP Project (kept unc
 [`legacy/`](legacy/)); version 2 is a complete rewrite. See
 [docs/STATE_OF_THE_ART.md](docs/STATE_OF_THE_ART.md) for what changed in NTP since 2012 and what
 was wrong with the original code, [docs/INTEROP.md](docs/INTEROP.md) for live results against
-public NTP/NTS servers, [CHANGELOG.md](CHANGELOG.md) for releases and
+public NTP/NTS/NTPv5/Roughtime servers (recorded weekly in the open dataset [`data/interop/`](data/interop/)), [CHANGELOG.md](CHANGELOG.md) for releases and
 [ROADMAP.md](ROADMAP.md) for where it is going, and [docs/LANDSCAPE.md](docs/LANDSCAPE.md) for how it
 relates to Stable32, TimeLab, allantools, linuxptp, PTP Track Hound and other tools.
 
@@ -89,7 +89,7 @@ are as valuable as code. Look for issues labelled
 - **Works with the tools you have**:
   - Stable32 data files in and out (`ntpstats convert`);
   - an **allantools-compatible API** (`from ntpstats.compat import allantools`);
-  - **Prometheus/OpenMetrics** from `monitor`/`watch`, including an error bound and rolling
+  - **Prometheus/OpenMetrics** and **OpenTelemetry (OTLP)** from `monitor`/`watch`, including an error bound and rolling
     TDEV, plus a Grafana dashboard, alert rules and a docker-compose stack in
     [`contrib/`](contrib/).
 - **Network metrics**: delay floor and queueing distribution, Mills' offset-vs-delay *wedge*,

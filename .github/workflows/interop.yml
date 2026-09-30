@@ -1,11 +1,20 @@
-# Live interoperability check against public NTP / NTS servers.
-# Runs weekly and on demand; results are written to the job summary.
+# Live interoperability check against public NTP / NTS / NTPv5 / Roughtime servers.
+# Runs weekly and on demand; results go to the job summary and, on the weekly run,
+# to the open dataset in data/interop/ (committed with [skip ci]).
 # Uses at most a few packets per server (well within pool/NIST etiquette).
 name: Live interop
 on:
   workflow_dispatch:
+    inputs:
+      record:
+        description: "Append the results to data/interop/ and commit them"
+        type: boolean
+        default: false
   schedule:
     - cron: "17 6 * * 1"
+
+permissions:
+  contents: write
 
 jobs:
   interop:
@@ -18,4 +27,14 @@ jobs:
       - run: pip install -e ".[nts]"
       - name: NTPv4 / NTS / NTS pool / NTPv5 / Roughtime probes
         run: |
-          python docs/interop.py | tee -a "$GITHUB_STEP_SUMMARY"
+          out="data/interop/$(date -u +%Y)/$(date -u +%F).jsonl"
+          echo "DATASET_FILE=$out" >> "$GITHUB_ENV"
+          python docs/interop.py --jsonl "$out" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Record in the open dataset
+        if: github.event_name == 'schedule' || inputs.record
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/interop
+          git commit -m "Live interop dataset $(date -u +%F) [skip ci]" || exit 0
+          for i in 1 2 3; do git pull --rebase -q origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && break; sleep 5; done

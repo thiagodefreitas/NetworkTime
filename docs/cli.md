@@ -28,7 +28,7 @@
 | `bench` | estimators × scenarios × seeds against ground truth; `--html`, `--csv`, `--list` |
 | `query` | one-shot measurement: NTPv4, `--nts`, `--pool N` (NTS pool), `--interleaved` (RFC 9769), `--ntpv5`, `--probe-v5`, `-4/-6` ([Protocols](protocols.md)) |
 | `roughtime` | signed coarse time from several Roughtime servers, chained nonces, causal check; `--report` writes a malfeasance report, `--verify-report`, `--check-local`; exit code 3 on malfeasance |
-| `monitor` | periodic SNTP/NTS/NTPv5 measurements to CSV (polite polling); `--metrics-port` serves OpenMetrics ([Monitoring](monitoring.md)) |
+| `monitor` | periodic SNTP/NTS/NTPv5 measurements to CSV (polite polling); `--metrics-port` serves OpenMetrics, `--otlp` pushes to OpenTelemetry ([Monitoring](monitoring.md)) |
 | `watch` | sample the local chrony (`chronyc -c tracking`), ntpd (`ntpq -c rv`), ptp4l (`pmc`) or `ptpcheck`; `--metrics-port` as for `monitor` |
 | `audit` | UTC traceability evidence: per-sample error bound with stated assumptions, windows, coverage; HTML/JSON with input hashes; exit code 3 on failure ([Assurance](assurance.md)) |
 | `events` | phase steps, spikes, frequency changes, delay-floor (route) changes and leap smears |
@@ -37,6 +37,7 @@
 | `spectrum` (`psd`) | phase or frequency PSD (Welch or sine multitaper, gap-aware, log bins), `--carrier` for L(f) |
 | `hat` | individual stability of 3+ sources from their differences: Groslambert covariance, three- or N-cornered hat |
 | `holdover` | predicted TIE after loss of reference, time to violate `--limit`s, `--backtest` calibration, `--min-holdover` (exit code 3) |
+| `dataset` | summary of the open interop dataset (`data/interop/`): availability, median offset and delay, protocol support per server |
 | `cv` | GNSS time transfer between two CGGTTS files: common view or all in view ([Research data](research-data.md)) |
 | `bounds` | validate clock-error bounds (ClockBound, fbclock, CSV) against a reference; exit code 3 on violations |
 | `ui` | start the local web UI |

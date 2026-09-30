@@ -54,6 +54,27 @@ cd contrib && docker compose up --build
 The tests check that every metric the dashboard and rules use is exported, and that all their
 PromQL expressions parse.
 
+## OpenTelemetry
+
+`--otlp` pushes the same metrics to an OpenTelemetry Collector, or any OTLP/HTTP receiver, as
+OTLP JSON. It uses only the standard library, with no SDK needed.
+
+```bash
+ntpstats monitor time.cloudflare.com --nts --otlp http://collector:4318 --otlp-interval 30
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.example OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer%20TOKEN" \
+    ntpstats watch chrony --otlp
+```
+
+- **Names**: OpenTelemetry style, `ntpstats.offset` (unit `s`), `ntpstats.offset_bound`,
+  `ntpstats.tdev{tau}`, and so on. The counters `ntpstats.samples` and `ntpstats.errors` are
+  cumulative monotonic sums.
+- **Environment**: the standard `OTEL_EXPORTER_OTLP_ENDPOINT`, `…_METRICS_ENDPOINT`, `…_HEADERS`,
+  `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES` are honoured.
+- **Collector down**: measurement goes on when the collector is unreachable; failed pushes are
+  counted and retried at the next interval.
+
+The payload is checked against the official OpenTelemetry protobuf definitions.
+
 For CI checks (a GitHub Action and pytest assertions), see [Audit, events & CI checks](assurance.md).
 
 Please keep polling intervals at 64 s or more for servers you do not operate.

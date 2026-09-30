@@ -70,6 +70,7 @@ FORMATS = (
     "circular-t",
     "ripe-atlas",
     "ntppool",
+    "interop",
     "gsoc2012",
 )
 
@@ -111,7 +112,7 @@ def _read_lines(source) -> List[str]:
 
 def _name_of(source) -> str:
     if isinstance(source, (str, os.PathLike)):
-        return os.path.basename(os.fspath(source))
+        return os.path.basename(os.path.normpath(os.fspath(source)))
     return getattr(source, "name", "") or "data"
 
 
@@ -762,6 +763,18 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
     if isinstance(source, str) and "\n" in source:
         source = io.StringIO(source)
     label = name or _name_of(source)
+    if isinstance(source, (str, os.PathLike)) and os.path.isdir(source):
+        # A directory of log files (e.g. the weekly interop dataset): concatenate its text files in name order.
+        root = os.fspath(source)
+        files = sorted(os.path.join(dp, f) for dp, _, fs in os.walk(root) for f in fs
+                       if not f.startswith(".") and not f.lower().endswith((".md", ".txt.md")))
+        if not files:
+            raise ParseError(f"{source}: empty directory")
+        parts = []
+        for f in files:
+            with open(f, encoding="utf-8", errors="replace") as fh:
+                parts.append(fh.read().rstrip("\n"))
+        return load(io.StringIO("\n".join(parts) + "\n"), fmt=fmt, tau0=tau0, name=label)
     # Binary packet captures (pcap / pcapng)
     raw = None
     if isinstance(source, (bytes, bytearray)):
@@ -815,11 +828,12 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
             raise ParseError(str(exc)) from exc
     elif fmt == "pcap":
         raise ParseError("not a pcap/pcapng capture")
-    elif fmt in ("cggtts", "rinex-clock", "circular-t", "ripe-atlas", "ntppool"):
+    elif fmt in ("cggtts", "rinex-clock", "circular-t", "ripe-atlas", "ntppool", "interop"):
         from . import research
 
         fn: Dict[str, Callable[..., List[TimeSeries]]] = {"cggtts": research.parse_cggtts, "rinex-clock": research.parse_rinex_clock,
-              "circular-t": research.parse_circular_t, "ntppool": research.parse_ntppool}
+              "circular-t": research.parse_circular_t, "ntppool": research.parse_ntppool,
+              "interop": research.parse_interop}
         try:
             series = (research.parse_ripe_atlas("\n".join(lines), label) if fmt == "ripe-atlas"
                       else fn[fmt](lines, label))

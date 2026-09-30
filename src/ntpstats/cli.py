@@ -449,6 +449,36 @@ def cmd_holdover(args):
     return rc
 
 
+def cmd_dataset(args):
+    import glob
+    import os
+
+    from .research import interop_summary
+
+    files = sorted(glob.glob(os.path.join(args.path, "**", "*.jsonl"), recursive=True)) \
+        if os.path.isdir(args.path) else [args.path]
+    lines: List[str] = []
+    for f in files:
+        with open(f, encoding="utf-8") as fh:
+            lines += fh.read().splitlines()
+    rows = interop_summary(lines)
+    if args.test:
+        rows = [r for r in rows if r["test"] == args.test]
+    if args.json:
+        print(json.dumps(rows, indent=2))
+        return 0
+    print(f"{len(files)} files, {sum(r['probes'] for r in rows)} probes")
+    print(f"{'test':16} {'server':34} {'runs':>4} {'avail':>6} {'median offset':>14} {'median delay':>13}  note")
+    for r in rows:
+        note = ", ".join(f"{k.replace('_', ' ')} {r[k]:.0%}" for k in ("interleaved", "offers_v5") if k in r)
+        if r["last_error"] and r["availability"] < 1:
+            note = (note + "; " if note else "") + f"last error: {str(r['last_error'])[:50]}"
+        off = format_seconds(r["median_offset"]) if r["median_offset"] is not None else "-"
+        dly = format_seconds(r["median_delay"]) if r["median_delay"] is not None else "-"
+        print(f"{r['test']:16} {r['server'][:34]:34} {r['runs']:>4} {r['availability']:>6.0%} {off:>14} {dly:>13}  {note}")
+    return 0
+
+
 def cmd_cv(args):
     from .research import common_view
 
@@ -786,14 +816,25 @@ def cmd_monitor(args):
 
 
 def _metrics(args):
-    """Start the OpenMetrics endpoint if --metrics-port was given; returns the registry."""
-    if not getattr(args, "metrics_port", None):
+    """Start the OpenMetrics endpoint (--metrics-port) and/or OTLP push (--otlp); returns the registry."""
+    port, otlp = getattr(args, "metrics_port", None), getattr(args, "otlp", None)
+    if not port and not otlp:
         return None
     from .metrics import Registry, serve
 
     reg = Registry(window=args.metrics_window)
-    serve(reg, args.metrics_host, args.metrics_port)
-    print(f"metrics on http://{args.metrics_host}:{args.metrics_port}/metrics", file=sys.stderr)
+    if port:
+        serve(reg, args.metrics_host, port)
+        print(f"metrics on http://{args.metrics_host}:{port}/metrics", file=sys.stderr)
+    if otlp:
+        import atexit
+
+        from .otlp import Pusher
+
+        pusher = Pusher(reg, None if otlp == "env" else otlp, interval=args.otlp_interval)
+        pusher.start()
+        atexit.register(pusher.stop)
+        print(f"OpenTelemetry metrics to {pusher.url} every {args.otlp_interval:g} s", file=sys.stderr)
     return reg
 
 
@@ -801,6 +842,10 @@ def _metrics_args(s) -> None:
     s.add_argument("--metrics-port", type=int, metavar="PORT", help="serve OpenMetrics/Prometheus metrics on this port")
     s.add_argument("--metrics-host", default="127.0.0.1", help="address for --metrics-port (default 127.0.0.1)")
     s.add_argument("--metrics-window", type=int, default=1024, help="samples kept per source for rolling TDEV/stddev")
+    s.add_argument("--otlp", nargs="?", const="env", metavar="URL",
+                   help="push metrics to an OpenTelemetry collector over OTLP/HTTP (default: OTEL_EXPORTER_OTLP_* "
+                        "environment, else http://localhost:4318)")
+    s.add_argument("--otlp-interval", type=float, default=60.0, help="seconds between OTLP pushes (default 60)")
 
 
 def cmd_watch(args):
@@ -1058,6 +1103,13 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-holdover", metavar="DURATION", help="exit 3 unless the first limit holds this long")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_holdover)
+
+    s = sub.add_parser("dataset", help="summarise the open interop dataset (data/interop): availability, "
+                       "offsets, protocol support per server")
+    s.add_argument("path", nargs="?", default="data/interop")
+    s.add_argument("--test", help="only this test (ntp4, nts, ntpv5, interleaved, nts-pool, roughtime)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_dataset)
 
     s = sub.add_parser("cv", help="GNSS time transfer: REF(A) - REF(B) from two CGGTTS files (common view or all in view)")
     s.add_argument("a")

@@ -79,6 +79,7 @@ nav:
       - testing: api/testing.md
       - interop: api/interop.md
       - metrics: api/metrics.md
+      - otlp: api/otlp.md
       - compat.allantools: api/compat.md
   - Live interop: INTEROP.md
   - State of the art: STATE_OF_THE_ART.md
