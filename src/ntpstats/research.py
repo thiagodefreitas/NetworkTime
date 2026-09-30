@@ -38,7 +38,7 @@ class ResearchFormatError(ValueError):
     pass
 
 
-def _mjd_to_unix(mjd: float) -> float:
+def _mjd_to_unix(mjd: Any) -> Any:
     return (mjd - MJD_UNIX) * 86400.0
 
 
@@ -256,9 +256,9 @@ def parse_circular_t(lines: Sequence[str], name: str = "circular-t", labs: Optio
         if len(vals) < len(mjds):
             continue
         city[lab] = m.group(2).strip()
-        for mj, v in zip(mjds, vals):
+        for day, v in zip(mjds, vals):
             try:
-                data[lab][mj] = float(v) * 1e-9
+                data[lab][day] = float(v) * 1e-9
             except ValueError:
                 pass  # "-": no value
         rest = tok[len(mjds): len(mjds) + 3]

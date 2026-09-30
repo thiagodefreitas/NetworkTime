@@ -127,7 +127,7 @@ class NoiseFit:
             dev = np.sqrt(dev ** 2 + self.drift ** 2 * d)
         return dev
 
-    def dominant(self, kind: str, taus: Sequence[float]) -> List[Optional[int]]:
+    def dominant(self, kind: str, taus: Iterable[float]) -> List[Optional[int]]:
         """Noise type contributing most to ``kind`` at each tau."""
         out: List[Optional[int]] = []
         for t in taus:
