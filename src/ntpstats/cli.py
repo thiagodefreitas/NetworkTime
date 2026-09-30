@@ -79,6 +79,28 @@ def _common(p: argparse.ArgumentParser):
 
 
 # ---------------------------------------------------------------- commands
+def cmd_convert(args):
+    from .interop import write_stable32
+
+    series = _load_args(args)
+    if len(series) > 1 and "{n}" not in args.output:
+        raise SystemExit("several series: put {n} in --output (e.g. out-{n}.dat)")
+    for i, s in enumerate(series):
+        path = args.output.replace("{n}", str(i))
+        if args.to == "csv":
+            with open(path, "w", encoding="utf-8") as fh:
+                cols = ["unix_time", "offset"] + list(s.extra)
+                fh.write(",".join(cols) + "\n")
+                for k in range(len(s)):
+                    vals = [s.t[k], s.offset[k]] + [s.extra[c][k] for c in s.extra]
+                    fh.write(",".join(f"{float(v):.15g}" for v in vals) + "\n")
+            rows = len(s)
+        else:
+            rows = write_stable32(s, path, data_type=args.to.split("-")[1], timetags=not args.no_timetags,
+                                  tau0=args.resample, max_gap=args.max_gap)
+        print(f"{s.name}: {rows} rows -> {path}", file=sys.stderr)
+
+
 def cmd_info(args):
     rows = [summary(s) for s in _load_args(args)]
     if args.json:
@@ -119,7 +141,8 @@ def cmd_stability(args):
     rc = 0
     for s in _load_args(args):
         results = series_stability(s, kinds=kinds, taus=taus, tau0=args.resample or args.tau0, max_gap=args.max_gap,
-                                   detrend=args.detrend, ci=args.ci, max_work=0 if args.exact else None)
+                                   detrend=args.detrend, ci=args.ci, max_work=0 if args.exact else None,
+                                   bias_correction=not args.raw_mtot)
         for r in results:
             terms = r.meta.get("theobr_ratio_terms", [0, 0])
             if max(r.meta.get("stride") or [1]) > 1 or terms[0] < terms[1]:
@@ -461,6 +484,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_info)
 
+    s = sub.add_parser("convert", help="write a log as a Stable32 data file (phase or frequency) or plain CSV")
+    _common(s)
+    s.add_argument("-o", "--output", required=True, help="output path; {n} is replaced by the series index")
+    s.add_argument("--to", choices=("stable32-phase", "stable32-freq", "csv"), default="stable32-phase")
+    s.add_argument("--no-timetags", action="store_true", help="Stable32: values only, no MJD column")
+    s.add_argument("--resample", type=float, metavar="TAU0", help="grid spacing (default: median sample interval)")
+    s.add_argument("--max-gap", type=float, default=3.0, help="gaps longer than this many tau0 are marked as gaps")
+    s.set_defaults(func=cmd_convert)
+
     s = sub.add_parser("stability", aliases=["adev"], help="ADEV/MDEV/TDEV/HDEV/MTIE with confidence intervals")
     _common(s)
     s.add_argument("-k", "--kinds", default="oadev,mdev,tdev", help=f"comma list from {','.join(KINDS)}")
@@ -473,6 +505,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--mask-kind", choices=KINDS, help="statistic the mask applies to (default: header, else tdev)")
     s.add_argument("--exact", action="store_true",
                    help="MTOT/Theo1/TheoBR/TheoH: use every subsequence and ratio term, however long it takes")
+    s.add_argument("--raw-mtot", action="store_true",
+                   help="MTOT/TTOT without the noise-type bias correction that Stable32 and NIST SP 1065 apply")
     g = s.add_mutually_exclusive_group()
     g.add_argument("--json", action="store_true")
     g.add_argument("--csv", action="store_true")

@@ -10,7 +10,7 @@ NaN, and every term touching them is dropped, so **gaps are never bridged**.
 | `mdev` | modified Allan deviation | separates white and flicker PM |
 | `tdev` | time deviation, τ·MDEV/√3 | telecom/PTP time stability (ITU-T G.810) |
 | `hdev` | overlapping Hadamard deviation | insensitive to linear frequency drift |
-| `totdev`, `mtot` | total and modified total deviation | reflection-extended; tighter at long τ |
+| `totdev`, `mtot`, `ttot` | total, modified total and time total deviation | reflection-extended; tighter at long τ; MTOT/TTOT bias-corrected per noise type as in Stable32 (`--raw-mtot` to disable) |
 | `theo1`, `theobr`, `theoh` | Theo1, bias-removed TheoBR, hybrid TheoH | reach τ = 0.75 × record length |
 | `mtie`, `tierms` | maximum and RMS time interval error | network time-error limits |
 

@@ -14,7 +14,12 @@ Formats are detected automatically; `-f/--format` overrides detection.
 | `linuxptp` | `ptp4l`, `phc2sys`, `ts2phc` (stdout, syslog, journald) | master/phc offset (negated, ns → s) | path delay, frequency, servo state |
 | `pcap` | pcap/pcapng captures of NTP (v3/v4/v5) | from server T2/T3 and capture times | delay, stratum, version |
 | `csv` | generic `unix_time,offset[,…]`, `ntpstats monitor` output | offset column | any other columns |
+| `stable32-phase` | Stable32 data file (phase in s; optional MJD timetags; not auto-detected) | chosen column (default last) | — |
+| `stable32-freq` | Stable32 data file (fractional frequency; zeros are gaps; not auto-detected) | integrated to phase | — |
 | `gsoc2012` | the 2012 prototype's `estimators.log` | offset | — |
+
+`ntpstats convert` writes any of these as a Stable32 file or plain CSV (see
+[Stable32, TimeLab, allantools](migrating.md)).
 
 ## Sign convention
 

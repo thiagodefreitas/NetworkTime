@@ -14,6 +14,26 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+### Added
+- **Cross-validation against NIST SP 1065** (#28). The NBS Monograph 140 data (table 30) and
+  the 1000-point test suite (table 31) are regenerated in the tests. ADEV, OADEV, MDEV, TDEV,
+  HDEV, TOTDEV, MTOT and TTOT agree to the 7 printed digits.
+- **TTOT** (time total deviation), and confidence intervals for MTOT/TTOT from the SP 1065
+  table 8 EDF.
+- **Stable32 data files** (#33): `read_stable32`/`write_stable32` in `ntpstats.interop`,
+  `-f stable32-phase|stable32-freq`, and `ntpstats convert` (any supported log to a Stable32 file
+  or CSV).
+- **allantools-compatible API** (#33): `from ntpstats.compat import allantools as at` gives
+  `adev`, `oadev`, `mdev`, `tdev`, `hdev` (non-overlapping), `ohdev`, `totdev`, `mtotdev`,
+  `ttotdev`, `theo1`, `mtie` and `tierms` with allantools signatures.
+- Docs: "Stable32, TimeLab, allantools" migration page and a tools landscape page.
+
+### Changed
+- **MTOT is bias-corrected by default**, dividing by the factor for the noise type identified at
+  each τ (white PM 0.94 … random-walk FM 0.69), as Stable32 and the SP 1065 tables do. This
+  makes MTOT an unbiased estimate of MVAR. `--raw-mtot` / `bias_correction=False` give the raw
+  eq. (27) value, which is what earlier versions reported.
+
 ## [2.6.0] - 2026-09-30
 
 ### Added

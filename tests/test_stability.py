@@ -218,7 +218,8 @@ def test_totdev_textbook(phase, m):
 
 @pytest.mark.parametrize("m", [1, 2, 5, 16, 40])
 def test_mtot_textbook(phase, m):
-    assert st.compute(phase, 2.0, "mtot", [m], ci=None).dev[0] == pytest.approx(naive_mtot(phase, m, 2.0), rel=1e-12)
+    r = st.compute(phase, 2.0, "mtot", [m], ci=None, bias_correction=False)
+    assert r.dev[0] == pytest.approx(naive_mtot(phase, m, 2.0), rel=1e-12)
 
 
 @pytest.mark.parametrize("m", [2, 4, 10, 64])
@@ -311,7 +312,7 @@ def test_mtot_theo_sampling_close_to_exact():
 def test_mtot_theo1_gaps_skip_subsequences(phase):
     x = phase.copy()
     x[100] = np.nan
-    r = st.compute(x, 2.0, "mtot", [5], ci=None, max_work=0)
+    r = st.compute(x, 2.0, "mtot", [5], ci=None, max_work=0, bias_correction=False)
     clean = [i for i in range(x.size - 15 + 1) if not (i <= 100 < i + 15)]
     assert r.n[0] == len(clean)
     ref = np.sqrt(np.mean([naive_mtot(x[i: i + 15], 5, 2.0) ** 2 for i in clean]))

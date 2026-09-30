@@ -60,6 +60,8 @@ FORMATS = (
     "linuxptp",
     "pcap",
     "csv",
+    "stable32-phase",
+    "stable32-freq",
     "gsoc2012",
 )
 
@@ -655,6 +657,13 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
         fmt = detect_format(lines)
     if fmt == "csv":
         series = parse_csv(lines, label, tau0=tau0)
+    elif fmt in ("stable32-phase", "stable32-freq"):
+        from .interop import read_stable32
+
+        try:
+            series = [read_stable32("\n".join(lines) + "\n", data_type=fmt.split("-")[1], tau0=tau0, name=label)]
+        except ValueError as exc:
+            raise ParseError(str(exc)) from exc
     elif fmt == "pcap":
         raise ParseError("not a pcap/pcapng capture")
     elif fmt in _PARSERS:

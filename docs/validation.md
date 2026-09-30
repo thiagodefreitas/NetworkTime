@@ -2,13 +2,29 @@
 
 ## What the test suite checks
 
-Around 180 tests run in CI on Python 3.9, 3.11 and 3.13, together with ruff and mypy. None of
+Around 200 tests run in CI on Python 3.9, 3.11 and 3.13, together with ruff and mypy. None of
 them need network access.
 
 - **Estimators**: literal implementations of the NIST SP 1065 sums (ADEV, OADEV, MDEV, TDEV,
   HDEV, TOTDEV, MTOT, Theo1, MTIE, TIErms); analytic log-log slopes for the five power-law noise
   types; and a frozen table of values from an independent implementation (`allantools` 2024.06,
   stored in `tests/data`, not a dependency).
+- **Published reference values (NIST SP 1065)**: the NBS Monograph 140 nine-point data (table 30)
+  and the 1000-point test suite (table 31) are regenerated in `tests/test_reference_nist.py`. The
+  values agree to the 7 printed digits:
+
+  | Statistic | NBS 9-point (m = 1, 2) | 1000-point (m = 1, 10, 100) |
+  |---|---|---|
+  | ADEV, OADEV, MDEV, TDEV | ✓ | ✓ |
+  | HDEV (overlapping) | ✓ | ✓ |
+  | TOTDEV | ✓ | ✓ |
+  | MTOT, TTOT (bias-corrected) | ✓ | ✓ |
+
+  The published MTOT values include Stable32's noise-type bias correction (white FM: variance
+  ÷ 0.73). ntpstats applies the same correction by default; `bias_correction=False` or
+  `--raw-mtot` gives the raw SP 1065 eq. (27) value. On simulated noise, the raw MTOT/MVAR ratio
+  measured here is 0.99, 0.85, 0.77, 0.72 and 0.68 for white PM to random-walk FM, which matches
+  the factors used (0.94, 0.83, 0.73, 0.70, 0.69).
 - **EDF and confidence intervals**: closed forms (white FM at m = 1: EDF = 2n/3), Monte Carlo
   EDF for every estimator and noise type, and CI coverage.
 - **Noise identification**: every α from +2 to −2.
@@ -26,10 +42,11 @@ GitHub-hosted runners.
 
 ## Not yet done
 
-- Comparison with **Stable32** output on published datasets.
+- Comparison with **Stable32** output on further datasets (confidence intervals and EDF
+  included), and against a public long-term dataset ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)).
 - Long-term real logs against an independent reference (for example a GNSS-disciplined host).
 
-Both are tracked in the roadmap. Contributions of reference datasets are welcome.
+Contributions of reference datasets and Stable32 outputs are welcome.
 
 ## Validating your own setup
 

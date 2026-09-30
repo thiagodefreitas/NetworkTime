@@ -23,7 +23,8 @@ Estimators
 ``hdev``   overlapping Hadamard deviation (insensitive to linear frequency
            drift, useful for NTP-disciplined clocks with aging/thermal drift)
 ``totdev`` total deviation (reflection-extended ADEV, tighter at long tau)
-``mtot``   modified total deviation (long-tau MDEV counterpart)
+``mtot``   modified total deviation (long-tau MDEV counterpart, bias-corrected)
+``ttot``   time total deviation, tau/sqrt(3) * MTOT
 ``theo1``  Theo1 (Howe), reaches tau = 0.75 * record length
 ``theobr`` bias-removed Theo1 (TheoBR)
 ``theoh``  TheoH (ADEV at short tau, TheoBR at long tau)
@@ -39,7 +40,8 @@ from typing import Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 
-KINDS = ("adev", "oadev", "mdev", "tdev", "hdev", "totdev", "mtot", "theo1", "theobr", "theoh", "mtie", "tierms")
+KINDS = ("adev", "oadev", "mdev", "tdev", "hdev", "totdev", "mtot", "ttot", "theo1", "theobr", "theoh", "mtie",
+         "tierms")
 
 #: Short description used in the UI / CLI.
 DESCRIPTIONS = {
@@ -50,6 +52,7 @@ DESCRIPTIONS = {
     "hdev": "Hadamard deviation (overlapping)",
     "totdev": "Total deviation",
     "mtot": "Modified total deviation",
+    "ttot": "Time total deviation [s]",
     "theo1": "Theo1 deviation (tau = 0.75 m tau0)",
     "theobr": "TheoBR deviation (bias-removed Theo1)",
     "theoh": "TheoH deviation (ADEV + TheoBR)",
@@ -58,7 +61,16 @@ DESCRIPTIONS = {
 }
 
 #: Estimators whose value is a time (seconds) rather than a fractional frequency.
-TIME_KINDS = {"tdev", "mtie", "tierms"}
+TIME_KINDS = {"tdev", "ttot", "mtie", "tierms"}
+
+#: MTOT bias: expected MTOT/MVAR variance ratio per power-law noise type
+#: (alpha), as used by Stable32 (W. Riley, "Confidence intervals and bias
+#: corrections for the Stable32 variance functions"). Reported MTOT is
+#: divided by it so that, like MVAR, it is unbiased; NIST SP 1065 tables
+#: 30-31 list bias-corrected values.
+MTOT_BIAS = {2: 0.94, 1: 0.83, 0: 0.73, -1: 0.70, -2: 0.69}
+#: MTOT EDF ``b * T/tau - c`` (NIST SP 1065 table 8), per alpha.
+MTOT_EDF = {2: (1.90, 2.10), 1: (1.20, 1.40), 0: (1.10, 1.20), -1: (0.85, 0.50), -2: (0.75, 0.31)}
 
 
 @dataclass
@@ -406,6 +418,7 @@ _MAX_M = {
     "hdev": lambda n: (n - 1) // 3,
     "totdev": lambda n: (n - 1) // 2,
     "mtot": lambda n: (n - 1) // 3,
+    "ttot": lambda n: (n - 1) // 3,
     "theo1": lambda n: n - 1,
     "theobr": lambda n: n - 1,
     "theoh": lambda n: (3 * (n - 1)) // 4,
@@ -422,6 +435,7 @@ def compute(
     min_terms: int = 2,
     ci: Optional[float] = 0.683,
     max_work: Optional[int] = None,
+    bias_correction: bool = True,
 ) -> StabilityResult:
     """Compute one stability statistic of phase data ``x`` (seconds).
 
@@ -439,6 +453,11 @@ def compute(
     computes the full definitions. What was sampled is reported in
     ``meta["stride"]`` (per tau, 1 = every subsequence) and
     ``meta["theobr_ratio_terms"]``.
+
+    MTOT and TTOT are divided by the MTOT bias factor of the noise type
+    identified at each tau (:data:`MTOT_BIAS`), which is what Stable32 and
+    NIST SP 1065 report; ``bias_correction=False`` returns the raw eq. (27)
+    value. The factors used are in ``meta["bias_factor"]``.
     """
     kind = kind.lower()
     if kind not in KINDS:
@@ -454,11 +473,12 @@ def compute(
     strides = []
     if kind == "mtie":
         vals = _mtie_all(x, ms, tau0)
-    elif kind in _SAMPLED:
+    elif kind in _SAMPLED or kind == "ttot":
+        fn_s = _SAMPLED["mtot" if kind == "ttot" else kind]
         vals = []
         for m in ms:
             opts["stride"] = 1
-            vals.append(_SAMPLED[kind](x, int(m), tau0, opts))
+            vals.append(fn_s(x, int(m), tau0, opts))
             strides.append(int(opts["stride"]))  # type: ignore[call-overload]
         if kind == "theoh":
             taus_out = np.array([v[2] for v in vals], dtype=float)
@@ -479,7 +499,9 @@ def compute(
         res.meta["stride"] = [s for s, k in zip(strides, keep) if k]
     if "kf_terms" in opts:
         res.meta["theobr_ratio_terms"] = [opts["kf_terms"], opts["kf_total_terms"]]
-    if ci and kind not in ("mtie", "tierms", "theo1", "theobr", "theoh", "mtot") and dev.size:
+    if kind in ("mtot", "ttot") and dev.size:
+        return _finish_mtot(res, x, ms, ci, bias_correction)
+    if ci and kind not in ("mtie", "tierms", "theo1", "theobr", "theoh") and dev.size:
         n_phase = int(np.isfinite(x).sum())
         alpha = np.array([noise_alpha(x, int(m)) for m in ms], dtype=float)
         # Where identification fails (too few points) inherit the neighbour's value.
@@ -487,8 +509,30 @@ def compute(
         edf = np.array([edf_for_result(kind, a, int(m), int(k), n_phase) for m, a, k in zip(ms, alpha, n)])
         res.lo, res.hi = chi2_interval(dev, edf, ci)
         res.edf, res.alpha, res.ci = edf, alpha, float(ci)
-    elif kind in ("theo1", "theobr", "theoh", "tierms", "mtot") and dev.size:
+    elif kind in ("theo1", "theobr", "theoh", "tierms") and dev.size:
         res.alpha = _fill_nan(np.array([noise_alpha(x, max(int(m), 1)) for m in ms], dtype=float))
+    return res
+
+
+def _finish_mtot(res: StabilityResult, x: np.ndarray, ms: np.ndarray, ci: Optional[float],
+                 bias_correction: bool) -> StabilityResult:
+    """Bias correction, TTOT scaling and SP 1065 EDF-based CIs for MTOT/TTOT."""
+    alpha = _fill_nan(np.array([noise_alpha(x, max(int(m), 1)) for m in ms], dtype=float))
+    res.alpha = alpha
+    key = [int(np.clip(round(a), -2, 2)) if np.isfinite(a) else 0 for a in alpha]
+    if bias_correction:
+        factor = np.array([MTOT_BIAS[k] for k in key])
+        res.dev = res.dev / np.sqrt(factor)
+        res.err = res.err / np.sqrt(factor)
+        res.meta["bias_factor"] = factor.tolist()
+    if res.kind == "ttot":
+        scale = res.taus / np.sqrt(3.0)
+        res.dev, res.err = res.dev * scale, res.err * scale
+    if ci:
+        record = float(np.isfinite(x).sum() - 1)  # T / tau0
+        edf = np.array([max(MTOT_EDF[k][0] * record / m - MTOT_EDF[k][1], 1.0) for k, m in zip(key, ms)])
+        res.lo, res.hi = chi2_interval(res.dev, edf, ci)
+        res.edf, res.ci = edf, float(ci)
     return res
 
 
@@ -516,13 +560,14 @@ def compute_many(x, tau0, kinds: Iterable[str] = ("oadev", "mdev", "tdev"), taus
 
 
 def series_stability(series, kinds=("oadev",), taus="octave", tau0=None, max_gap=3.0, detrend=None, ci=0.683,
-                     max_work=None):
+                     max_work=None, bias_correction=True):
     """Convenience wrapper: resample a :class:`TimeSeries` and compute.
 
     ``detrend`` may be ``None``, ``"linear"`` (remove constant frequency
     offset, which ADEV is blind to anyway but TDEV/MTIE are not) or
     ``"quadratic"`` (also remove linear frequency drift). ``max_work`` is
-    passed to :func:`compute` (0: never sample MTOT/Theo subsequences).
+    passed to :func:`compute` (0: never sample MTOT/Theo subsequences), as is
+    ``bias_correction`` (MTOT/TTOT).
     """
     from .analysis import detrend as _detrend
 
@@ -531,7 +576,7 @@ def series_stability(series, kinds=("oadev",), taus="octave", tau0=None, max_gap
         ok = np.isfinite(x)
         x = x.copy()
         x[ok] = _detrend(grid[ok], x[ok], detrend)
-    results = [compute(x, tau0, k, taus, ci=ci, max_work=max_work) for k in kinds]
+    results = [compute(x, tau0, k, taus, ci=ci, max_work=max_work, bias_correction=bias_correction) for k in kinds]
     gaps = int(np.sum(~np.isfinite(x)))
     for r in results:
         r.meta.update({"grid_points": int(x.size), "gap_points": gaps, "regularity": series.regularity()})

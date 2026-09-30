@@ -14,7 +14,8 @@
 | Command | Purpose |
 |---|---|
 | `info` | summary statistics (percentiles, trend, gaps, auxiliary columns) |
-| `stability` | ADEV/OADEV/MDEV/TDEV/HDEV/TOTDEV/MTOT/Theo1/TheoBR/TheoH/MTIE/TIErms with CIs; `--mask FILE` (exit code 3 on failure), `--csv`, `--json` |
+| `convert` | write a log as a Stable32 phase/frequency file or plain CSV (`--to`, `--no-timetags`) |
+| `stability` | ADEV/OADEV/MDEV/TDEV/HDEV/TOTDEV/MTOT/TTOT/Theo1/TheoBR/TheoH/MTIE/TIErms with CIs; `--mask FILE` (exit code 3 on failure), `--exact`, `--raw-mtot`, `--csv`, `--json` |
 | `dynamic` | sliding-window stability matrix (time × τ) |
 | `network` | delay floor, queueing, asymmetry indicator, floor packet percentage |
 | `filter` | Kalman / RTS smoother / min-delay filter, output CSV |

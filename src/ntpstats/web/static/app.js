@@ -8,8 +8,8 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 const PALETTE = ["#3b82f6", "#f97316", "#10b981", "#e11d48", "#8b5cf6", "#eab308", "#06b6d4", "#64748b"];
-const KIND_LABEL = { adev: "ADEV", oadev: "OADEV", mdev: "MDEV", tdev: "TDEV", hdev: "HDEV", totdev: "TOTDEV", mtot: "MTOT", theo1: "Theo1", theobr: "TheoBR", theoh: "TheoH", mtie: "MTIE", tierms: "TIErms" };
-const TIME_KINDS = new Set(["tdev", "mtie", "tierms"]);
+const KIND_LABEL = { adev: "ADEV", oadev: "OADEV", mdev: "MDEV", tdev: "TDEV", hdev: "HDEV", totdev: "TOTDEV", mtot: "MTOT", ttot: "TTOT", theo1: "Theo1", theobr: "TheoBR", theoh: "TheoH", mtie: "MTIE", tierms: "TIErms" };
+const TIME_KINDS = new Set(["tdev", "ttot", "mtie", "tierms"]);
 const NOISE = { "2": "white PM", "1": "flicker PM", "0": "white FM", "-1": "flicker FM", "-2": "RW FM" };
 
 const state = {
@@ -382,7 +382,7 @@ async function renderStability() {
   const tables = [], series = [{}], bands = [];
   const dashes = [[], [6, 3], [2, 3], [8, 3, 2, 3], [1, 2], [10, 4]];
   const showCi = +ci > 0;
-  const kindColors = { adev: PALETTE[5], oadev: PALETTE[0], mdev: PALETTE[1], tdev: PALETTE[2], hdev: PALETTE[4], totdev: PALETTE[6], mtot: "#0f766e", theo1: PALETTE[7], theobr: "#374151", theoh: "#9333ea", mtie: PALETTE[3], tierms: "#a16207" };
+  const kindColors = { adev: PALETTE[5], oadev: PALETTE[0], mdev: PALETTE[1], tdev: PALETTE[2], hdev: PALETTE[4], totdev: PALETTE[6], mtot: "#0f766e", ttot: "#134e4a", theo1: PALETTE[7], theobr: "#374151", theoh: "#9333ea", mtie: PALETTE[3], tierms: "#a16207" };
   payloads.forEach((p, i) => {
     p.results.forEach((r, j) => {
       if (!r.taus.length) return;

@@ -34,6 +34,7 @@ PAGES = {
     "docs/statistics.md": "Statistics",
     "docs/network.md": "Network-and-Estimators",
     "docs/validation.md": "Validation",
+    "docs/migrating.md": "Stable32-TimeLab-allantools",
     "docs/api/index.md": "API-Reference",
     "docs/INTEROP.md": "Live-Interop",
     "docs/STATE_OF_THE_ART.md": "State-of-the-Art",

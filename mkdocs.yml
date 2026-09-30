@@ -39,6 +39,7 @@ nav:
   - Statistics: statistics.md
   - Network & estimators: network.md
   - Validation: validation.md
+  - Stable32, TimeLab, allantools: migrating.md
   - API:
       - Overview: api/index.md
       - series: api/series.md
@@ -55,6 +56,8 @@ nav:
       - nts: api/nts.md
       - masks: api/masks.md
       - report: api/report.md
+      - interop: api/interop.md
+      - compat.allantools: api/compat.md
   - Live interop: INTEROP.md
   - State of the art: STATE_OF_THE_ART.md
   - Tools landscape: LANDSCAPE.md
