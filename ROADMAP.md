@@ -40,18 +40,20 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 ## Releases
 
 ### 2.8: PTP and telecom
-- PTP in captures: offset, per-direction delay, PDV, NTS4PTP TLVs. ([#19](https://github.com/thiagodefreitas/NetworkTime/issues/19))
-- Time-error metrics: max|TE|, cTE, dTE_L/H, max|TEL|, 1PPS/TIC input. ([#20](https://github.com/thiagodefreitas/NetworkTime/issues/20))
+- ✅ PTP in captures: offset, per-direction delay, PDV, one-/two-step, E2E/P2P, NTS4PTP TLVs. ([#19](https://github.com/thiagodefreitas/NetworkTime/issues/19))
+- ✅ Time-error metrics: max|TE|, cTE, dTE_L/H, max|TEL|, 1PPS/TIC input, limits and masks. ([#20](https://github.com/thiagodefreitas/NetworkTime/issues/20))
+
+### 2.9: Sources and instruments
 - More sources: ntpd-rs, facebook/time, w32tm, ClockBound, Time Card, pmc, chrony 4.9. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
 - Instrument import profiles (TIC/counters, Calnex, VIAVI, Keysight, Microchip exports). ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35))
 
-### 2.9: Trust and operations
+### 2.10: Trust and operations
 - UTC traceability and compliance report (`ntpstats audit`). ([#22](https://github.com/thiagodefreitas/NetworkTime/issues/22))
 - Anomaly and change-point detection. ([#23](https://github.com/thiagodefreitas/NetworkTime/issues/23))
 - Operations integration, remaining parts: OpenTelemetry, Prometheus import, a GitHub Action and a pytest plugin for timing checks in CI. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36))
 - Protocol watch: Roughtime, NTS pools, NTPv5, RFC 9769 interleaved mode. ([#24](https://github.com/thiagodefreitas/NetworkTime/issues/24))
 
-### 2.10: Metrology and research data
+### 2.11: Metrology and research data
 - Frequency domain and h_α noise fitting. ([#25](https://github.com/thiagodefreitas/NetworkTime/issues/25))
 - Holdover and time-error prediction. ([#26](https://github.com/thiagodefreitas/NetworkTime/issues/26))
 - Three-cornered hat and Groslambert covariance. ([#27](https://github.com/thiagodefreitas/NetworkTime/issues/27))
@@ -98,3 +100,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.5 | MTOT, TheoBR, TheoH ([#15](https://github.com/thiagodefreitas/NetworkTime/issues/15)); docs site, wiki, mypy; tag-driven releases to PyPI |
 | 2.6 | Fast MTOT/Theo family on million-sample logs ([#18](https://github.com/thiagodefreitas/NetworkTime/issues/18)) |
 | 2.7 | NIST SP 1065 validation, MTOT bias correction, TTOT; Stable32 files and allantools API; Prometheus exporter and Grafana dashboard; community on-ramp |
+| 2.8 | PTP from packet captures ([#19](https://github.com/thiagodefreitas/NetworkTime/issues/19)); time-error metrics with limits and masks ([#20](https://github.com/thiagodefreitas/NetworkTime/issues/20)); ns-exact capture timestamps |

@@ -254,6 +254,16 @@ def api_histogram(sid, params):
     return {"id": sid, "name": s.name, "centers": _f(centers), "density": _f(counts), "gauss": _f(gauss), "mean": mu, "std": sd}
 
 
+def api_timeerror(sid, params):
+    from ..timeerror import time_error
+
+    s = _prepare(sid, params)
+    r = time_error(s, lpf_hz=_q(params, "lpf_hz", 0.1, float), cte_window=_q(params, "cte_window", 1000.0, float))
+    d = r.as_dict()
+    d.update({"id": sid, "name": s.name})
+    return _clean(d)
+
+
 def api_network(sid, params):
     s = _prepare(sid, params)
     # Offset-vs-delay analysis is meaningless while a frequency offset
@@ -493,6 +503,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(api_histogram(route[1], params))
             if len(route) == 2 and route[0] == "network":
                 return self._json(api_network(route[1], params))
+            if len(route) == 2 and route[0] == "timeerror":
+                return self._json(api_timeerror(route[1], params))
             if len(route) == 2 and route[0] == "dynamic":
                 return self._json(api_dynamic(route[1], params))
             if len(route) == 3 and route[0] == "export":

@@ -96,6 +96,8 @@ def test_web_upload_and_analyses(base_url):
     assert [r["kind"] for r in st2["results"]] == ["mtot", "theobr", "theoh"]
     net = call(f"{base_url}/api/network/{sid}")
     assert net["stats"]["delay_min"] > 0 and net["fpp"]["pct"]
+    te = call(f"{base_url}/api/timeerror/{sid}")
+    assert te["max_abs_te"] >= abs(te["cte"]) and te["dte_l_mtie"]["kind"] == "mtie"
     hist = call(f"{base_url}/api/histogram/{sid}?bins=20")
     assert len(hist["centers"]) == 20
     csv = call(f"{base_url}/api/export/{sid}/stability.csv?kinds=oadev", raw=True)
@@ -303,3 +305,25 @@ def test_cli_compare(tmp_path, capsys):
     assert main(["compare", str(a), str(b), "--json"]) == 0
     r = json.loads(capsys.readouterr().out)
     assert r["samples"] == len(meas) and r["rms"] < 1e-4 and r["tdev"]["taus"] and r["mtie"]["dev"]
+
+
+def test_cli_ptp_capture_timeerror_and_convert(capsys, tmp_path):
+    cap = os.path.join(EX, "ptp-capture.pcapng")
+    main(["info", cap])
+    assert "PTP d0" in capsys.readouterr().out
+    lim = tmp_path / "limits.csv"
+    lim.write_text("max_te, 1us\ncte, 1us\n")
+    assert main(["timeerror", cap, "--limits", str(lim)]) == 0
+    out = capsys.readouterr().out
+    assert "max|TE|" in out and "[PASS]" in out and "dTE_L MTIE" in out
+    lim.write_text("cte, 1ns\n")
+    assert main(["timeerror", cap, "--limits", str(lim), "--json"]) == 3
+    data = json.loads(capsys.readouterr().out)
+    assert data[0]["check"]["passed"] is False
+    tic = tmp_path / "tic.csv"
+    tic.write_text("".join(f"{v}\n" for v in [12.0, 13.5, 11.0] * 20))
+    assert main(["timeerror", str(tic), "--tau0", "1", "--units", "ns", "--input-is-te", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)[0]["cte"] == pytest.approx(12.1666e-9, rel=1e-3)
+    rep = tmp_path / "r.html"
+    main(["report", cap, "--time-error", "-o", str(rep), "-k", "tdev"])
+    assert "Time error" in rep.read_text()

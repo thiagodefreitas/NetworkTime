@@ -283,6 +283,28 @@ async function renderOverview() {
   $("#compare-table").innerHTML = `<h3>${ids.length > 1 ? "Comparison" : "Dataset"}</h3><div class="table-wrap"><table>
     <tr><th>Dataset</th><th>Format</th><th>Samples</th><th>Start</th><th>Span</th><th>Mean</th><th>RMS</th><th>90 % range</th><th>Trend ppm</th></tr>
     ${rows.join("")}</table></div>`;
+  await renderTimeError(ids[0]);
+}
+
+async function renderTimeError(id) {
+  let te;
+  try {
+    te = await api(`/api/timeerror/${id}?${params()}`);
+  } catch (e) {
+    $("#te-wrap").hidden = true;
+    return;
+  }
+  $("#te-wrap").hidden = false;
+  const last = (r) => (r && r.dev && r.dev.length ? r.dev[r.dev.length - 1] : null);
+  $("#te-cards").innerHTML = [
+    card("max|TE|", fmtSec(te.max_abs_te), "unfiltered"),
+    card("cTE", fmtSec(te.cte), `worst ${fmtDur(te.cte_window_s)} window ${fmtSec(te.max_abs_cte_window)}`),
+    card("max|TEL|", fmtSec(te.max_abs_tel), `${te.lpf_hz} Hz low-pass`),
+    card("dTE_L p-p", fmtSec(te.dte_l_pp), `MTIE (longest τ) ${fmtSec(last(te.dte_l_mtie))}`),
+    card("dTE_H p-p", fmtSec(te.dte_h_pp), "high-pass part"),
+  ].join("");
+  $("#te-note").textContent = (te.warnings || []).join(" ") ||
+    "Check against your limits and MTIE/TDEV masks with: ntpstats timeerror FILE --limits LIMITS --mask MASK.";
 }
 
 async function renderOffset() {

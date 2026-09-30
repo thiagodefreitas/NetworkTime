@@ -43,7 +43,8 @@ are as valuable as code. Look for issues labelled
   - **PTP**: linuxptp `ptp4l`, `phc2sys`, `ts2phc` output from stdout, syslog or journald
     (monotonic stamps are mapped to UTC when the journal prefix is present);
   - **packet captures** (pcap/pcapng, including nanosecond and hardware timestamps): NTP
-    exchanges are matched and measured from the capture host's clock;
+    exchanges and **PTP flows** (one-/two-step, E2E/P2P, UDP or Ethernet) are measured from the
+    capture host's clock;
   - generic CSV and the 2012 `estimators.log`.
 
   Every sign convention is normalised to *reference − local*, following each implementation's
@@ -62,6 +63,9 @@ are as valuable as code. Look for issues labelled
     network TDEV/MTIE limits), with margins and PASS/FAIL,
   - **compare** a source against a reference (PPS, GNSS or a better server) to get the error's
     bias, RMS, TDEV and MTIE.
+- **Telecom time error**: max|TE|, cTE, dTE_L/dTE_H, max|TEL|, and MTIE/TDEV of dTE_L, checked
+  against your own limits and masks (`ntpstats timeerror`, exit code 3 on failure). Input can be
+  a PTP capture, a linuxptp log or a time-interval counter.
 - **Works with the tools you have**:
   - Stable32 data files in and out (`ntpstats convert`);
   - an **allantools-compatible API** (`from ntpstats.compat import allantools`);

@@ -122,7 +122,8 @@ def _table(head, rows):
 
 
 def dataset_report(series: Sequence[TimeSeries], kinds=("oadev", "mdev", "tdev"), detrend: Optional[str] = None,
-                   ci: float = 0.683, inputs: Sequence[str] = (), title: str = "ntpstats report") -> str:
+                   ci: float = 0.683, inputs: Sequence[str] = (), title: str = "ntpstats report",
+                   time_error_section: bool = False) -> str:
     charts: List[dict] = []
     body = [f"<h1>{html.escape(title)}</h1>",
             f'<div class="meta">{len(series)} dataset(s) · stability: {", ".join(k.upper() for k in kinds)}'
@@ -167,6 +168,27 @@ def dataset_report(series: Sequence[TimeSeries], kinds=("oadev", "mdev", "tdev")
         charts.append(spec)
         body.append(f'<h3>Stability</h3><div class="chart" id="stab{i}"></div>')
         body.append(_table(["stat", "τ [s]", "value", "lower", "upper", "EDF", "terms", "noise"], rows))
+        if time_error_section:
+            from .timeerror import time_error
+
+            try:
+                te = time_error(s)
+            except ValueError:
+                te = None
+            if te is not None:
+                k = _decimate(te.t, te.te)
+                charts.append({"id": f"te{i}", "kind": "time", "x": _f(te.t[k]), "xlabel": "time",
+                               "ylabel": "time error", "yfmt": "sec",
+                               "series": [{"label": "TE", "y": _f(te.te[k]), "color": c, "width": 1},
+                                          {"label": f"TEL ({te.lpf_hz:g} Hz)", "y": _f(te.tel[k]),
+                                           "color": PALETTE[(i + 3) % len(PALETTE)], "width": 1.5}]})
+                body.append("<h3>Time error (TE = local − reference)</h3>" + _cards([
+                    ("max|TE|", format_seconds(te.max_abs_te)), ("cTE", format_seconds(te.cte)),
+                    (f"max |cTE| ({te.cte_window:g} s)", format_seconds(te.max_abs_cte_window)),
+                    ("max|TEL|", format_seconds(te.max_abs_tel)), ("dTE_L p-p", format_seconds(te.dte_l_pp)),
+                    ("dTE_H p-p", format_seconds(te.dte_h_pp)),
+                ]) + f'<div class="chart" id="te{i}"></div>'
+                    + "".join(f'<p class="meta">{html.escape(w)}</p>' for w in te.warnings))
         if "delay" in s.extra and np.isfinite(s.extra["delay"]).any():
             from .network import delay_stats, wedge
 
@@ -187,7 +209,7 @@ def dataset_report(series: Sequence[TimeSeries], kinds=("oadev", "mdev", "tdev")
     meta: Dict[str, Any] = {
         "generated": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
         "version": __version__,
-        "parameters": {"kinds": list(kinds), "detrend": detrend, "ci": ci},
+        "parameters": {"kinds": list(kinds), "detrend": detrend, "ci": ci, "time_error": time_error_section},
         "inputs": inputs_meta,
     }
     if inputs_meta:

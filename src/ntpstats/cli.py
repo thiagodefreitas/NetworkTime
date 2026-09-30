@@ -124,6 +124,49 @@ def cmd_info(args):
             print("   columns      " + ", ".join(f"{k[:-7]} {r[k]:.4g}" for k in extras))
 
 
+def cmd_timeerror(args):
+    from .masks import load_mask
+    from .timeerror import check, load_limits, time_error
+
+    limits = load_limits(args.limits) if args.limits else None
+    masks = [load_mask(m) for m in (args.mask or [])]
+    scale = {"s": 1.0, "ms": 1e-3, "us": 1e-6, "ns": 1e-9}[args.units]
+    out, rc = [], 0
+    for s in _load_args(args):
+        if scale != 1.0:
+            s = TimeSeries(t=s.t, offset=s.offset * scale, name=s.name, source_format=s.source_format,
+                           extra=s.extra, meta=s.meta)
+        r = time_error(s, tau0=args.resample, lpf_hz=args.lpf_hz, cte_window=args.cte_window,
+                       input_is_te=args.input_is_te, max_gap=args.max_gap)
+        c = check(r, limits, masks)
+        if c["passed"] is False:
+            rc = 3
+        out.append({"name": s.name, **r.as_dict(), "check": c})
+        if args.json:
+            continue
+        print(f"== {s.name}  ({r.n} samples, tau0 {format_seconds(r.tau0)}, {args.lpf_hz:g} Hz filter)")
+        rows = [("max|TE|", r.max_abs_te), ("cTE (record)", r.cte),
+                (f"max |cTE| over {r.cte_window:g} s windows", r.max_abs_cte_window),
+                ("max|TEL|", r.max_abs_tel), ("dTE_L peak-to-peak", r.dte_l_pp), ("dTE_H peak-to-peak", r.dte_h_pp)]
+        for label, v in rows:
+            print(f"  {label:34} {format_seconds(v):>12}")
+        if r.mtie is not None and r.mtie.taus.size:
+            print("  dTE_L MTIE / TDEV:")
+            td = dict(zip(np.round(r.tdev.taus, 9), r.tdev.dev)) if r.tdev is not None else {}
+            for tau, v in zip(r.mtie.taus, r.mtie.dev):
+                print(f"    tau {tau:>10g} s  MTIE {format_seconds(v):>10}  TDEV "
+                      f"{format_seconds(td.get(round(tau, 9), float('nan'))):>10}")
+        for w in r.warnings:
+            print(f"  note: {w}")
+        for row in c["checks"]:
+            verdict = {True: "PASS", False: "FAIL", None: "n/a"}[row["passed"]]
+            extra = f"  value {format_seconds(row['value'])}  limit {format_seconds(row['limit'])}" if "limit" in row else ""
+            print(f"  [{verdict}] {row['label']}{extra}")
+    if args.json:
+        print(json.dumps(out, indent=2, default=float))
+    return rc
+
+
 def cmd_stability(args):
     kinds = args.kinds.split(",")
     for k in kinds:
@@ -465,7 +508,7 @@ def cmd_report(args):
 
     series = _load_args(args)
     doc = dataset_report(series, kinds=args.kinds.split(","), detrend=args.detrend, ci=args.ci, inputs=args.files,
-                         title=args.title)
+                         title=args.title, time_error_section=args.time_error)
     with open(args.output, "w", encoding="utf-8") as fh:
         fh.write(doc)
     print(f"wrote {args.output} ({len(doc) / 1024:.0f} kB, self-contained)")
@@ -517,6 +560,22 @@ def build_parser() -> argparse.ArgumentParser:
     _common(s)
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_info)
+
+    s = sub.add_parser("timeerror", aliases=["te"],
+                       help="time-error metrics: max|TE|, cTE, dTE_L/dTE_H, max|TEL|, MTIE/TDEV of dTE_L")
+    _common(s)
+    s.add_argument("--limits", help="file of 'metric,value' limits (max_te, cte, cte_window, max_tel, dte_l_pp, "
+                                    "dte_h_pp; e.g. '30ns'); exit code 3 on failure")
+    s.add_argument("--mask", action="append", help="MTIE or TDEV mask CSV for dTE_L (repeatable)")
+    s.add_argument("--lpf-hz", type=float, default=0.1, help="low-pass bandwidth for TEL/dTE_L (default 0.1 Hz)")
+    s.add_argument("--cte-window", type=float, default=1000.0, help="cTE averaging window, s (default 1000)")
+    s.add_argument("--input-is-te", action="store_true",
+                   help="values are already TE = local - reference (e.g. a TIC measuring DUT - REF)")
+    s.add_argument("--units", choices=("s", "ms", "us", "ns"), default="s", help="units of the input values")
+    s.add_argument("--resample", type=float, metavar="TAU0", help="grid spacing (default: median sample interval)")
+    s.add_argument("--max-gap", type=float, default=3.0, help="gaps longer than this many tau0 are not bridged")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_timeerror)
 
     s = sub.add_parser("convert", help="write a log as a Stable32 data file (phase or frequency) or plain CSV")
     _common(s)
@@ -608,6 +667,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--detrend", choices=("linear", "quadratic"))
     s.add_argument("--ci", type=float, default=0.683)
     s.add_argument("--title", default="ntpstats report")
+    s.add_argument("--time-error", action="store_true", help="add time-error metrics and a TE/TEL chart per dataset")
     s.set_defaults(func=cmd_report)
 
     s = sub.add_parser("compare", help="error of a source against a reference (e.g. NTP client vs PPS/GNSS)")

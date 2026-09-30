@@ -21,7 +21,7 @@ these tools, not to replace them. Corrections are welcome as issues or pull requ
 | **chrony** / `chronyc` | The default client on most Linux distributions; logs tracking, measurements, statistics and refclocks | All of these logs are parsed, and chrony can be polled live |
 | **ntpd-rs** | Rust NTP/NTS daemon with experimental NTPv5; planned default in Ubuntu 27.04 | NTPv5 interop tested; log and metrics support planned ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
 | **NTPsec** `ntpviz` | Percentile plots from `loopstats`/`peerstats` | Same inputs; ntpstats adds stability statistics, network metrics and chrony support |
-| **ntpperf** (M. Lichvar) | Load and timestamp-accuracy tester for NTP servers and PTP masters | Complementary: ntpstats analyses the resulting captures ([#19](https://github.com/thiagodefreitas/NetworkTime/issues/19)) |
+| **ntpperf** (M. Lichvar) | Load and timestamp-accuracy tester for NTP servers and PTP masters | Complementary: ntpstats analyses the resulting NTP and PTP captures |
 | `chrony_exporter` + Prometheus/Grafana | Operational dashboards | ntpstats exports OpenMetrics; dashboards and Prometheus import planned ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)) |
 
 ## PTP and telecom
@@ -29,8 +29,8 @@ these tools, not to replace them. Corrections are welcome as issues or pull requ
 | Tool | What it is | Relation to ntpstats |
 |---|---|---|
 | **linuxptp** (`ptp4l`, `phc2sys`, `ts2phc`, `pmc`) | The Linux PTP stack | Logs parsed; `pmc` live polling planned ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
-| **Meinberg PTP Track Hound** (free, closed source) | Captures and decodes PTP traffic, groups devices, monitors | Complementary: ntpstats will compute offset/PDV/TE statistics from captures ([#19](https://github.com/thiagodefreitas/NetworkTime/issues/19), [#20](https://github.com/thiagodefreitas/NetworkTime/issues/20)) |
-| **Calnex CAT**, VIAVI, Keysight, Microchip software | Vendor analysis for test equipment: TE, cTE, dTE, MTIE, TDEV, FPP with standard masks | ntpstats offers transparent, scriptable metrics on exported data ([#20](https://github.com/thiagodefreitas/NetworkTime/issues/20), [#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)) |
+| **Meinberg PTP Track Hound** (free, closed source) | Captures and decodes PTP traffic, groups devices, monitors | Complementary: ntpstats computes offset, PDV and time-error statistics from the captures ([PTP & time error](ptp.md)) |
+| **Calnex CAT**, VIAVI, Keysight, Microchip software | Vendor analysis for test equipment: TE, cTE, dTE, MTIE, TDEV, FPP with standard masks | ntpstats offers transparent, scriptable TE/cTE/dTE/MTIE/TDEV on exported data ([PTP & time error](ptp.md)); instrument import profiles planned ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)) |
 | **facebook/time** (ptpcheck, sptp, ptp4u, fbclock) | Meta's open-source PTP/NTP tools and TrueTime-style uncertainty | Planned ingestion and validation of the uncertainty window ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
 | **OCP TAP Time Card / Open Time Server** | Open-hardware grandmaster (GNSS + atomic oscillator) | Planned self-monitoring and holdover analysis ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21), [#26](https://github.com/thiagodefreitas/NetworkTime/issues/26)) |
 | **White Rabbit** (CERN OHWR) | Sub-ns time transfer | Its phase logs can be analysed as phase data; a dedicated format could arrive as a plugin ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37)) |

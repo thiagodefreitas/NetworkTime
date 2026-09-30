@@ -87,6 +87,11 @@
     <section id="tab-overview" class="tab active">
       <div id="cards" class="cards"></div>
       <div id="compare-table"></div>
+      <div id="te-wrap" hidden>
+        <h3>Time error <span class="hint">TE = local − reference; 0.1 Hz filter (ITU-T G.8260 definitions)</span></h3>
+        <div id="te-cards" class="cards"></div>
+        <p class="note" id="te-note"></p>
+      </div>
       <div id="welcome" class="welcome">
         <h2>Network time analysis, 2026 edition</h2>
         <p>Load clock-offset logs from <b>ntpd 4.2.8</b>, <b>NTPsec</b> or <b>chrony</b>, a CSV from <code>ntpstats monitor</code>,

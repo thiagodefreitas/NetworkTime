@@ -14,6 +14,32 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-09-30
+
+### Added
+- **PTP from packet captures** (#19). IEEE 1588 v2/v2.1 over UDP (IPv4/IPv6, ports 319/320)
+  and Ethernet (0x88F7, VLAN) is read from pcap/pcapng. It supports one- and two-step clocks,
+  E2E (Delay_Req/Resp) and P2P (peer delay, one- and two-step), and correction fields. The
+  TAI→UTC offset is taken from Announce or inferred. There is one series per master/slave flow
+  (offset against the capture clock, path/link delay, one-way delays, corrections), and
+  AUTHENTICATION TLVs (NTS4PTP) are flagged. `ntpstats.ptp.summary()` counts messages.
+- **Time-error metrics** (#20): `ntpstats timeerror` and `ntpstats.timeerror`. They give
+  max|TE|, cTE (record and per 1000 s window), TEL/max|TEL| (0.1 Hz first-order filter,
+  restarted after gaps, settling excluded), dTE_L (peak-to-peak, MTIE, TDEV) and dTE_H
+  peak-to-peak. User-supplied limits (`max_te, 30ns` …) and MTIE/TDEV masks for dTE_L are
+  checked, with exit code 3 on failure. Time-interval counter input is handled with
+  `--units ns --input-is-te`.
+- Time-error cards in the web UI (Overview) and `ntpstats report --time-error`.
+- `examples/data/ptp-capture.pcapng` (synthetic) and a "PTP captures & time error" docs page.
+
+### Changed
+- Capture timestamps are kept as **integer nanoseconds**; a float of POSIX seconds only
+  resolves about 240 ns. NTP offsets from captures are now computed exactly as well.
+
+### Fixed
+- Personal email addresses removed from public files; the author is referenced by GitHub
+  profile.
+
 ## [2.7.0] - 2026-09-30
 
 ### Added
