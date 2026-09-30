@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from statistics import NormalDist
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 
@@ -234,76 +234,135 @@ def _totdev(x, m, tau0):
     return np.sqrt(ms / (2 * tau * tau)), n
 
 
-def _mtot(x, m, tau0):
-    """Modified total deviation (NIST SP 1065 eq. (27), phase form)."""
-    N = x.size
-    nsubs = N - 3 * m + 1
-    if nsubs < 1:
-        return np.nan, 0
-    vals = []
-    for i in range(nsubs):
-        xs = x[i: i + 3 * m]
-        if not np.all(np.isfinite(xs)):
-            continue
-        h1 = int(np.floor(3 * m / 2.0))
-        h2 = int(np.ceil(3 * m / 2.0))
-        mean1 = float(np.mean(xs[:h1]))
-        mean2 = float(np.mean(xs[h2:]))
-        if (3 * m) % 2:
-            slope = (mean2 - mean1) / ((0.5 * (3 * m - 1) + 1.0) * tau0)
-        else:
-            slope = (mean2 - mean1) / (0.5 * 3 * m * tau0)
-        idx = np.arange(3 * m, dtype=float)
-        x0 = xs - slope * idx * tau0
-        xstar = np.concatenate((x0[::-1], x0, x0[::-1]))
-        w = _window_sums(xstar, m)
-        d2 = (w[2 * m: 8 * m] - 2.0 * w[m: 7 * m] + w[: 6 * m]) / float(m)
-        vals.append(float(np.mean(d2 * d2)))
-    n = len(vals)
-    if n == 0:
-        return np.nan, 0
-    var = float(np.mean(vals)) / (2.0 * (m * tau0) ** 2)
-    return np.sqrt(var), n
+#: Upper bound on the element operations one tau of MTOT or Theo1 may spend
+#: (see :func:`compute`, ``max_work``). Above it, subsequences are sampled
+#: with a stride of at most ``m``.
+MAX_WORK = 1 << 22
+#: TheoBR bias ratio: at most this many terms of the average are evaluated
+#: (evenly spaced) when ``max_work`` is not 0.
+THEOBR_RATIO_TERMS = 64
+_CHUNK = 1 << 21  # elements per block in the vectorised loops
 
 
-def _theo1(x, m, tau0):
+def _valid_starts(x, span):
+    """Start indices of the length-``span`` windows of ``x`` without NaN."""
+    bad = np.concatenate(([0], np.cumsum(~np.isfinite(x))))
+    return np.flatnonzero(bad[span:] - bad[:-span] == 0)
+
+
+def _sample(starts, cost, m, opts):
+    """Evenly strided subset of ``starts`` keeping about ``max_work`` element operations.
+
+    The stride never exceeds ``m``: consecutive subsequences overlap by
+    all but one sample, so the estimate barely changes, and every sample
+    still falls inside some used subsequence.
+    """
+    budget = MAX_WORK if opts is None else opts.get("max_work", MAX_WORK)
+    stride = 1
+    if budget and starts.size * cost > budget:
+        stride = int(min(max(m, 1), -(-starts.size * cost // budget)))
+    if opts is not None:
+        opts["stride"] = stride
+    return starts[::stride]
+
+
+def _mtot(x, m, tau0, opts=None):
+    """Modified total deviation (NIST SP 1065 eq. (27), phase form).
+
+    Vectorised over subsequences: each block of subsequences is detrended
+    with its half-average slope, reflection-extended to ``9m`` samples and
+    reduced with row-wise cumulative sums, the same arithmetic as the
+    literal per-subsequence definition.
+    """
+    L = 3 * m
+    if x.size - L + 1 < 1:
+        return np.nan, 0
+    starts = _sample(_valid_starts(x, L), 9 * m, m, opts)
+    if starts.size == 0:
+        return np.nan, 0
+    h1 = L // 2
+    h2 = L - h1
+    denom = (0.5 * (L - 1) + 1.0) * tau0 if L % 2 else 0.5 * L * tau0
+    t = np.arange(L, dtype=float)
+    windows = np.lib.stride_tricks.sliding_window_view(x, L)
+    total = 0.0
+    step = max(1, _CHUNK // (9 * m))
+    for b in range(0, starts.size, step):
+        xs = windows[starts[b: b + step]]
+        slope = (xs[:, h2:].mean(axis=1) - xs[:, :h1].mean(axis=1)) / denom
+        x0 = xs - slope[:, None] * t * tau0
+        xstar = np.concatenate((x0[:, ::-1], x0, x0[:, ::-1]), axis=1)
+        c = np.zeros((xstar.shape[0], 9 * m + 1))
+        np.cumsum(xstar, axis=1, out=c[:, 1:])
+        w = c[:, m:] - c[:, :-m]
+        d2 = (w[:, 2 * m: 8 * m] - 2.0 * w[:, m: 7 * m] + w[:, : 6 * m]) / float(m)
+        total += float(np.sum(np.mean(d2 * d2, axis=1)))
+    var = total / starts.size / (2.0 * (m * tau0) ** 2)
+    return np.sqrt(var), int(starts.size)
+
+
+def _theo1(x, m, tau0, opts=None):
     """Theo1 (NIST SP 1065 eq. (31)); m even, result belongs to tau = 0.75 m tau0."""
     N = x.size
     if m % 2 or m < 2 or m > N - 1:
         return np.nan, 0
     h = m // 2
-    i = np.arange(0, N - m)
-    acc = np.zeros(i.size)
-    for delta in range(h):
-        term = (x[i] - x[i - delta + h]) + (x[i + m] - x[i + delta + h])
-        acc = acc + term * term / (h - delta)
-    ok = np.isfinite(acc)
-    n = int(ok.sum())
-    if n == 0:
+    starts = _sample(_valid_starts(x, m + 1)[: N - m], h, m, opts)
+    if starts.size == 0:
         return np.nan, 0
-    var = np.sum(acc[ok]) / (0.75 * n * (m * tau0) ** 2)
-    return np.sqrt(var), n
+    weight = 1.0 / (h - np.arange(h))
+    windows = np.lib.stride_tricks.sliding_window_view(x, m + 1)
+    total = 0.0
+    step = max(1, _CHUNK // (m + 1))
+    for b in range(0, starts.size, step):
+        r = windows[starts[b: b + step]]
+        # delta = 0..h-1: x[i+h-delta] are columns h..1, x[i+h+delta] columns h..m-1
+        term = (r[:, :1] - r[:, h:0:-1]) + (r[:, m:] - r[:, h:m])
+        total += float(np.sum((term * term) @ weight))
+    var = total / (0.75 * starts.size * (m * tau0) ** 2)
+    return np.sqrt(var), int(starts.size)
 
 
-def _theobr_ratio(x, tau0):
-    """TheoBR bias-removal factor kf (average AVAR/THEO1 variance ratio)."""
+def _theobr_ratio(x, tau0, opts=None):
+    """TheoBR bias-removal factor kf (average AVAR/THEO1 variance ratio).
+
+    Cached in ``opts`` so a whole tau grid pays for it once. With more than
+    :data:`THEOBR_RATIO_TERMS` terms (records longer than about 400
+    samples) and ``max_work`` not 0, an evenly spaced subset of the terms is
+    averaged.
+    """
+    if opts is not None and "kf" in opts:
+        return opts["kf"]
     N = x.size
     n = N // 6 - 3
-    if n < 0:
-        return np.nan
-    total, cnt = 0.0, 0
-    for i in range(n + 1):
-        da, _ = _oadev(x, 9 + 3 * i, tau0)
-        dt, _ = _theo1(x, 12 + 4 * i, tau0)
-        if np.isfinite(da) and np.isfinite(dt) and dt > 0:
-            total += (da * da) / (dt * dt)
-            cnt += 1
-    return np.nan if cnt == 0 else total / cnt
+    kf = np.nan
+    if n >= 0:
+        idx = np.arange(n + 1)
+        exact = opts is not None and opts.get("max_work", MAX_WORK) == 0
+        if idx.size > THEOBR_RATIO_TERMS and not exact:
+            idx = np.unique(np.round(np.linspace(0, n, THEOBR_RATIO_TERMS)).astype(int))
+        # each ratio term is one of many averaged: give it a smaller share
+        budget = MAX_WORK if opts is None else opts.get("max_work", MAX_WORK)
+        sub = {"max_work": budget // 8 if budget else 0}
+        total, cnt = 0.0, 0
+        for i in idx:
+            da, _ = _oadev(x, 9 + 3 * int(i), tau0)
+            dt, _ = _theo1(x, 12 + 4 * int(i), tau0, sub)
+            if np.isfinite(da) and np.isfinite(dt) and dt > 0:
+                total += (da * da) / (dt * dt)
+                cnt += 1
+        kf = np.nan if cnt == 0 else total / cnt
+        if opts is not None:
+            opts["kf_terms"] = int(idx.size)
+            opts["kf_total_terms"] = int(n + 1)
+    if opts is not None:
+        opts["kf"] = kf
+    return kf
 
 
-def _theobr(x, m, tau0):
-    d, n = _theo1(x, m, tau0)
-    kf = _theobr_ratio(x, tau0)
+def _theobr(x, m, tau0, opts=None):
+    d, n = _theo1(x, m, tau0, opts)
+    kf = _theobr_ratio(x, tau0, opts)
     return d * np.sqrt(kf), n
 
 
@@ -317,12 +376,14 @@ def _theoh_tau(m: int, n_phase: int, tau0: float) -> float:
     return 0.75 * _theoh_theo_m(m) * tau0
 
 
-def _theoh(x, m, tau0):
+def _theoh(x, m, tau0, opts=None):
     N = x.size
     if m <= 0.2 * (N - 1):
         d, n = _adev(x, m, tau0)
+        if opts is not None:
+            opts["stride"] = 1
     else:
-        d, n = _theobr(x, _theoh_theo_m(m), tau0)
+        d, n = _theobr(x, _theoh_theo_m(m), tau0, opts)
     return d, n, _theoh_tau(m, N, tau0)
 
 
@@ -333,7 +394,8 @@ def _tierms(x, m, tau0):
     return np.sqrt(ms), n
 
 
-_ESTIMATORS = {"adev": _adev, "oadev": _oadev, "mdev": _mdev, "tdev": _tdev, "hdev": _hdev,
+_SAMPLED: Dict[str, Callable[..., tuple]] = {"mtot": _mtot, "theo1": _theo1, "theobr": _theobr, "theoh": _theoh}
+_ESTIMATORS: Dict[str, Callable[..., tuple]] = {"adev": _adev, "oadev": _oadev, "mdev": _mdev, "tdev": _tdev, "hdev": _hdev,
                "totdev": _totdev, "mtot": _mtot, "theo1": _theo1, "theobr": _theobr, "tierms": _tierms}
 
 _MAX_M = {
@@ -359,6 +421,7 @@ def compute(
     taus: Union[str, Sequence[int]] = "octave",
     min_terms: int = 2,
     ci: Optional[float] = 0.683,
+    max_work: Optional[int] = None,
 ) -> StabilityResult:
     """Compute one stability statistic of phase data ``x`` (seconds).
 
@@ -367,6 +430,15 @@ def compute(
     With ``ci`` (e.g. 0.683 or 0.95) the dominant noise type is identified
     at every tau (lag-1 autocorrelation) and a chi-squared confidence
     interval is attached using the equivalent degrees of freedom.
+
+    MTOT and Theo1/TheoBR/TheoH cost O(N·m) per tau (TheoBR's bias ratio
+    even more). ``max_work`` bounds the element operations per tau
+    (default :data:`MAX_WORK`); above it the subsequences are sampled with
+    an even stride of at most ``m`` and the TheoBR ratio averages
+    :data:`THEOBR_RATIO_TERMS` evenly spaced terms. ``max_work=0`` always
+    computes the full definitions. What was sampled is reported in
+    ``meta["stride"]`` (per tau, 1 = every subsequence) and
+    ``meta["theobr_ratio_terms"]``.
     """
     kind = kind.lower()
     if kind not in KINDS:
@@ -378,11 +450,18 @@ def compute(
     if kind in ("theo1", "theobr"):
         ms = ms[(ms % 2 == 0)]
     taus_out = None
+    opts: Dict[str, object] = {"max_work": MAX_WORK if max_work is None else int(max_work)}
+    strides = []
     if kind == "mtie":
         vals = _mtie_all(x, ms, tau0)
-    elif kind == "theoh":
-        vals = [_theoh(x, int(m), tau0) for m in ms]
-        taus_out = np.array([v[2] for v in vals], dtype=float)
+    elif kind in _SAMPLED:
+        vals = []
+        for m in ms:
+            opts["stride"] = 1
+            vals.append(_SAMPLED[kind](x, int(m), tau0, opts))
+            strides.append(int(opts["stride"]))  # type: ignore[call-overload]
+        if kind == "theoh":
+            taus_out = np.array([v[2] for v in vals], dtype=float)
     else:
         fn = _ESTIMATORS[kind]
         vals = [fn(x, int(m), tau0) for m in ms]
@@ -396,6 +475,10 @@ def compute(
     tau_scale = 0.75 if kind in ("theo1", "theobr") else 1.0
     taus_final = taus_out if taus_out is not None else (ms * float(tau0) * tau_scale)
     res = StabilityResult(kind=kind, tau0=float(tau0), taus=taus_final, dev=dev, err=err, n=n)
+    if strides:
+        res.meta["stride"] = [s for s, k in zip(strides, keep) if k]
+    if "kf_terms" in opts:
+        res.meta["theobr_ratio_terms"] = [opts["kf_terms"], opts["kf_total_terms"]]
     if ci and kind not in ("mtie", "tierms", "theo1", "theobr", "theoh", "mtot") and dev.size:
         n_phase = int(np.isfinite(x).sum())
         alpha = np.array([noise_alpha(x, int(m)) for m in ms], dtype=float)
@@ -432,12 +515,14 @@ def compute_many(x, tau0, kinds: Iterable[str] = ("oadev", "mdev", "tdev"), taus
     return [compute(x, tau0, k, taus) for k in kinds]
 
 
-def series_stability(series, kinds=("oadev",), taus="octave", tau0=None, max_gap=3.0, detrend=None, ci=0.683):
+def series_stability(series, kinds=("oadev",), taus="octave", tau0=None, max_gap=3.0, detrend=None, ci=0.683,
+                     max_work=None):
     """Convenience wrapper: resample a :class:`TimeSeries` and compute.
 
     ``detrend`` may be ``None``, ``"linear"`` (remove constant frequency
     offset, which ADEV is blind to anyway but TDEV/MTIE are not) or
-    ``"quadratic"`` (also remove linear frequency drift).
+    ``"quadratic"`` (also remove linear frequency drift). ``max_work`` is
+    passed to :func:`compute` (0: never sample MTOT/Theo subsequences).
     """
     from .analysis import detrend as _detrend
 
@@ -446,7 +531,7 @@ def series_stability(series, kinds=("oadev",), taus="octave", tau0=None, max_gap
         ok = np.isfinite(x)
         x = x.copy()
         x[ok] = _detrend(grid[ok], x[ok], detrend)
-    results = [compute(x, tau0, k, taus, ci=ci) for k in kinds]
+    results = [compute(x, tau0, k, taus, ci=ci, max_work=max_work) for k in kinds]
     gaps = int(np.sum(~np.isfinite(x)))
     for r in results:
         r.meta.update({"grid_points": int(x.size), "gap_points": gaps, "regularity": series.regularity()})

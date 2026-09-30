@@ -119,7 +119,13 @@ def cmd_stability(args):
     rc = 0
     for s in _load_args(args):
         results = series_stability(s, kinds=kinds, taus=taus, tau0=args.resample or args.tau0, max_gap=args.max_gap,
-                                   detrend=args.detrend, ci=args.ci)
+                                   detrend=args.detrend, ci=args.ci, max_work=0 if args.exact else None)
+        for r in results:
+            terms = r.meta.get("theobr_ratio_terms", [0, 0])
+            if max(r.meta.get("stride") or [1]) > 1 or terms[0] < terms[1]:
+                print(f"note: {r.kind} was sampled for speed (subsequence stride per tau {r.meta.get('stride')}"
+                      f"{', TheoBR ratio terms %d of %d' % tuple(terms) if terms[0] < terms[1] else ''}); "
+                      "--exact computes the full definition", file=sys.stderr)
         checks = {}
         if mask is not None:
             from .masks import check
@@ -465,6 +471,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--ci", type=float, default=0.683, help="confidence level for intervals (0 disables)")
     s.add_argument("--mask", help="CSV of tau,limit to check against (exit code 3 on failure)")
     s.add_argument("--mask-kind", choices=KINDS, help="statistic the mask applies to (default: header, else tdev)")
+    s.add_argument("--exact", action="store_true",
+                   help="MTOT/Theo1/TheoBR/TheoH: use every subsequence and ratio term, however long it takes")
     g = s.add_mutually_exclusive_group()
     g.add_argument("--json", action="store_true")
     g.add_argument("--csv", action="store_true")

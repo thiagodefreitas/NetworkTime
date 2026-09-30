@@ -294,3 +294,36 @@ def test_mask_check():
     assert c["passed"] is False and c["used_upper_bound"]
     c2 = check(r, load_mask("1,1\n1000,1\n"))
     assert c2["passed"] is True
+
+
+def test_mtot_theo_sampling_close_to_exact():
+    # issue #18: above ``max_work`` subsequences are strided (stride <= m); the
+    # estimate stays within a fraction of a percent of the full definition.
+    x = powerlaw_phase(1 << 13, 0, 1.0, rng=12)
+    for kind, ms in (("mtot", [64, 256]), ("theo1", [512, 2048])):
+        full = st.compute(x, 1.0, kind, ms, ci=None, max_work=0)
+        fast = st.compute(x, 1.0, kind, ms, ci=None, max_work=1 << 18)
+        assert full.meta["stride"] == [1, 1]
+        assert all(1 < s <= m for s, m in zip(fast.meta["stride"], ms))
+        np.testing.assert_allclose(fast.dev, full.dev, rtol=0.02)
+
+
+def test_mtot_theo1_gaps_skip_subsequences(phase):
+    x = phase.copy()
+    x[100] = np.nan
+    r = st.compute(x, 2.0, "mtot", [5], ci=None, max_work=0)
+    clean = [i for i in range(x.size - 15 + 1) if not (i <= 100 < i + 15)]
+    assert r.n[0] == len(clean)
+    ref = np.sqrt(np.mean([naive_mtot(x[i: i + 15], 5, 2.0) ** 2 for i in clean]))
+    assert r.dev[0] == pytest.approx(ref, rel=1e-12)
+    t = st.compute(x, 2.0, "theo1", [10], ci=None, max_work=0)
+    assert t.n[0] == sum(1 for i in range(x.size - 10) if not (i <= 100 <= i + 10))
+
+
+def test_theobr_ratio_sampled_once_per_grid():
+    x = powerlaw_phase(1200, 0, 1.0, rng=13)
+    r = st.compute(x, 1.0, "theobr", [16, 64, 256], ci=None)
+    assert r.meta["theobr_ratio_terms"] == [st.THEOBR_RATIO_TERMS, 1200 // 6 - 2]
+    exact = st.compute(x, 1.0, "theobr", [16, 64, 256], ci=None, max_work=0)
+    assert exact.meta["theobr_ratio_terms"] == [1200 // 6 - 2] * 2
+    np.testing.assert_allclose(r.dev, exact.dev, rtol=0.02)

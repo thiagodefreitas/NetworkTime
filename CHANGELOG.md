@@ -14,6 +14,21 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-09-30
+
+### Added
+- `ntpstats stability --exact` and `compute(..., max_work=0)` / `series_stability(..., max_work=0)`
+  to force the full MTOT/Theo definitions.
+
+### Changed
+- **MTOT, Theo1, TheoBR and TheoH are much faster** (#18). MTOT and Theo1 are vectorised
+  across subsequences. TheoBR computes its bias ratio once per τ grid instead of once per τ.
+  Above a work limit per τ (`stability.MAX_WORK`), subsequences are strided (stride ≤ m), and
+  the TheoBR ratio averages 64 evenly spaced terms. What was sampled is reported in
+  `meta["stride"]` and `meta["theobr_ratio_terms"]`, and the CLI prints a note. On 1M samples at
+  octave τ each statistic takes 2–4 s instead of hours; on 4096 samples TheoBR went from 210 s
+  to under 1 s. Below the limit, results match the literal definitions to 1e-12.
+
 ## [2.5.0] - 2026-09-29
 
 ### Added

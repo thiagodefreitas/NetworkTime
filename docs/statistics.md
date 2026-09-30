@@ -17,6 +17,19 @@ NaN, and every term touching them is dropped, so **gaps are never bridged**.
 Each estimator is tested against a literal implementation of its published formula (NIST SP 1065)
 and, where one exists, against analytic power-law results.
 
+## Long records: MTOT and the Theo family
+
+MTOT and Theo1 cost O(N·m) per τ, and TheoBR's bias ratio averages about N/6 Theo1 values. They
+are computed with vectorised block operations, and when one τ would exceed a work limit
+(`stability.MAX_WORK` element operations) ntpstats averages every *k*-th subsequence, with *k*
+never larger than *m*. Adjacent subsequences share all but one sample, so this changes the
+estimate by well under 1 % in the tests. The TheoBR ratio uses 64 evenly spaced terms instead
+of all of them. A million-sample log takes a few seconds per statistic.
+
+What was sampled is reported in the result: `meta["stride"]` per τ (1 = every subsequence) and
+`meta["theobr_ratio_terms"]` (used, total). `compute(..., max_work=0)` or `ntpstats stability
+--exact` always computes the full definitions.
+
 ## Confidence intervals
 
 Intervals are χ² intervals based on the **equivalent degrees of freedom (EDF)**. For
