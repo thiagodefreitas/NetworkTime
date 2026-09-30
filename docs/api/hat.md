@@ -1,0 +1,3 @@
+# ntpstats.hat
+
+::: ntpstats.hat

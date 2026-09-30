@@ -11,6 +11,7 @@ NaN, and every term touching them is dropped, so **gaps are never bridged**.
 | `tdev` | time deviation, τ·MDEV/√3 | telecom/PTP time stability (ITU-T G.810) |
 | `hdev` | overlapping Hadamard deviation | insensitive to linear frequency drift |
 | `totdev`, `mtot`, `ttot` | total, modified total and time total deviation | reflection-extended; tighter at long τ; MTOT/TTOT bias-corrected per noise type as in Stable32 (`--raw-mtot` to disable) |
+| `htot` | Hadamard total deviation | drift-insensitive like HDEV, tighter at long τ; bias-corrected per noise type (SP 1065 tables within 0.3 %) |
 | `theo1`, `theobr`, `theoh` | Theo1, bias-removed TheoBR, hybrid TheoH | reach τ = 0.75 × record length |
 | `mtie`, `tierms` | maximum and RMS time interval error | network time-error limits |
 
@@ -55,3 +56,8 @@ random-walk FM (−2). It selects the EDF model and is shown in every table.
 
 `ntpstats dynamic` (and the UI heat-map) computes a statistic over sliding windows, which
 exposes route changes, load cycles and temperature effects that a single curve averages away.
+
+## Noise model, spectra, hat and holdover
+
+Fitting the power-law coefficients h_α, spectra, the N-cornered hat and holdover prediction are
+described in [Metrology](metrology.md).

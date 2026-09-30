@@ -117,6 +117,9 @@ def test_allantools_api_matches_frozen_allantools_values():
         np.testing.assert_allclose(devs, np.array(r["dev"])[common], rtol=1e-9, err_msg=kind)
 
 
-def test_allantools_htotdev_not_implemented():
-    with pytest.raises(NotImplementedError):
-        at.htotdev([0.0, 1.0, 2.0])
+def test_allantools_htotdev_is_raw_htot():
+    y = np.random.default_rng(3).normal(size=300)
+    taus, dev, err, n = at.htotdev(y, data_type="freq", taus=[1, 4])
+    x = np.concatenate(([0.0], np.cumsum(y)))
+    raw = st.compute(x, 1.0, "htot", [1, 4], ci=None, bias_correction=False)
+    np.testing.assert_allclose(dev, raw.dev)

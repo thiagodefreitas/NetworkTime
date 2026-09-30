@@ -22,7 +22,7 @@ Deliberate differences:
 * ``mtotdev``/``ttotdev`` return the raw NIST SP 1065 eq. (27) value, like
   allantools; :func:`ntpstats.stability.compute` bias-corrects by default.
 * ``theo1`` returns taus of ``0.75 * m / rate`` (the effective tau).
-* ``htotdev`` is not implemented yet.
+* ``htotdev`` is raw (no bias correction), like ``mtotdev``; ``m = 1`` is the overlapping HDEV.
 
 For confidence intervals, noise identification and gap handling use
 :func:`ntpstats.stability.compute` directly.
@@ -151,8 +151,8 @@ def tierms(data, rate=1.0, data_type="phase", taus=None) -> Result:
 
 
 def htotdev(data, rate=1.0, data_type="phase", taus=None) -> Result:
-    """Hadamard total deviation: not implemented yet (see issue #33)."""
-    raise NotImplementedError("htotdev is not implemented in ntpstats yet")
+    """Hadamard total deviation (raw, without bias correction)."""
+    return _run("htot", data, rate, data_type, taus, bias_correction=False)
 
 
 __all__ = ["adev", "oadev", "mdev", "tdev", "hdev", "ohdev", "totdev", "mtotdev", "ttotdev", "theo1", "mtie",

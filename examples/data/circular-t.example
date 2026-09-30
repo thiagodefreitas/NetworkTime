@@ -1,0 +1,84 @@
+CIRCULAR T 500
+2026 JANUARY 10, 10h UTC
+
+1 - Difference between UTC and its local realizations UTC(k) and corresponding uncertainties.
+
+Date 2026    0h UTC           D00      D01      D02      D03      D04      D05      Uncertainty/ns Notes
+       MJD                     61000    61005    61010    61015    61020    61025     uA    uB    u
+Laboratory k                                         [UTC-UTC(k)]/ns
+
+LABA (Somewhere)                 0.0      0.5      1.0      1.5      2.0      2.5    0.2   2.0   2.0
+LABB (Elsewhere)                -3.0     -2.9     -2.8     -2.7     -2.6     -2.5    0.2   2.0   2.0
+
+2 - International Atomic Time (TAI) and Coordinated Universal Time (UTC)
+
+CIRCULAR T 501
+2026 JANUARY 10, 10h UTC
+
+1 - Difference between UTC and its local realizations UTC(k) and corresponding uncertainties.
+
+Date 2026    0h UTC           D00      D01      D02      D03      D04      D05      Uncertainty/ns Notes
+       MJD                     61030    61035    61040    61045    61050    61055     uA    uB    u
+Laboratory k                                         [UTC-UTC(k)]/ns
+
+LABA (Somewhere)                 3.0      3.5      4.0      4.5      5.0      5.5    0.2   2.0   2.0
+LABB (Elsewhere)                -2.4     -2.3     -2.2     -2.1     -2.0     -1.9    0.2   2.0   2.0
+
+2 - International Atomic Time (TAI) and Coordinated Universal Time (UTC)
+
+CIRCULAR T 502
+2026 JANUARY 10, 10h UTC
+
+1 - Difference between UTC and its local realizations UTC(k) and corresponding uncertainties.
+
+Date 2026    0h UTC           D00      D01      D02      D03      D04      D05      Uncertainty/ns Notes
+       MJD                     61060    61065    61070    61075    61080    61085     uA    uB    u
+Laboratory k                                         [UTC-UTC(k)]/ns
+
+LABA (Somewhere)                 6.0      6.5      7.0      7.5      8.0      8.5    0.2   2.0   2.0
+LABB (Elsewhere)                -1.8     -1.7     -1.6     -1.5     -1.4     -1.3    0.2   2.0   2.0
+
+2 - International Atomic Time (TAI) and Coordinated Universal Time (UTC)
+
+CIRCULAR T 503
+2026 JANUARY 10, 10h UTC
+
+1 - Difference between UTC and its local realizations UTC(k) and corresponding uncertainties.
+
+Date 2026    0h UTC           D00      D01      D02      D03      D04      D05      Uncertainty/ns Notes
+       MJD                     61090    61095    61100    61105    61110    61115     uA    uB    u
+Laboratory k                                         [UTC-UTC(k)]/ns
+
+LABA (Somewhere)                 9.0      9.5     10.0     10.5     11.0     11.5    0.2   2.0   2.0
+LABB (Elsewhere)                -1.2     -1.1     -1.0     -0.9     -0.8     -0.7    0.2   2.0   2.0
+
+2 - International Atomic Time (TAI) and Coordinated Universal Time (UTC)
+
+CIRCULAR T 504
+2026 JANUARY 10, 10h UTC
+
+1 - Difference between UTC and its local realizations UTC(k) and corresponding uncertainties.
+
+Date 2026    0h UTC           D00      D01      D02      D03      D04      D05      Uncertainty/ns Notes
+       MJD                     61120    61125    61130    61135    61140    61145     uA    uB    u
+Laboratory k                                         [UTC-UTC(k)]/ns
+
+LABA (Somewhere)                12.0     12.5     13.0     13.5     14.0     14.5    0.2   2.0   2.0
+LABB (Elsewhere)                -0.6     -0.5     -0.4     -0.3     -0.2     -0.1    0.2   2.0   2.0
+
+2 - International Atomic Time (TAI) and Coordinated Universal Time (UTC)
+
+CIRCULAR T 505
+2026 JANUARY 10, 10h UTC
+
+1 - Difference between UTC and its local realizations UTC(k) and corresponding uncertainties.
+
+Date 2026    0h UTC           D00      D01      D02      D03      D04      D05      Uncertainty/ns Notes
+       MJD                     61150    61155    61160    61165    61170    61175     uA    uB    u
+Laboratory k                                         [UTC-UTC(k)]/ns
+
+LABA (Somewhere)                15.0     15.5     16.0     16.5     17.0     17.5    0.2   2.0   2.0
+LABB (Elsewhere)                 0.0      0.1      0.2      0.3      0.4      0.5    0.2   2.0   2.0
+
+2 - International Atomic Time (TAI) and Coordinated Universal Time (UTC)
+

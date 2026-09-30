@@ -1,0 +1,3 @@
+# ntpstats.spectrum
+
+::: ntpstats.spectrum

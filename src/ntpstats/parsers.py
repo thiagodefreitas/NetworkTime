@@ -65,6 +65,11 @@ FORMATS = (
     "w32tm",
     "prometheus",
     "bounds",
+    "cggtts",
+    "rinex-clock",
+    "circular-t",
+    "ripe-atlas",
+    "ntppool",
     "gsoc2012",
 )
 
@@ -156,6 +161,11 @@ def detect_format(lines: Sequence[str]) -> str:
     head = "\n".join(lines[:50])
     if '"resultType"' in head and '"matrix"' in head:
         return "prometheus"
+    from .research import detect as _research
+
+    found = _research(lines)
+    if found:
+        return found
     if _W32_RDTSC.search(head) or ("Tracking " in head and any(_W32_LINE.match(ln) for ln in lines[:50])):
         return "w32tm"
     if _BOUNDS_TEXT.search(head):
@@ -759,7 +769,15 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
     elif isinstance(source, (str, os.PathLike)):
         with open(source, "rb") as fh:
             head = fh.read(4)
-        if fmt == "pcap" or is_capture(head):
+        if head[:2] == b"\x1f\x8b":  # gzip (IGS products, compressed logs)
+            import gzip
+
+            with gzip.open(source, "rb") as fh:
+                raw = fh.read()
+            head = raw[:4]
+            if not is_capture(head):
+                source, raw = io.StringIO(raw.decode("utf-8", errors="replace")), None
+        elif fmt == "pcap" or is_capture(head):
             with open(source, "rb") as fh:
                 raw = fh.read()
     if raw is not None and (fmt in ("auto", "pcap")) and is_capture(raw[:4]):
@@ -797,6 +815,16 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
             raise ParseError(str(exc)) from exc
     elif fmt == "pcap":
         raise ParseError("not a pcap/pcapng capture")
+    elif fmt in ("cggtts", "rinex-clock", "circular-t", "ripe-atlas", "ntppool"):
+        from . import research
+
+        fn: Dict[str, Callable[..., List[TimeSeries]]] = {"cggtts": research.parse_cggtts, "rinex-clock": research.parse_rinex_clock,
+              "circular-t": research.parse_circular_t, "ntppool": research.parse_ntppool}
+        try:
+            series = (research.parse_ripe_atlas("\n".join(lines), label) if fmt == "ripe-atlas"
+                      else fn[fmt](lines, label))
+        except (ValueError, KeyError) as exc:
+            raise ParseError(str(exc)) from exc
     elif fmt in _PARSERS:
         series = _PARSERS[fmt](lines, label)
     else:

@@ -8,7 +8,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 const PALETTE = ["#3b82f6", "#f97316", "#10b981", "#e11d48", "#8b5cf6", "#eab308", "#06b6d4", "#64748b"];
-const KIND_LABEL = { adev: "ADEV", oadev: "OADEV", mdev: "MDEV", tdev: "TDEV", hdev: "HDEV", totdev: "TOTDEV", mtot: "MTOT", ttot: "TTOT", theo1: "Theo1", theobr: "TheoBR", theoh: "TheoH", mtie: "MTIE", tierms: "TIErms" };
+const KIND_LABEL = { adev: "ADEV", oadev: "OADEV", mdev: "MDEV", tdev: "TDEV", hdev: "HDEV", totdev: "TOTDEV", mtot: "MTOT", ttot: "TTOT", htot: "HTOT", theo1: "Theo1", theobr: "TheoBR", theoh: "TheoH", mtie: "MTIE", tierms: "TIErms" };
 const TIME_KINDS = new Set(["tdev", "ttot", "mtie", "tierms"]);
 const NOISE = { "2": "white PM", "1": "flicker PM", "0": "white FM", "-1": "flicker FM", "-2": "RW FM" };
 
@@ -250,6 +250,8 @@ async function render() {
     else if (state.tab === "stability") await renderStability();
     else if (state.tab === "distribution") await renderDistribution();
     else if (state.tab === "network") await renderNetwork();
+    else if (state.tab === "spectrum") await renderSpectrum();
+    else if (state.tab === "holdover") await renderHoldover();
   } catch (e) {
     toast(e.message, true);
   }
@@ -432,7 +434,7 @@ async function renderStability() {
   const tables = [], series = [{}], bands = [];
   const dashes = [[], [6, 3], [2, 3], [8, 3, 2, 3], [1, 2], [10, 4]];
   const showCi = +ci > 0;
-  const kindColors = { adev: PALETTE[5], oadev: PALETTE[0], mdev: PALETTE[1], tdev: PALETTE[2], hdev: PALETTE[4], totdev: PALETTE[6], mtot: "#0f766e", ttot: "#134e4a", theo1: PALETTE[7], theobr: "#374151", theoh: "#9333ea", mtie: PALETTE[3], tierms: "#a16207" };
+  const kindColors = { adev: PALETTE[5], oadev: PALETTE[0], mdev: PALETTE[1], tdev: PALETTE[2], hdev: PALETTE[4], totdev: PALETTE[6], mtot: "#0f766e", ttot: "#134e4a", htot: "#7c3aed", theo1: PALETTE[7], theobr: "#374151", theoh: "#9333ea", mtie: PALETTE[3], tierms: "#a16207" };
   payloads.forEach((p, i) => {
     p.results.forEach((r, j) => {
       if (!r.taus.length) return;
@@ -455,6 +457,18 @@ async function renderStability() {
       }
     });
   });
+  // Optional fitted power-law noise model, drawn as dashed curves for the displayed statistics.
+  let noise = null;
+  $("#noise-wrap").hidden = !$("#noisefit").checked;
+  if ($("#noisefit").checked && tables.length) {
+    try {
+      noise = await api(`/api/noise/${ids[0]}?${params({ kinds: kinds.join(",") })}`);
+      for (const [k, c] of Object.entries(noise.curves)) {
+        tables.push([c.taus, c.dev]);
+        series.push({ label: `model ${KIND_LABEL[k]}`, stroke: kindColors[k] || css("--muted"), width: 1.5, dash: [4, 4], points: { show: false }, value: (u, v) => (TIME_KINDS.has(k) ? fmtSec(v) : fmtExp(v)) });
+      }
+    } catch (e) { toast(`noise model: ${e.message}`, true); noise = null; }
+  }
   if (!tables.length) return toast("not enough data for the selected statistics", true);
   let data = tables.length === 1 ? tables[0] : uPlot.join(tables);
 
@@ -512,6 +526,81 @@ async function renderStability() {
       <table><tr><th>τ</th><th>τ [s]</th><th>${KIND_LABEL[r.kind]}</th><th>lower</th><th>upper</th><th>EDF</th><th>terms</th><th>noise</th>${r.mask ? "<th>limit</th><th>margin</th>" : ""}</tr>${rows}</table>`;
   }).join("")).join("");
   $("#stability-table").innerHTML = blocks;
+  if (noise) renderNoiseTable(noise);
+}
+
+function renderNoiseTable(n) {
+  const rows = n.alphas.map((a) => {
+    const v = n.h[String(a)], lo = n.lo[String(a)], hi = n.hi[String(a)];
+    return `<tr><td>${NOISE[String(a)]}</td><td>${a}</td><td>${v > 0 ? fmtExp(v) : "–"}</td>
+      <td>${v > 0 ? `${fmtExp(lo)} … ${fmtExp(hi)}` : hi != null ? `< ${fmtExp(hi)}` : "–"}</td></tr>`;
+  }).join("");
+  $("#noise-table").innerHTML = `<table><tr><th>noise</th><th>α</th><th>h_α</th><th>95 % interval</th></tr>${rows}</table>`;
+  const corners = (n.corners || []).map((c) => `${c.from} → ${c.to} near τ ≈ ${tauFmt(c.tau)}`).join("; ");
+  $("#noise-note").textContent = `reduced χ² ${fmtNum(n.reduced_chi2, 3)}${n.drift ? ` · drift ${fmtExp(n.drift)} /s` : ""}` +
+    (corners ? ` · ${corners}` : "") + ". Quick analytic intervals (approximate: points of a curve are correlated); `ntpstats noise FILE` gives bootstrap intervals and a simulator scenario.";
+}
+
+async function renderSpectrum() {
+  const id = state.active;
+  const carrier = $("#sp-carrier").value;
+  const p = await api(`/api/spectrum/${id}?${params({ kind: $("#sp-kind").value, method: $("#sp-method").value, carrier })}`);
+  const lf = p.lf_dbc && carrier;
+  const y = lf ? p.lf_dbc : p.psd;
+  const series = [{ label: "f", value: (u, v) => (v == null ? "–" : `${fmtExp(v)} Hz`) },
+    { label: lf ? "L(f)" : p.kind === "x" ? "S_x(f)" : "S_y(f)", stroke: PALETTE[0], width: 1.75, points: { show: true, size: 4, fill: PALETTE[0] }, value: (u, v) => (v == null ? "–" : lf ? `${v.toFixed(1)} dBc/Hz` : fmtExp(v)) }];
+  const data = [p.f, y];
+  if (p.model && !lf) {
+    data.push(p.model);
+    series.push({ label: "power-law model", stroke: css("--muted"), width: 1.5, dash: [4, 4], points: { show: false }, value: (u, v) => fmtExp(v) });
+  }
+  makeChart("spectrum", $("#chart-spectrum"), {
+    series,
+    scales: { x: { time: false, distr: 3 }, y: { distr: lf ? 1 : 3 } },
+    axes: [axis({ label: "Fourier frequency f [Hz]", values: logVals((v) => v.toExponential(0)) }),
+      axis({ label: lf ? "L(f) [dBc/Hz]" : p.kind === "x" ? "S_x(f) [s²/Hz]" : "S_y(f) [1/Hz]", size: 72, values: lf ? undefined : logVals((v) => v.toExponential(0)) })],
+  }, data);
+  const m = p.meta || {};
+  $("#sp-note").textContent = `${m.method}, ${m.segments} segments of ${m.nperseg} points over ${m.stretches} gap-free stretch(es), ${m.per_decade || ""} bins/decade. ` +
+    (p.kind === "y" ? "S_y from first differences of the phase. " : "") + "One-sided PSDs (IEEE 1139).";
+}
+
+async function renderHoldover() {
+  const id = state.active;
+  const limits = $("#ho-limits").value;
+  let r;
+  try {
+    r = await api(`/api/holdover/${id}?${params({ horizon: $("#ho-horizon").value, limit: limits, model: $("#ho-model").value, source: $("#ho-source").value })}`);
+  } catch (e) {
+    $("#ho-cards").innerHTML = `<div class="card"><div class="k">Holdover prediction unavailable</div><div class="s">${esc(e.message)}</div></div>`;
+    return;
+  }
+  const cards = [card("frequency at loss", `${fmtNum(r.frequency * 1e9, 4)} ppb`, `fit over ${fmtDur(r.window)}`),
+    card("drift", `${fmtNum(r.drift * 86400e9, 3)} ppb/day`, r.meta.drift_in_mean ? "shifts the mean TIE" : "not significant")];
+  for (const [lim, tt] of Object.entries(r.limits || {})) {
+    cards.push(card(`within ${fmtSec(+lim)}`, tt.envelope ? fmtDur(tt.envelope) : `> ${fmtDur(r.t[r.t.length - 1])}`,
+      `${Math.round(r.ci * 100)} % envelope; expected ${tt.mean ? fmtDur(tt.mean) : "beyond horizon"}`));
+  }
+  $("#ho-cards").innerHTML = cards.join("");
+  const abs = (a) => a.map((v) => Math.abs(v));
+  const hiAbs = r.lo.map((v, i) => Math.max(Math.abs(v), Math.abs(r.hi[i])));
+  const data = [r.t, abs(r.mean).map((v) => v || null), hiAbs];
+  const series = [{ label: "after loss", value: (u, v) => (v == null ? "–" : fmtDur(v)) },
+    { label: "|mean TIE|", stroke: PALETTE[0], width: 1.5, points: { show: false }, value: (u, v) => fmtSec(v) },
+    { label: `${Math.round(r.ci * 100)} % envelope`, stroke: PALETTE[3], width: 2, points: { show: false }, value: (u, v) => fmtSec(v) }];
+  for (const lim of Object.keys(r.limits || {})) {
+    data.push(r.t.map(() => +lim));
+    series.push({ label: `limit ${fmtSec(+lim)}`, stroke: css("--bad"), width: 1, dash: [6, 4], points: { show: false }, value: (u, v) => fmtSec(v) });
+  }
+  makeChart("holdover", $("#chart-holdover"), {
+    series,
+    scales: { x: { time: false, distr: 3 }, y: { distr: 3 } },
+    axes: [axis({ label: "time since loss of reference", values: logVals(tauFmt) }),
+      axis({ label: "|TIE| [s]", size: 72, values: logVals((v) => fmtSec(v, 2)) })],
+  }, data);
+  $("#ho-note").textContent = (r.meta.warning ? r.meta.warning + ". " : "") +
+    "Predicted time error if the reference were lost at the end of the data: noise model fitted to the data (with its uncertainty), " +
+    "frequency" + (r.model === "drift" ? " and drift" : "") + " from a least-squares fit. Check calibration on your own log with `ntpstats holdover FILE --backtest 20`.";
 }
 
 async function renderDistribution() {
@@ -675,7 +764,7 @@ function init() {
   });
 
   $$(".tabs button").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; render(); }));
-  for (const id of ["detrend", "outliers", "overlay", "aux", "taus", "ci", "slopes", "bins", "dyn"]) $(`#${id}`).addEventListener("change", render);
+  for (const id of ["detrend", "outliers", "overlay", "aux", "taus", "ci", "slopes", "bins", "dyn", "noisefit", "sp-kind", "sp-method", "sp-carrier", "ho-horizon", "ho-limits", "ho-model", "ho-source"]) $(`#${id}`).addEventListener("change", render);
   $("#mask-chip").addEventListener("click", () => { state.mask = null; $("#mask-label").textContent = "Mask…"; render(); });
   $("#mask-chip").title = "Click to remove the mask";
   $("#mask-input").addEventListener("change", async (e) => {

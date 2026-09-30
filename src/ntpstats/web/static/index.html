@@ -61,6 +61,8 @@
       <button role="tab" data-tab="stability">Stability</button>
       <button role="tab" data-tab="distribution">Distribution</button>
       <button role="tab" data-tab="network">Network</button>
+      <button role="tab" data-tab="spectrum">Spectrum</button>
+      <button role="tab" data-tab="holdover">Holdover</button>
     </nav>
 
     <div class="controls">
@@ -151,6 +153,7 @@
         </label>
         <span id="mask-chip" class="chip" hidden></span>
         <label class="check"><input type="checkbox" id="dyn"> dynamic</label>
+        <label class="check" title="Fit h_-2..h_2 (white/flicker PM, white/flicker/random-walk FM) and overlay the model"><input type="checkbox" id="noisefit"> noise model</label>
         <span class="grow"></span>
         <button class="btn small" data-export="stability">PNG</button>
         <button class="btn small" data-csv="stability.csv">CSV</button>
@@ -160,6 +163,11 @@
         <h3>Dynamic stability (sliding window)</h3>
         <div class="chart heat"><canvas id="heat"></canvas></div>
         <p class="note" id="dyn-note"></p>
+      </div>
+      <div id="noise-wrap" hidden>
+        <h3>Power-law noise model <span class="hint">S_y(f) = Σ h_α f^α, fitted to OADEV; dashed curves on the chart</span></h3>
+        <div id="noise-table" class="table-wrap"></div>
+        <p class="note" id="noise-note"></p>
       </div>
       <div id="stability-table" class="table-wrap"></div>
     </section>
@@ -183,6 +191,58 @@
       <h3>Floor packet percentage</h3>
       <div class="chart short" id="chart-fpp"></div>
       <p class="note" id="net-note"></p>
+    </section>
+    <section id="tab-spectrum" class="tab">
+      <div class="subcontrols">
+        <label>Spectrum
+          <select id="sp-kind">
+            <option value="y">frequency S_y(f)</option>
+            <option value="x">phase S_x(f)</option>
+          </select>
+        </label>
+        <label>Method
+          <select id="sp-method">
+            <option value="welch">Welch (Hann, 50 %)</option>
+            <option value="multitaper">sine multitaper</option>
+          </select>
+        </label>
+        <label title="With the phase spectrum: show L(f) for this carrier">Carrier Hz <input type="number" id="sp-carrier" placeholder="e.g. 10e6" step="any"></label>
+        <span class="grow"></span>
+        <button class="btn small" data-export="spectrum">PNG</button>
+      </div>
+      <div class="chart tall" id="chart-spectrum"></div>
+      <p class="note" id="sp-note"></p>
+    </section>
+
+    <section id="tab-holdover" class="tab">
+      <div class="subcontrols">
+        <label>Horizon
+          <select id="ho-horizon">
+            <option value="3600">1 h</option>
+            <option value="14400">4 h</option>
+            <option value="86400" selected>1 day</option>
+            <option value="604800">1 week</option>
+          </select>
+        </label>
+        <label title="Comma-separated, e.g. 1.1us,100us">Limits <input type="text" id="ho-limits" value="1.1us,100us,1ms" size="14"></label>
+        <label>Holdover
+          <select id="ho-model">
+            <option value="frequency">last frequency</option>
+            <option value="drift">frequency + drift</option>
+          </select>
+        </label>
+        <label title="Phase from the offset column, or integrate a frequency column (chrony tracking)">Phase from
+          <select id="ho-source">
+            <option value="offset">offset</option>
+            <option value="frequency">frequency column</option>
+          </select>
+        </label>
+        <span class="grow"></span>
+        <button class="btn small" data-export="holdover">PNG</button>
+      </div>
+      <div id="ho-cards" class="cards"></div>
+      <div class="chart tall" id="chart-holdover"></div>
+      <p class="note" id="ho-note"></p>
     </section>
   </main>
 </div>

@@ -48,13 +48,15 @@ are as valuable as code. Look for issues labelled
   - **live**: chrony, ntpd/NTPsec, linuxptp (`pmc`) and facebook/time `ptpcheck`; Windows
     `w32tm /stripchart`; Prometheus range queries (ntpd-rs, chrony_exporter);
   - **instrument exports** via small TOML profiles (time-interval counters, PTP testers);
+  - **research and laboratory data**: CGGTTS GNSS time transfer (with common view), IGS RINEX
+    clock files, BIPM Circular T (UTC − UTC(k)), RIPE Atlas NTP results and NTP Pool monitor logs;
   - generic CSV and the 2012 `estimators.log`.
 
   Every sign convention is normalised to *reference − local*, following each implementation's
   documentation (table below).
 - **Stability analysis done right**: non-overlapping and overlapping ADEV, MDEV, TDEV,
-  overlapping Hadamard, total, modified total and time total deviation (TOTDEV, MTOT, TTOT),
-  Theo1, TheoBR, TheoH, MTIE (O(N log N)) and TIErms. The results reproduce the **NIST SP 1065
+  overlapping Hadamard, total, modified total, time total and Hadamard total deviation (TOTDEV,
+  MTOT, TTOT, HTOT), Theo1, TheoBR, TheoH, MTIE (O(N log N)) and TIErms. The results reproduce the **NIST SP 1065
   test suites to 7 digits**, and each statistic comes with
   - χ² confidence intervals from the **exact** equivalent degrees of freedom of the discrete
     power-law model (Monte Carlo verified),
@@ -66,6 +68,15 @@ are as valuable as code. Look for issues labelled
     network TDEV/MTIE limits), with margins and PASS/FAIL,
   - **compare** a source against a reference (PPS, GNSS or a better server) to get the error's
     bias, RMS, TDEV and MTIE.
+- **Clock metrology**:
+  - fit the **power-law noise model** h₋₂…h₂ (and drift), with bootstrap intervals
+    (`ntpstats noise`), and turn it into a simulator scenario;
+  - phase and frequency **spectra** and L(f) (`ntpstats spectrum`);
+  - the **N-cornered hat / Groslambert covariance** to find which of three or more servers or
+    clocks is the noisy one without a better reference (`ntpstats hat`);
+  - **holdover prediction**: how long a clock stays within 1.1 µs, 100 µs or 1 ms if GNSS or
+    the network is lost, with a calibrated envelope and a backtest on your own log
+    (`ntpstats holdover`).
 - **Telecom time error**: max|TE|, cTE, dTE_L/dTE_H, max|TEL|, and MTIE/TDEV of dTE_L, checked
   against your own limits and masks (`ntpstats timeerror`, exit code 3 on failure). Input can be
   a PTP capture, a linuxptp log or a time-interval counter.

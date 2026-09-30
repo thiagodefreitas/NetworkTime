@@ -87,3 +87,15 @@ def test_mtot_published_values_are_bias_corrected():
     np.testing.assert_allclose(raw.dev / np.sqrt(st.MTOT_BIAS[0]), TABLE31["mtot"], rtol=REL)
     cooked = st.compute(x, 1.0, "mtot", [1, 10, 100], ci=None, min_terms=1)
     assert cooked.meta["bias_factor"] == [0.73, 0.73, 0.73]
+
+
+def test_htot_against_sp1065_tables():
+    # HTOT (#33): Tables 30-31 list bias-corrected values (white FM, factor 0.995); m = 1 is the
+    # overlapping HDEV. Stable32's exact detrending details are not published: agreement is 0.3 %.
+    r = st.compute(to_phase(NBS9), 1.0, "htot", [1, 2], ci=None, min_terms=1)
+    np.testing.assert_allclose(r.dev, [70.80607, 91.16396], rtol=3e-3)
+    r = st.compute(to_phase(nist1000()), 1.0, "htot", [1, 10, 100], ci=None, min_terms=1)
+    np.testing.assert_allclose(r.dev, [2.943883e-01, 9.614787e-02, 3.058103e-02], rtol=3e-3)
+    assert r.meta["bias_factor"][1:] == [0.995, 0.995]
+    ci = st.compute(to_phase(nist1000()), 1.0, "htot", [10, 100])
+    assert np.all(ci.lo < ci.dev) and np.all(ci.dev < ci.hi)

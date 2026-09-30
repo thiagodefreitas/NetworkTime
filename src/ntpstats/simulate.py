@@ -63,6 +63,9 @@ class ClockModel:
     tempco: float = 0.0  # fractional frequency per K (1e-7 = 0.1 ppm/K)
     temp_amplitude: float = 0.0  # K, peak of the temperature cycle
     temp_period: float = 86400.0  # s
+    #: power-law coefficients h_α (S_y(f) = Σ h_α f^α), e.g. from ``ntpstats noise``; when given they
+    #: replace the white/random-walk/flicker fields above
+    h_alpha: Optional[Dict[int, float]] = None
 
     def phase(self, t: np.ndarray, rng=None) -> np.ndarray:
         """Local clock error (local - true) at uniform times ``t``."""
@@ -71,6 +74,14 @@ class ClockModel:
         tau0 = float(np.median(np.diff(t))) if n > 1 else 1.0
         rel = t - t[0]
         x = self.initial_offset + self.freq_offset * rel + 0.5 * self.drift * rel ** 2
+        if self.h_alpha:
+            from .noisefit import simulate as _powerlaw
+
+            x = x + _powerlaw({int(a): float(v) for a, v in self.h_alpha.items()}, n, tau0, rng)
+            if self.tempco and self.temp_amplitude:
+                w = 2 * np.pi / self.temp_period
+                x = x + self.tempco * self.temp_amplitude * (1 - np.cos(w * rel)) / w
+            return x
         if self.white_fm_adev1:
             # white FM: ADEV(tau) = sqrt(h0 / (2 tau)); random-walk phase step
             x = x + powerlaw_phase(n, 0, self.white_fm_adev1 * np.sqrt(tau0), rng)

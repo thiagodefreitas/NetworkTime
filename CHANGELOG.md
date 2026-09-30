@@ -14,6 +14,45 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-10-01
+
+### Added
+- **Power-law noise model** (#25): `ntpstats noise` and `ntpstats.noisefit` fit h₂…h₋₂ and,
+  optionally, a linear drift to OADEV/MDEV/HDEV curves and the spectrum.
+  - The expected estimator values are exact for the discrete Kasdin–Walter model.
+  - Model selection uses BIC.
+  - Intervals come from a parametric bootstrap. Monte Carlo coverage is ≥ 90 % per coefficient
+    except at the edge of detection.
+  - Corner τ values are reported. `--scenario` writes a simulator clock (`[clock.h_alpha]`), and
+    `simulate --scenario` runs it.
+  - The UI can overlay the fitted model on the Stability chart.
+- **Spectra** (#25): `ntpstats spectrum` and `ntpstats.spectrum` compute S_x(f) and S_y(f) with
+  Welch or sine multitaper, per gap-free stretch, log-binned with degrees of freedom. L(f) in
+  dBc/Hz for a carrier. New Spectrum tab in the UI.
+- **N-cornered hat** (#27): `ntpstats hat` and `ntpstats.hat` estimate each source's stability
+  from pairwise differences: Groslambert covariance, three-cornered hat and N-cornered hat by
+  least squares, with intervals. Negative variances are flagged. Sources are aligned from
+  separate logs.
+- **Holdover prediction** (#26): `ntpstats holdover` and `ntpstats.holdover` predict TIE(t)
+  with an envelope and the time to violate limits. The 95 % envelope holds 95 % ± 3 % with a known
+    noise model, and 94–100 % with a fitted one.
+  - The variance is computed exactly for the fitted noise, including the error of the fitted
+    frequency and drift.
+  - The uncertainty of the noise model is mixed into the envelope.
+  - `--backtest` checks calibration on the log itself; `--min-holdover` exits with code 3 when
+    the limit is not held long enough.
+  - Phase can also be integrated from a frequency column (chrony).
+  - New Holdover tab in the UI.
+- **Research data** (#34): new formats `cggtts` (V2E, line checksums), `rinex-clock` (IGS
+  `.clk`), `circular-t` (BIPM, UTC − UTC(k)), `ripe-atlas` (NTP results) and `ntppool`
+  (monitor logs). `ntpstats cv` computes GNSS common-view and all-in-view time transfer, and
+  `research.group_summary` gives per-server or per-probe distributions. Gzipped inputs are read
+  directly.
+- **HTOT** (#33): Hadamard total deviation (`-k htot`), bias-corrected per noise type, matching
+  the NIST SP 1065 tables within 0.3 %. `compat.allantools.htotdev` returns the raw value.
+- Docs: [Metrology](docs/metrology.md) and [Research data](docs/research-data.md) pages;
+  synthetic examples of every new format in `examples/data/`.
+
 ## [2.11.0] - 2026-09-30
 
 ### Added

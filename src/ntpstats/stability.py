@@ -40,8 +40,8 @@ from typing import Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 
-KINDS = ("adev", "oadev", "mdev", "tdev", "hdev", "totdev", "mtot", "ttot", "theo1", "theobr", "theoh", "mtie",
-         "tierms")
+KINDS = ("adev", "oadev", "mdev", "tdev", "hdev", "totdev", "mtot", "ttot", "htot", "theo1", "theobr", "theoh",
+         "mtie", "tierms")
 
 #: Short description used in the UI / CLI.
 DESCRIPTIONS = {
@@ -53,6 +53,7 @@ DESCRIPTIONS = {
     "totdev": "Total deviation",
     "mtot": "Modified total deviation",
     "ttot": "Time total deviation [s]",
+    "htot": "Hadamard total deviation",
     "theo1": "Theo1 deviation (tau = 0.75 m tau0)",
     "theobr": "TheoBR deviation (bias-removed Theo1)",
     "theoh": "TheoH deviation (ADEV + TheoBR)",
@@ -69,6 +70,9 @@ TIME_KINDS = {"tdev", "ttot", "mtie", "tierms"}
 #: divided by it so that, like MVAR, it is unbiased; NIST SP 1065 tables
 #: 30-31 list bias-corrected values.
 MTOT_BIAS = {2: 0.94, 1: 0.83, 0: 0.73, -1: 0.70, -2: 0.69}
+#: HTOT bias: expected HTOT/HVAR ratio (1 + a) per FM noise type (Howe, Beard, Greenhall, Vernotte &
+#: Riley, "Total Hadamard variance", 2001); 1 for PM noise. NIST SP 1065 tables 30-31 list corrected values.
+HTOT_BIAS = {2: 1.0, 1: 1.0, 0: 0.995, -1: 0.851, -2: 0.771}
 #: MTOT EDF ``b * T/tau - c`` (NIST SP 1065 table 8), per alpha.
 MTOT_EDF = {2: (1.90, 2.10), 1: (1.20, 1.40), 0: (1.10, 1.20), -1: (0.85, 0.50), -2: (0.75, 0.31)}
 
@@ -313,6 +317,43 @@ def _mtot(x, m, tau0, opts=None):
     return np.sqrt(var), int(starts.size)
 
 
+def _htot(x, m, tau0, opts=None):
+    """Hadamard total deviation (NIST SP 1065 eq. (29)); m = 1 is the overlapping Hadamard deviation.
+
+    Frequency subsequences of 3m points are detrended with their half-average
+    slope, extended by uninverted even reflection to 9m points, and the mean
+    square of their 6m Hadamard second differences of m-point averages is
+    averaged over all subsequences.
+    """
+    if m == 1:
+        return _hdev(x, 1, tau0)
+    y = np.diff(x) / tau0
+    L = 3 * m
+    if y.size - L + 1 < 1:
+        return np.nan, 0
+    starts = _sample(_valid_starts(y, L), 9 * m, m, opts)
+    if starts.size == 0:
+        return np.nan, 0
+    h1, h2 = L // 2, L - L // 2
+    i1, i2 = np.arange(h1), np.arange(h2, L)
+    dist = float(i2.mean() - i1.mean())
+    t = np.arange(L, dtype=float)
+    windows = np.lib.stride_tricks.sliding_window_view(y, L)
+    total = 0.0
+    step = max(1, _CHUNK // (9 * m))
+    for b in range(0, starts.size, step):
+        ys = windows[starts[b: b + step]]
+        slope = (ys[:, h2:].mean(axis=1) - ys[:, :h1].mean(axis=1)) / dist
+        y0 = ys - slope[:, None] * t
+        ystar = np.concatenate((y0[:, ::-1], y0, y0[:, ::-1]), axis=1)
+        c = np.zeros((ystar.shape[0], 9 * m + 1))
+        np.cumsum(ystar, axis=1, out=c[:, 1:])
+        avg = (c[:, m:] - c[:, :-m]) / m
+        z = avg[:, : 6 * m] - 2.0 * avg[:, m: 7 * m] + avg[:, 2 * m: 8 * m]
+        total += float(np.sum(np.mean(z * z, axis=1)))
+    return np.sqrt(total / starts.size / 6.0), int(starts.size)
+
+
 def _theo1(x, m, tau0, opts=None):
     """Theo1 (NIST SP 1065 eq. (31)); m even, result belongs to tau = 0.75 m tau0."""
     N = x.size
@@ -406,7 +447,8 @@ def _tierms(x, m, tau0):
     return np.sqrt(ms), n
 
 
-_SAMPLED: Dict[str, Callable[..., tuple]] = {"mtot": _mtot, "theo1": _theo1, "theobr": _theobr, "theoh": _theoh}
+_SAMPLED: Dict[str, Callable[..., tuple]] = {"mtot": _mtot, "htot": _htot, "theo1": _theo1, "theobr": _theobr,
+                                             "theoh": _theoh}
 _ESTIMATORS: Dict[str, Callable[..., tuple]] = {"adev": _adev, "oadev": _oadev, "mdev": _mdev, "tdev": _tdev, "hdev": _hdev,
                "totdev": _totdev, "mtot": _mtot, "theo1": _theo1, "theobr": _theobr, "tierms": _tierms}
 
@@ -419,6 +461,7 @@ _MAX_M = {
     "totdev": lambda n: (n - 1) // 2,
     "mtot": lambda n: (n - 1) // 3,
     "ttot": lambda n: (n - 1) // 3,
+    "htot": lambda n: (n - 1) // 3,
     "theo1": lambda n: n - 1,
     "theobr": lambda n: n - 1,
     "theoh": lambda n: (3 * (n - 1)) // 4,
@@ -455,9 +498,9 @@ def compute(
     ``meta["theobr_ratio_terms"]``.
 
     MTOT and TTOT are divided by the MTOT bias factor of the noise type
-    identified at each tau (:data:`MTOT_BIAS`), which is what Stable32 and
-    NIST SP 1065 report; ``bias_correction=False`` returns the raw eq. (27)
-    value. The factors used are in ``meta["bias_factor"]``.
+    identified at each tau (:data:`MTOT_BIAS`), HTOT by :data:`HTOT_BIAS`,
+    which is what Stable32 and NIST SP 1065 report; ``bias_correction=False``
+    returns the raw values. The factors used are in ``meta["bias_factor"]``.
     """
     kind = kind.lower()
     if kind not in KINDS:
@@ -501,6 +544,11 @@ def compute(
         res.meta["theobr_ratio_terms"] = [opts["kf_terms"], opts["kf_total_terms"]]
     if kind in ("mtot", "ttot") and dev.size:
         return _finish_mtot(res, x, ms, ci, bias_correction)
+    if kind == "htot" and dev.size and bias_correction:
+        a = _fill_nan(np.array([noise_alpha(x, max(int(m), 1)) for m in ms], dtype=float))
+        factor = np.array([1.0 if m == 1 else HTOT_BIAS[int(np.clip(round(v), -2, 2))] for m, v in zip(ms, a)])
+        res.dev, res.err = res.dev / np.sqrt(factor), res.err / np.sqrt(factor)
+        res.meta["bias_factor"] = factor.tolist()
     if ci and kind not in ("mtie", "tierms", "theo1", "theobr", "theoh") and dev.size:
         n_phase = int(np.isfinite(x).sum())
         alpha = np.array([noise_alpha(x, int(m)) for m in ms], dtype=float)
@@ -552,6 +600,8 @@ def edf_for_result(kind: str, alpha: float, m: int, terms: int, n_phase: int) ->
             b, c = table[a]
             return float(max(b * n_phase / m - c, 1.0))
         return _edf("oadev", alpha, m, terms)
+    if kind == "htot":  # HTOT has at least the EDF of the overlapping HDEV it improves on
+        return _edf("hdev", alpha, m, max(terms, n_phase - 3 * m))
     return _edf(kind, alpha, m, terms)
 
 

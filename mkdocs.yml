@@ -43,6 +43,8 @@ nav:
   - Audit, events & CI checks: assurance.md
   - Monitoring (Prometheus/Grafana): monitoring.md
   - Protocols (Roughtime, NTS pools, RFC 9769): protocols.md
+  - Metrology (noise model, hat, holdover): metrology.md
+  - Research data (CGGTTS, Circular T, Atlas): research-data.md
   - Validation: validation.md
   - Stable32, TimeLab, allantools: migrating.md
   - API:
@@ -60,6 +62,11 @@ nav:
       - sntp: api/sntp.md
       - nts: api/nts.md
       - roughtime: api/roughtime.md
+      - spectrum: api/spectrum.md
+      - noisefit: api/noisefit.md
+      - hat: api/hat.md
+      - holdover: api/holdover.md
+      - research: api/research.md
       - masks: api/masks.md
       - report: api/report.md
       - ptp: api/ptp.md

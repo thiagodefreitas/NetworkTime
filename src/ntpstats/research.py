@@ -1,0 +1,389 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
+"""Research and time-laboratory data: CGGTTS, RINEX clock, BIPM Circular T, RIPE Atlas, NTP Pool.
+
+* **CGGTTS** (BIPM/CCTF generic GNSS time-transfer format, V2E): one line per
+  satellite track. REFSYS (reference − GNSS system time, 0.1 ns) is averaged
+  per epoch into a series; line checksums are verified. :func:`common_view`
+  differences two stations, satellite by satellite (common view) or epoch by
+  epoch (all in view), giving UTC(A) − UTC(B).
+* **RINEX clock** (IGS ``.clk``, 3.0x): one series per receiver (AR) or
+  satellite (AS) clock bias, in seconds against the file's time scale.
+* **BIPM Circular T**, section 1: ``UTC − UTC(k)`` per laboratory every five
+  days. Concatenate several issues into one file for a long series.
+* **RIPE Atlas** NTP results (JSON from the public API): one series per
+  probe and server. Atlas reports offsets as local − server; they are
+  negated to the ntpstats convention (server − local).
+* **NTP Pool** score logs (``/scores/<ip>/log?monitor=*`` CSV): one series per
+  monitor, with round-trip time and score.
+"""
+
+from __future__ import annotations
+
+import calendar
+import json
+import re
+from collections import OrderedDict, defaultdict
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+
+import numpy as np
+
+from .series import TimeSeries
+
+MJD_UNIX = 40587
+NTP_UNIX = 2208988800
+
+
+class ResearchFormatError(ValueError):
+    pass
+
+
+def _mjd_to_unix(mjd: float) -> float:
+    return (mjd - MJD_UNIX) * 86400.0
+
+
+def _series(t, v, name, fmt, extra=None, meta=None) -> TimeSeries:
+    if not len(t):
+        raise ResearchFormatError(f"no usable samples for format {fmt}")
+    return TimeSeries(np.asarray(t, dtype=float), np.asarray(v, dtype=float), name=name, source_format=fmt,
+                      extra={k: np.asarray(x, dtype=float) for k, x in (extra or {}).items()},
+                      meta=meta or {}).sorted()
+
+
+# ------------------------------------------------------------------ CGGTTS
+def cggtts_tracks(lines: Sequence[str]) -> Dict[str, Any]:
+    """Header fields and one record per track (dict of columns) of a CGGTTS file.
+
+    Several files concatenated together (as in the BIPM archives) are accepted.
+    """
+    header: Dict[str, str] = {}
+    cols: List[str] = []
+    rows: List[List[str]] = []
+    bad = 0
+    for ln in lines:
+        s = ln.rstrip("\r\n")
+        if not s.strip():
+            continue
+        if s.startswith("SAT CL") or s.startswith("PRN CL"):
+            cols = s.split()
+            continue
+        if not cols:
+            m = re.match(r"^\s*([A-Z][A-Z0-9 _]*?)\s*=\s*(.*)$", s)
+            if m:
+                header.setdefault(m.group(1).strip(), m.group(2).strip())
+            elif s.startswith("CGGTTS"):
+                header.setdefault("FORMAT", s.strip())
+            continue
+        tok = s.split()
+        if not tok or not re.fullmatch(r"[A-Z]?\d{1,3}", tok[0]):
+            if re.match(r"^\s*([A-Z][A-Z0-9 _]*?)\s*=", s):  # a new header (concatenated files)
+                cols = []
+                m = re.match(r"^\s*([A-Z][A-Z0-9 _]*?)\s*=\s*(.*)$", s)
+                if m:
+                    header.setdefault(m.group(1).strip(), m.group(2).strip())
+            continue
+        if len(tok) != len(cols):
+            continue
+        body = s.rstrip()
+        try:  # the last field is the line checksum: sum of the preceding characters mod 256, in hex
+            if int(tok[-1], 16) != sum(map(ord, body[: -len(tok[-1])])) % 256:
+                bad += 1
+                continue
+        except ValueError:
+            pass
+        rows.append(tok)
+    if not rows:
+        raise ResearchFormatError("no CGGTTS tracks found")
+    table = {c: [r[i] for r in rows] for i, c in enumerate(cols)}
+    return {"header": header, "columns": cols, "tracks": table, "bad_checksums": bad}
+
+
+def _track_arrays(tr: Dict[str, Any]):
+    t: Dict[str, List[str]] = tr["tracks"]
+    mjd = np.array(t["MJD"], dtype=float)
+    st = t["STTIME"]
+    sec = np.array([int(x[:2]) * 3600 + int(x[2:4]) * 60 + int(x[4:6]) for x in st], dtype=float)
+    trkl = np.array(t.get("TRKL", ["780"] * len(st)), dtype=float)
+    mid = _mjd_to_unix(mjd) + sec + trkl / 2  # REFSV/REFSYS refer to the middle of the track
+    sats = np.array(t["SAT"] if "SAT" in t else t["PRN"])
+    refsys = np.array(t["REFSYS"], dtype=float) * 1e-10
+    refsv = np.array(t["REFSV"], dtype=float) * 1e-10
+    return mid, sats, refsys, refsv
+
+
+def parse_cggtts(lines: Sequence[str], name: str = "cggtts") -> List[TimeSeries]:
+    """REFSYS (reference − GNSS time) averaged over the satellites of each epoch."""
+    tr = cggtts_tracks(lines)
+    mid, sats, refsys, _ = _track_arrays(tr)
+    epochs, inv = np.unique(mid, return_inverse=True)
+    n = np.bincount(inv)
+    mean = np.bincount(inv, refsys) / n
+    sq = np.bincount(inv, refsys ** 2) / n
+    std = np.sqrt(np.maximum(sq - mean ** 2, 0.0))
+    hdr: Dict[str, str] = tr["header"]
+    lab = hdr.get("LAB", "")
+    systems = sorted({s[0] for s in sats if s and s[0].isalpha()})
+    return [_series(epochs, mean, f"{name} [{lab} REFSYS {''.join(systems)}]".replace("  ", " "), "cggtts",
+                    extra={"satellites": n, "refsys_std": std},
+                    meta={"peer": lab, "lab": lab, "receiver": hdr.get("RCVR", ""), "reference": hdr.get("REF", ""),
+                          "quantity": "REF - GNSS system time", "bad_checksums": tr["bad_checksums"],
+                          "note": "one sample per CGGTTS epoch (track midpoint), mean of all satellites"})]
+
+
+def common_view(a_lines: Sequence[str], b_lines: Sequence[str], mode: str = "cv", min_sats: int = 1,
+                name: Optional[str] = None) -> TimeSeries:
+    """REF(A) − REF(B) from two CGGTTS files.
+
+    ``mode="cv"``: common view, REFSV differences of the same satellite at the
+    same epoch, averaged per epoch (satellite clock errors cancel).
+    ``mode="aiv"``: all in view, difference of the per-epoch REFSYS means
+    (needs no common satellites; relies on precise orbits and clocks).
+    """
+    ta, tb = cggtts_tracks(a_lines), cggtts_tracks(b_lines)
+    ma, sa, ysa, vsa = _track_arrays(ta)
+    mb, sb, ysb, vsb = _track_arrays(tb)
+    la = ta["header"].get("LAB", "A")
+    lb = tb["header"].get("LAB", "B")
+    rows: Dict[float, List[float]] = defaultdict(list)
+    if mode == "cv":
+        idx = {(round(t, 1), s): v for t, s, v in zip(mb, sb, vsb)}
+        for t, s, v in zip(ma, sa, vsa):
+            w = idx.get((round(t, 1), s))
+            if w is not None:
+                rows[t].append(v - w)
+    elif mode == "aiv":
+        ea: Dict[float, List[float]] = defaultdict(list)
+        eb: Dict[float, List[float]] = defaultdict(list)
+        for t, v in zip(ma, ysa):
+            ea[round(t, 1)].append(v)
+        for t, v in zip(mb, ysb):
+            eb[round(t, 1)].append(v)
+        for t in ea.keys() & eb.keys():
+            rows[t] = [float(np.mean(ea[t]) - np.mean(eb[t]))] * min(len(ea[t]), len(eb[t]))
+    else:
+        raise ValueError("mode must be 'cv' or 'aiv'")
+    keep = sorted(t for t, v in rows.items() if len(v) >= min_sats)
+    if not keep:
+        raise ResearchFormatError("no common epochs between the two files")
+    t = np.array(keep)
+    v = np.array([np.mean(rows[k]) for k in keep])
+    n = np.array([len(rows[k]) for k in keep], dtype=float)
+    return _series(t, v, name or f"{la} - {lb} ({mode.upper()})", "cggtts", extra={"satellites": n},
+                   meta={"peer": f"{la}-{lb}", "quantity": f"REF({la}) - REF({lb})", "mode": mode})
+
+
+# ------------------------------------------------------------------ RINEX clock
+def parse_rinex_clock(lines: Sequence[str], name: str = "rinex-clock", types: Iterable[str] = ("AR", "AS"),
+                      clocks: Optional[Iterable[str]] = None) -> List[TimeSeries]:
+    """Clock bias series from a RINEX clock file (one per receiver/satellite)."""
+    want_t = set(types)
+    want_c = set(clocks) if clocks else None
+    in_hdr, tscale = True, "GPS"
+    data: "OrderedDict[str, List[Tuple[float, float, float]]]" = OrderedDict()
+    for ln in lines:
+        if in_hdr:
+            if "TIME SYSTEM ID" in ln[60:]:
+                tscale = ln[:60].strip() or tscale
+            if "END OF HEADER" in ln[60:]:
+                in_hdr = False
+            continue
+        tok = ln.split()
+        if len(tok) < 10 or tok[0] not in want_t:
+            continue
+        clk = tok[1]
+        if want_c is not None and clk not in want_c:
+            continue
+        try:
+            y, mo, d, h, mi = (int(x) for x in tok[2:7])
+            sec = float(tok[7])
+            bias = float(tok[9].replace("D", "E"))
+            sig = float(tok[10].replace("D", "E")) if len(tok) > 10 else float("nan")
+        except ValueError:
+            continue
+        t = calendar.timegm((y, mo, d, h, mi, 0)) + sec
+        data.setdefault(f"{tok[0]} {clk}", []).append((t, bias, sig))
+    if in_hdr:
+        raise ResearchFormatError("RINEX clock: END OF HEADER not found")
+    out = []
+    for key, rows in data.items():
+        a = np.array(rows)
+        kind, clk = key.split(" ", 1)
+        out.append(_series(a[:, 0], a[:, 1], f"{name} [{clk}]", "rinex-clock", extra={"sigma": a[:, 2]},
+                           meta={"peer": clk, "clock_type": "receiver" if kind == "AR" else "satellite",
+                                 "time_scale": tscale, "quantity": f"clock - {tscale} reference",
+                                 "note": "epochs are in the file's time scale (no leap-second correction)"}))
+    if not out:
+        raise ResearchFormatError("RINEX clock: no clock records")
+    return out
+
+
+# ------------------------------------------------------------------ BIPM Circular T
+_CIRT_LAB = re.compile(r"^([A-Z][A-Z0-9]{0,5})\s+\(([^)]*)\)\s+(.*)$")
+
+
+def parse_circular_t(lines: Sequence[str], name: str = "circular-t", labs: Optional[Iterable[str]] = None
+                     ) -> List[TimeSeries]:
+    """UTC − UTC(k) per laboratory from section 1 of one or more concatenated Circular T issues."""
+    want = set(labs) if labs else None
+    data: Dict[str, Dict[int, float]] = defaultdict(dict)
+    unc: Dict[str, Tuple[float, float, float]] = {}
+    city: Dict[str, str] = {}
+    mjds: List[int] = []
+    in_s1 = False
+    issues = 0
+    for ln in lines:
+        s = ln.rstrip()
+        if re.match(r"^1 - ", s):
+            in_s1, mjds = True, []
+            issues += 1
+            continue
+        if re.match(r"^[2-9] - ", s):
+            in_s1 = False
+            continue
+        if not in_s1:
+            continue
+        if s.strip().startswith("MJD"):
+            mjds = [int(x) for x in s.split()[1:] if re.fullmatch(r"\d{5}", x)]
+            continue
+        m = _CIRT_LAB.match(s)
+        if not m or not mjds:
+            continue
+        lab = m.group(1)
+        if want is not None and lab not in want:
+            continue
+        tok = m.group(3).split()
+        vals = tok[: len(mjds)]
+        if len(vals) < len(mjds):
+            continue
+        city[lab] = m.group(2).strip()
+        for mj, v in zip(mjds, vals):
+            try:
+                data[lab][mj] = float(v) * 1e-9
+            except ValueError:
+                pass  # "-": no value
+        rest = tok[len(mjds): len(mjds) + 3]
+        try:
+            unc[lab] = tuple(float(x) * 1e-9 if x not in ("-", "NC") else float("nan") for x in rest)  # type: ignore[assignment]
+        except ValueError:
+            pass
+    if not issues:
+        raise ResearchFormatError("Circular T: section 1 not found")
+    out = []
+    for lab, d in sorted(data.items()):
+        if not d:
+            continue
+        mj = np.array(sorted(d))
+        u = unc.get(lab, (float("nan"),) * 3)
+        out.append(_series(_mjd_to_unix(mj), [d[k] for k in mj], f"{name} [UTC-UTC({lab})]", "circular-t",
+                           meta={"peer": lab, "lab": lab, "city": city.get(lab, ""),
+                                 "quantity": "UTC - UTC(k)", "uA": u[0], "uB": u[1], "u": u[2],
+                                 "issues": issues}))
+    if not out:
+        raise ResearchFormatError("Circular T: no laboratory values")
+    return out
+
+
+# ------------------------------------------------------------------ RIPE Atlas
+def parse_ripe_atlas(text: str, name: str = "atlas") -> List[TimeSeries]:
+    """NTP measurement results from the RIPE Atlas API (JSON list or JSON lines)."""
+    text = text.strip()
+    if text.startswith("["):
+        items = json.loads(text)
+    else:
+        items = [json.loads(ln) for ln in text.splitlines() if ln.strip()]
+    groups: "OrderedDict[Tuple[int, str], Dict[str, list]]" = OrderedDict()
+    info: Dict[Tuple[int, str], Dict[str, object]] = {}
+    timeouts = 0
+    for it in items:
+        if it.get("type") != "ntp":
+            continue
+        key = (int(it.get("prb_id", 0)), str(it.get("dst_addr") or it.get("dst_name", "")))
+        g = groups.setdefault(key, {"t": [], "off": [], "delay": [], "stratum": [], "root_delay": [],
+                                    "root_dispersion": []})
+        info.setdefault(key, {"dst_name": it.get("dst_name"), "msm_id": it.get("msm_id"), "af": it.get("af"),
+                              "from": it.get("from")})
+        for r in it.get("result", []):
+            if "offset" not in r:
+                timeouts += 1
+                continue
+            t = r.get("final-ts") or r.get("origin-ts")
+            g["t"].append(float(t) - NTP_UNIX if t else float(it.get("timestamp", 0)))
+            g["off"].append(-float(r["offset"]))  # Atlas: local - server
+            g["delay"].append(float(r.get("rtt", np.nan)))
+            g["stratum"].append(float(it.get("stratum", np.nan)))
+            g["root_delay"].append(float(it.get("root-delay", np.nan)))
+            g["root_dispersion"].append(float(it.get("root-dispersion", np.nan)))
+    out = []
+    for (prb, dst), g in groups.items():
+        if not g["t"]:
+            continue
+        extra = {k: g[k] for k in ("delay", "stratum", "root_delay", "root_dispersion")}
+        meta = {"peer": dst, "probe": prb, **info[(prb, dst)], "quantity": "server - probe clock"}
+        out.append(_series(g["t"], g["off"], f"{name} [probe {prb} -> {info[(prb, dst)]['dst_name'] or dst}]",
+                           "ripe-atlas", extra=extra, meta=meta))
+    if not out:
+        raise ResearchFormatError(f"RIPE Atlas: no NTP responses ({timeouts} timeouts)")
+    for s in out:
+        s.meta["timeouts_in_file"] = timeouts
+    return out
+
+
+def group_summary(series: Sequence[TimeSeries], by: str = "peer") -> List[Dict[str, object]]:
+    """Offset distribution per group (``peer``: server, ``probe``: vantage point) across many series."""
+    groups: Dict[str, List[np.ndarray]] = defaultdict(list)
+    for s in series:
+        groups[str(s.meta.get(by, s.name))].append(s.offset)
+    out = []
+    for k, arrs in groups.items():
+        x = np.concatenate(arrs)
+        out.append({by: k, "series": len(arrs), "samples": int(x.size), "median_offset": float(np.median(x)),
+                    "p95_abs_offset": float(np.percentile(np.abs(x), 95)), "max_abs_offset": float(np.abs(x).max())})
+    return sorted(out, key=lambda r: -float(r["p95_abs_offset"]))  # type: ignore[arg-type]
+
+
+# ------------------------------------------------------------------ NTP Pool
+def parse_ntppool(lines: Sequence[str], name: str = "ntppool") -> List[TimeSeries]:
+    """NTP Pool monitoring log CSV: one series per monitor (offset in s, rtt in ms)."""
+    hdr = [c.strip() for c in lines[0].split(",")]
+    if "ts_epoch" not in hdr or "offset" not in hdr:
+        raise ResearchFormatError("not an NTP Pool score log")
+    ix = {c: i for i, c in enumerate(hdr)}
+    groups: "OrderedDict[str, Dict[str, list]]" = OrderedDict()
+    for ln in lines[1:]:
+        f = ln.rstrip("\r\n").split(",")
+        if len(f) < len(hdr) or not f[ix["offset"]]:
+            continue
+        mon = f[ix["monitor_name"]] if "monitor_name" in ix and f[ix["monitor_name"]] else "score"
+        g = groups.setdefault(mon, {"t": [], "off": [], "delay": [], "score": [], "step": []})
+        try:
+            g["t"].append(float(f[ix["ts_epoch"]]))
+            g["off"].append(float(f[ix["offset"]]))
+            g["delay"].append(float(f[ix["rtt"]]) * 1e-3 if "rtt" in ix and f[ix["rtt"]] else np.nan)
+            g["score"].append(float(f[ix["score"]]) if "score" in ix and f[ix["score"]] else np.nan)
+            g["step"].append(float(f[ix["step"]]) if "step" in ix and f[ix["step"]] else np.nan)
+        except ValueError:
+            continue
+    out = [_series(g["t"], g["off"], f"{name} [{mon}]", "ntppool",
+                   extra={"delay": g["delay"], "score": g["score"], "step": g["step"]},
+                   meta={"peer": mon, "monitor": mon, "quantity": "server - monitor"})
+           for mon, g in groups.items() if g["t"]]
+    if not out:
+        raise ResearchFormatError("NTP Pool log has no offsets")
+    return out
+
+
+def detect(lines: Sequence[str]) -> Optional[str]:
+    head = "\n".join(lines[:40])
+    first = lines[0] if lines else ""
+    if first.startswith("CGGTTS") or ("SAT CL" in head and "REFSYS" in head):
+        return "cggtts"
+    if "RINEX VERSION / TYPE" in first and first[20:21] == "C":
+        return "rinex-clock"
+    if "CIRCULAR T" in head[:400]:
+        return "circular-t"
+    if first.startswith("ts_epoch,") and "offset" in first:
+        return "ntppool"
+    h = head.lstrip()
+    if (h.startswith("[") or h.startswith("{")) and '"type": "ntp"' in head.replace('"type":"ntp"', '"type": "ntp"'):
+        return "ripe-atlas"
+    return None

@@ -305,6 +305,170 @@ def cmd_timeerror(args):
     return rc
 
 
+def cmd_noise(args):
+    from .noisefit import ALPHAS, fit_series
+    from .stability import NOISE_NAMES
+
+    out = []
+    for s in _load_args(args):
+        nf = fit_series(s, kinds=args.kinds.split(","), spectrum=args.spectrum, ci=args.ci,
+                        bootstrap=args.bootstrap, detrend=args.detrend if args.detrend != "none" else None,
+                        drift=args.drift)
+        out.append({"name": s.name, **nf.as_dict()})
+        if args.scenario:
+            with open(args.scenario, "w", encoding="utf-8") as fh:
+                fh.write(f"# statistically equivalent clock for {s.name} (ntpstats {__version__})\n[clock]\n"
+                         "freq_offset = 0.0\ndrift = 0.0\n[clock.h_alpha]\n")
+                for a, v in nf.h.items():
+                    if v > 0:
+                        fh.write(f'"{a}" = {v:.6e}\n')
+        if args.json:
+            continue
+        print(f"== {s.name}  (tau0 {format_seconds(nf.tau0)}, {nf.meta['points']} points from "
+              f"{', '.join(nf.meta['inputs'])}; intervals: {nf.method}, {args.ci:.0%})")
+        print(f"  {'noise':16} {'alpha':>5} {'h_alpha':>12} {'interval':>27}")
+        for a in ALPHAS:
+            v = nf.h[a]
+            ci_txt = f"[{nf.lo[a]:.3e}, {nf.hi[a]:.3e}]" if v > 0 else f"< {nf.hi[a]:.3e}"
+            print(f"  {NOISE_NAMES[a]:16} {a:>5} {v:>12.3e} {ci_txt:>27}")
+        if nf.drift:
+            print(f"  drift {nf.drift:.3e} /s ({nf.drift * 86400:.3e} per day)")
+        print(f"  reduced chi2 {nf.reduced_chi2:.2f} ({nf.dof} dof)")
+        for c in nf.corners:
+            print(f"  corner at tau ~ {c['tau']:g} s: {c['from']} -> {c['to']}")
+        if args.scenario:
+            print(f"  simulator scenario written to {args.scenario}")
+    if args.json:
+        print(json.dumps(out, indent=2, default=float))
+    return 0
+
+
+def cmd_spectrum(args):
+    from .spectrum import series_spectrum
+
+    out = []
+    for s in _load_args(args):
+        sp = series_spectrum(s, kind=args.kind, method=args.method,
+                             per_decade=None if args.per_decade == 0 else args.per_decade)
+        d = {"name": s.name, **sp.as_dict()}
+        if args.carrier:
+            d["lf_dbc"] = sp.lf_dbc(args.carrier).tolist()
+        out.append(d)
+        if args.json:
+            continue
+        unit = "s^2/Hz" if args.kind == "x" else "1/Hz"
+        print(f"# {s.name}: S_{args.kind}(f) [{unit}], {sp.meta['method']}, {sp.meta['segments']} segments")
+        print("f_hz,psd,dof" + (",L_dbc_hz" if args.carrier else ""))
+        lf = d.get("lf_dbc")
+        for i, (f, p_, k) in enumerate(zip(sp.f, sp.psd, sp.dof)):
+            print(f"{f:.6g},{p_:.6g},{k:.4g}" + (f",{lf[i]:.2f}" if lf else ""))
+    if args.json:
+        print(json.dumps(out, indent=2, default=float))
+    return 0
+
+
+def cmd_hat(args):
+    from .hat import hat_series
+
+    series = _load_args(args)
+    if len(series) < 3:
+        raise SystemExit("hat: give at least three sources (files, or --all-peers on a multi-peer log)")
+    r = hat_series(series, method=args.method, ci=args.ci)
+    if args.json:
+        print(json.dumps(r.as_dict(), indent=2, default=float))
+        return 0
+    label = {"gcov": "Groslambert covariance", "3ch": "three-cornered hat", "nch": "N-cornered hat"}[r.method]
+    print(f"Individual ADEV by {label} ({r.ci:.0%} intervals; * = negative variance, not resolvable)")
+    print(f"{'tau':>10} " + " ".join(f"{n[:22]:>24}" for n in r.names))
+    for t in range(r.taus.size):
+        cells = []
+        for i in range(len(r.names)):
+            if r.negative[i, t]:
+                cells.append(f"{'*  < ' + format(r.hi[i, t], '.2e'):>24}")
+            else:
+                cells.append(f"{r.dev[i, t]:.2e} [{r.lo[i, t]:.1e},{r.hi[i, t]:.1e}]".rjust(24))
+        print(f"{r.taus[t]:>10g} " + " ".join(cells))
+    if r.meta.get("negative_variances"):
+        print(f"note: {r.meta['negative_variances']} negative variances (a source much quieter than the others, "
+              "or correlated noise between sources)")
+    return 0
+
+
+def cmd_holdover(args):
+    from .holdover import backtest, holdover_series, phase_from
+    from .timeerror import _value
+
+    limits = [_value(v) for v in (args.limit or [])]
+    horizon = _duration(args.horizon)
+    window = _duration(args.window) if args.window else None
+    rc, out = 0, []
+    for s in _load_args(args):
+        r = holdover_series(s, horizon, source=args.source, model=args.model, window=window, ci=args.ci,
+                            limits=limits, uncertainty=args.uncertainty)
+        d = {"name": s.name, **r.as_dict()}
+        if args.backtest:
+            _, x, tau0 = phase_from(s, args.source)
+            try:
+                d["backtest"] = backtest(x, tau0, horizon, trials=args.backtest, model=args.model, window=window,
+                                         ci=args.ci)
+            except ValueError as exc:
+                d["backtest"] = {"error": str(exc)}
+        if args.min_holdover and limits:
+            need = _duration(args.min_holdover)
+            t = r.time_to(limits[0])["envelope"]
+            d["min_holdover_met"] = t is None or t >= need
+            rc = 0 if d["min_holdover_met"] else 3
+        out.append(d)
+        if args.json:
+            continue
+        print(f"== {s.name}: reference lost at {_utc(r.meta['loss_time'])} UTC; {r.model} holdover "
+              f"(frequency {r.frequency * 1e9:+.3f} ppb, drift {r.drift * 86400e9:+.3g} ppb/day, "
+              f"window {format_seconds(r.window)})")
+        print(f"  {'after':>10} {'mean TIE':>11} {f'{r.ci:.0%} envelope':>28}")
+        for i in np.unique(np.linspace(0, r.t.size - 1, 12).astype(int)):
+            print(f"  {format_seconds(r.t[i]):>10} {format_seconds(r.mean[i]):>11} "
+                  f"[{format_seconds(r.lo[i]):>11}, {format_seconds(r.hi[i]):>11}]")
+        for lim, tt in r.limits.items():
+            env, mean = tt["envelope"], tt["mean"]
+            print(f"  limit {format_seconds(float(lim))}: may be exceeded after "
+                  f"{format_seconds(env) if env else f'> {format_seconds(horizon)}'} ({r.ci:.0%} envelope), "
+                  f"expected after {format_seconds(mean) if mean else f'> {format_seconds(horizon)}'}")
+        if "warning" in r.meta:
+            print(f"  note: {r.meta['warning']}")
+        if "backtest" in d and "error" in d["backtest"]:
+            print(f"  backtest not possible: {d['backtest']['error']}")
+        elif "backtest" in d:
+            b = d["backtest"]
+            print(f"  backtest: real TIE inside the envelope {b['coverage']:.1%} of the time over {b['trials']} "
+                  f"simulated losses (target {r.ci:.0%})")
+        if "min_holdover_met" in d:
+            print(f"  [{'PASS' if d['min_holdover_met'] else 'FAIL'}] holds {format_seconds(limits[0])} for "
+                  f"{args.min_holdover}")
+    if args.json:
+        print(json.dumps(out, indent=2, default=float))
+    return rc
+
+
+def cmd_cv(args):
+    from .research import common_view
+
+    def lines(p):
+        import gzip
+
+        op = gzip.open if p.endswith(".gz") else open
+        with op(p, "rt", encoding="latin-1") as fh:
+            return fh.read().splitlines()
+
+    s = common_view(lines(args.a), lines(args.b), mode=args.mode, min_sats=args.min_sats)
+    with open(args.output, "w", encoding="utf-8") as fh:
+        fh.write(f"# {s.name}: {s.meta['quantity']} (ntpstats {__version__})\nunix_time,offset,satellites\n")
+        for t, v, n in zip(s.t, s.offset, s.extra["satellites"]):
+            fh.write(f"{t:.1f},{v:.12e},{int(n)}\n")
+    print(f"{s.name}: {len(s)} epochs, mean {format_seconds(float(np.mean(s.offset)))}, "
+          f"std {format_seconds(float(np.std(s.offset)))} -> {args.output}")
+    return 0
+
+
 def cmd_stability(args):
     kinds = args.kinds.split(",")
     for k in kinds:
@@ -444,12 +608,18 @@ def cmd_simulate(args):
     from .network import min_delay_filter
     from .simulate import PRESETS, simulate_ntp
 
-    sc = replace(PRESETS[args.preset], seed=args.seed)  # never mutate the shared presets
+    if args.scenario:
+        from .bench import load_scenarios
+
+        (_, sc), = load_scenarios([args.scenario])
+        sc = replace(sc, seed=args.seed)
+    else:
+        sc = replace(PRESETS[args.preset], seed=args.seed)  # never mutate the shared presets
     if args.duration:
         sc = replace(sc, duration=args.duration)
     if args.poll:
         sc = replace(sc, poll=args.poll)
-    meas, truth = simulate_ntp(sc, name=f"sim-{args.preset}")
+    meas, truth = simulate_ntp(sc, name=f"sim-{sc.name if args.scenario else args.preset}")
     if args.output:
         meas.to_csv(args.output)
         print(f"wrote {args.output} ({len(meas)} samples)")
@@ -842,6 +1012,61 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--max-gap", type=float, default=3.0, help="gaps longer than this many tau0 are marked as gaps")
     s.set_defaults(func=cmd_convert)
 
+    s = sub.add_parser("noise", help="fit the power-law noise model h_-2..h_2 (with intervals, corner taus); "
+                       "--scenario writes an equivalent simulator clock")
+    _common(s)
+    s.add_argument("--kinds", default="oadev", help="statistics to fit (oadev, mdev, hdev, ...; default oadev)")
+    s.add_argument("--spectrum", action="store_true", help="also fit the frequency spectrum S_y(f)")
+    s.add_argument("--ci", type=float, default=0.95)
+    s.add_argument("--bootstrap", type=int, default=100, help="bootstrap refits for the intervals (0: analytic, fast)")
+    s.add_argument("--detrend", choices=("none", "linear", "quadratic"), default="linear")
+    s.add_argument("--drift", action="store_true", help="also fit a linear frequency drift (so it is not taken for RW FM)")
+    s.add_argument("--scenario", metavar="TOML", help="write a [clock] table with these h_alpha for 'simulate'")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_noise)
+
+    s = sub.add_parser("spectrum", aliases=["psd"], help="phase or frequency PSD (Welch or multitaper), L(f)")
+    _common(s)
+    s.add_argument("--kind", choices=("x", "y"), default="y", help="x: phase S_x(f); y: frequency S_y(f)")
+    s.add_argument("--method", choices=("welch", "multitaper"), default="welch")
+    s.add_argument("--per-decade", type=int, default=10, help="log-spaced bins per decade (0: raw ordinates)")
+    s.add_argument("--carrier", type=float, metavar="HZ", help="with --kind x: also L(f) in dBc/Hz for this carrier")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_spectrum)
+
+    s = sub.add_parser("hat", help="separate each source's stability from pairwise differences "
+                       "(three-cornered hat, N-cornered hat, Groslambert covariance)")
+    _common(s)
+    s.add_argument("--method", choices=("gcov", "3ch", "nch"), default="gcov")
+    s.add_argument("--ci", type=float, default=0.95)
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_hat)
+
+    s = sub.add_parser("holdover", help="predicted time error if the reference were lost now; time to violate limits")
+    _common(s)
+    s.add_argument("--limit", action="append", help="TIE limit, e.g. 1.1us (repeatable)")
+    s.add_argument("--horizon", default="1d", help="how far to predict (e.g. 4h, 1d; default 1d)")
+    s.add_argument("--window", help="fit frequency (and drift) over this much recent data (default: all)")
+    s.add_argument("--model", choices=("frequency", "drift"), default="frequency",
+                   help="what the clock applies in holdover: last frequency, or frequency and drift")
+    s.add_argument("--source", choices=("offset", "frequency"), default="offset",
+                   help="phase from the offset column, or integrate a frequency column (chrony tracking, ppm)")
+    s.add_argument("--ci", type=float, default=0.95)
+    s.add_argument("--uncertainty", type=int, default=40,
+                   help="bootstrap noise models mixed into the envelope (0: point estimate only)")
+    s.add_argument("--backtest", type=int, metavar="N", help="check calibration on N simulated losses in the log")
+    s.add_argument("--min-holdover", metavar="DURATION", help="exit 3 unless the first limit holds this long")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_holdover)
+
+    s = sub.add_parser("cv", help="GNSS time transfer: REF(A) - REF(B) from two CGGTTS files (common view or all in view)")
+    s.add_argument("a")
+    s.add_argument("b")
+    s.add_argument("--mode", choices=("cv", "aiv"), default="cv")
+    s.add_argument("--min-sats", type=int, default=1, help="minimum common satellites per epoch (cv)")
+    s.add_argument("-o", "--output", default="timetransfer.csv")
+    s.set_defaults(func=cmd_cv)
+
     s = sub.add_parser("stability", aliases=["adev"], help="ADEV/MDEV/TDEV/HDEV/MTIE with confidence intervals")
     _common(s)
     s.add_argument("-k", "--kinds", default="oadev,mdev,tdev", help=f"comma list from {','.join(KINDS)}")
@@ -896,6 +1121,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("simulate", help="simulate NTP exchanges with ground truth; benchmark filters")
     s.add_argument("--preset", choices=("lan", "internet", "congested", "route-change", "falseticker"), default="internet")
+    s.add_argument("--scenario", metavar="TOML", help="scenario file (e.g. a [clock] with h_alpha from 'ntpstats noise')")
     s.add_argument("--duration", type=float, help="seconds")
     s.add_argument("--poll", type=float, help="seconds between exchanges")
     s.add_argument("--seed", type=int, default=1)

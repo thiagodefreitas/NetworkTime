@@ -272,6 +272,55 @@ def api_timeerror(sid, params):
     return _clean(d)
 
 
+def api_noise(sid, params):
+    """Power-law noise fit (fast analytic intervals by default) and model curves for the stability chart."""
+    from ..noisefit import ALPHAS, fit_series
+
+    s = _prepare(sid, params)
+    kinds = [k for k in _q(params, "kinds", "oadev").split(",") if k in ("adev", "oadev", "mdev", "tdev", "hdev")]
+    nf = fit_series(s, kinds=["oadev"], bootstrap=_q(params, "bootstrap", 0, int), ci=0.95, drift=True)
+    top = float(nf.meta.get("max_tau", nf.tau0 * 1e3))
+    taus = nf.tau0 * np.unique(np.round(np.logspace(0, np.log10(max(top / nf.tau0, 2.0)), 40)).astype(int))
+    curves = {k: {"taus": _f(taus), "dev": _f(nf.predict(k, taus))} for k in kinds}
+    d = nf.as_dict()
+    d.update({"id": sid, "name": s.name, "curves": curves, "alphas": list(ALPHAS)})
+    return _clean(d)
+
+
+def api_spectrum(sid, params):
+    from ..noisefit import fit_series, spectrum_basis
+    from ..spectrum import series_spectrum
+
+    s = _prepare(sid, params)
+    kind = _q(params, "kind", "y")
+    sp = series_spectrum(s, kind="x" if kind == "x" else "y", method=_q(params, "method", "welch"))
+    out = {"id": sid, "name": s.name, "kind": sp.kind, "f": _f(sp.f), "psd": _f(sp.psd), "dof": _f(sp.dof),
+           "meta": _clean(sp.meta)}
+    carrier = _q(params, "carrier", None, float)
+    if carrier and sp.kind == "x":
+        out["lf_dbc"] = _f(sp.lf_dbc(carrier))
+    try:
+        nf = fit_series(s, bootstrap=0)
+        out["model"] = _f(sum(v * spectrum_basis(sp.kind, sp.f, a, sp.tau0) for a, v in nf.h.items() if v > 0))
+    except ValueError:
+        pass
+    return out
+
+
+def api_holdover(sid, params):
+    from ..holdover import holdover_series
+    from ..timeerror import _value
+
+    s = _prepare(sid, params)
+    limits = [_value(v) for v in (_q(params, "limit", "") or "").split(",") if v.strip()]
+    horizon = _q(params, "horizon", 86400.0, float)
+    r = holdover_series(s, horizon, source=_q(params, "source", "offset"), model=_q(params, "model", "frequency"),
+                        limits=limits, uncertainty=_q(params, "uncertainty", 20, int), points=50)
+    d = r.as_dict()
+    d.update({"id": sid, "name": s.name})
+    return _clean(d)
+
+
 def api_network(sid, params):
     s = _prepare(sid, params)
     # Offset-vs-delay analysis is meaningless while a frequency offset
@@ -515,6 +564,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(api_events(route[1], params))
             if len(route) == 2 and route[0] == "timeerror":
                 return self._json(api_timeerror(route[1], params))
+            if len(route) == 2 and route[0] == "noise":
+                return self._json(api_noise(route[1], params))
+            if len(route) == 2 and route[0] == "spectrum":
+                return self._json(api_spectrum(route[1], params))
+            if len(route) == 2 and route[0] == "holdover":
+                return self._json(api_holdover(route[1], params))
             if len(route) == 2 and route[0] == "dynamic":
                 return self._json(api_dynamic(route[1], params))
             if len(route) == 3 and route[0] == "export":

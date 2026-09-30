@@ -20,10 +20,18 @@ Formats are detected automatically; `-f/--format` overrides detection.
 | `prometheus` | saved Prometheus `query_range` JSON (`ntpstats prom`), e.g. ntpd-rs, chrony_exporter | metric value (use `--negate` for local − reference metrics) | labels in `meta` |
 | `bounds` | ClockBound output or `earliest,latest[,unix_time,status]` CSV | window centre − local | `bound` (half-width), `synchronized` |
 | `profile:NAME` / `profile:FILE.toml` | instrument exports described by a TOML profile ([Sources](sources.md)) | value column (TE negated) | chosen columns |
+| `cggtts` | CGGTTS V2E GNSS time-transfer files (BIPM); line checksums verified | REFSYS (REF − GNSS time) averaged per epoch | satellites, spread; `ntpstats cv` for two sites |
+| `rinex-clock` | RINEX clock (IGS `.clk`, gzip accepted) | clock bias per receiver/satellite | sigma |
+| `circular-t` | BIPM Circular T section 1 (issues may be concatenated) | UTC − UTC(k) per laboratory | uncertainties in `meta` |
+| `ripe-atlas` | RIPE Atlas NTP results (API JSON) | offset (negated: Atlas logs local − server) | rtt, stratum, root delay/dispersion |
+| `ntppool` | NTP Pool monitor score log CSV | offset per monitor | rtt, score, step |
 | `gsoc2012` | the 2012 prototype's `estimators.log` | offset | — |
 
 `ntpstats convert` writes any of these as a Stable32 file or plain CSV (see
 [Stable32, TimeLab, allantools](migrating.md)).
+
+The research and laboratory formats are described with worked examples in [Research data](research-data.md).
+Gzipped files (`.gz`) are read directly.
 
 ## Sign convention
 
@@ -37,6 +45,8 @@ is behind). Parsers normalise on import, following each implementation's documen
 | chrony tracking, statistics, `chronyc sourcestats` | local − reference | negated |
 | linuxptp `master offset`/`offset` | local − reference | negated |
 | pcap | computed | reference − capture host |
+| RIPE Atlas | local − server | negated |
+| Circular T | UTC − UTC(k) | kept (UTC is the reference) |
 
 ## Enabling the logs
 

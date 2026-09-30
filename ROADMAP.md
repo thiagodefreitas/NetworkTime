@@ -56,12 +56,12 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ Roughtime client and consistency checks, NTS-KE pools, the current NTPv5 draft, RFC 9769 interleaved mode, all in the weekly Live interop. ([#24](https://github.com/thiagodefreitas/NetworkTime/issues/24))
 
 ### 2.12: Metrology and research data
-- Frequency domain and h_α noise fitting. ([#25](https://github.com/thiagodefreitas/NetworkTime/issues/25))
-- Holdover and time-error prediction. ([#26](https://github.com/thiagodefreitas/NetworkTime/issues/26))
-- Three-cornered hat and Groslambert covariance. ([#27](https://github.com/thiagodefreitas/NetworkTime/issues/27))
+- ✅ Frequency domain and h_α noise fitting. ([#25](https://github.com/thiagodefreitas/NetworkTime/issues/25))
+- ✅ Holdover and time-error prediction. ([#26](https://github.com/thiagodefreitas/NetworkTime/issues/26))
+- ✅ Three-cornered hat and Groslambert covariance. ([#27](https://github.com/thiagodefreitas/NetworkTime/issues/27))
 - Cross-validation, remaining parts: Stable32 CIs/EDF, a public long-term dataset. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28))
-- Ecosystem interop, remaining parts: TimeLab `.tim`, `htotdev`. ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33))
-- Research data sources: RIPE Atlas, NTP Pool, NTS campaigns, CGGTTS, RINEX clock, Circular T. ([#34](https://github.com/thiagodefreitas/NetworkTime/issues/34))
+- Ecosystem interop, remaining part: TimeLab `.tim` (✅ `htotdev`). ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33))
+- ✅ Research data sources: RIPE Atlas, NTP Pool, CGGTTS (with common view), RINEX clock, Circular T; NTS campaign files via CSV profiles. ([#34](https://github.com/thiagodefreitas/NetworkTime/issues/34))
 
 ### 3.0: Platform
 - Research bench v2: trace-driven, PTP servos and BC chains, OMNeT++/INET and ns-3 interop. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
@@ -106,3 +106,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.9 | ptp4l/ptpcheck live, w32tm, Prometheus import, clock-error bound validation, instrument profiles, `--negate` |
 | 2.10 | UTC traceability audit ([#22](https://github.com/thiagodefreitas/NetworkTime/issues/22)); change detection ([#23](https://github.com/thiagodefreitas/NetworkTime/issues/23)); GitHub Action and pytest assertions ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)) |
 | 2.11 | Roughtime client with chained measurements and malfeasance reports; NTS pools; RFC 9769 interleaved mode (client and captures); all in the Live interop ([#24](https://github.com/thiagodefreitas/NetworkTime/issues/24)) |
+| 2.12 | Power-law noise fit and spectra ([#25](https://github.com/thiagodefreitas/NetworkTime/issues/25)); holdover prediction ([#26](https://github.com/thiagodefreitas/NetworkTime/issues/26)); N-cornered hat and Groslambert covariance ([#27](https://github.com/thiagodefreitas/NetworkTime/issues/27)); CGGTTS, RINEX clock, Circular T, RIPE Atlas, NTP Pool ([#34](https://github.com/thiagodefreitas/NetworkTime/issues/34)); HTOT ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)) |

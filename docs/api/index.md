@@ -28,4 +28,7 @@ A [`TimeSeries`](series.md) has `t` (POSIX seconds), `offset` (seconds, referenc
 | [`ntpstats.bench`](bench.md) | benchmark runner |
 | [`ntpstats.sntp`](sntp.md), [`ntpstats.nts`](nts.md) | measurement clients (NTPv4, RFC 9769 interleaved, NTPv5, NTS, NTS pools) |
 | [`ntpstats.roughtime`](roughtime.md) | Roughtime client, chained measurements, malfeasance reports |
+| [`ntpstats.spectrum`](spectrum.md), [`ntpstats.noisefit`](noisefit.md) | PSDs, L(f); power-law noise fit h_α |
+| [`ntpstats.hat`](hat.md), [`ntpstats.holdover`](holdover.md) | N-cornered hat / Groslambert covariance; holdover prediction |
+| [`ntpstats.research`](research.md) | CGGTTS, RINEX clock, Circular T, RIPE Atlas, NTP Pool |
 | [`ntpstats.masks`](masks.md), [`ntpstats.report`](report.md) | masks, HTML reports |
