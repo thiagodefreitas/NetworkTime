@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+#
+# ntpstats monitor -> Prometheus -> Grafana, with the dashboard and alert rules provisioned.
+#   cd contrib && docker compose up --build
+#   Grafana: http://localhost:3000 (admin / admin), dashboard "Time / ntpstats — network time"
+#
+# The monitor polls NTS-authenticated public servers every 64 s. Please keep the interval at
+# 64 s or more for servers you do not operate.
+services:
+  ntpstats:
+    build: ..
+    command: >
+      monitor time.cloudflare.com nts.netnod.se ptbtime1.ptb.de --nts -i 64
+      -o /data/monitor.csv --metrics-host 0.0.0.0 --metrics-port 9123
+    volumes:
+      - ntpstats-data:/data
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/ntpstats-rules.yml:/etc/prometheus/ntpstats-rules.yml:ro
+    ports: ["127.0.0.1:9090:9090"]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/ntpstats-dashboard.json:/var/lib/grafana/dashboards/ntpstats-dashboard.json:ro
+    ports: ["127.0.0.1:3000:3000"]
+    restart: unless-stopped
+
+volumes:
+  ntpstats-data:

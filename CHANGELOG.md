@@ -26,6 +26,12 @@ uploads to PyPI.
 - **allantools-compatible API** (#33): `from ntpstats.compat import allantools as at` gives
   `adev`, `oadev`, `mdev`, `tdev`, `hdev` (non-overlapping), `ohdev`, `totdev`, `mtotdev`,
   `ttotdev`, `theo1`, `mtie` and `tierms` with allantools signatures.
+- **Prometheus/OpenMetrics exporter** (#36): `ntpstats monitor|watch --metrics-port`. It serves
+  offset, delay, an error bound (|offset| + delay/2 + root delay/2 + root dispersion), NTS
+  status, rolling TDEV and stddev, and sample and error counters (errors by kind, e.g.
+  `kod_rate`).
+- **Grafana dashboard, Prometheus alert rules and a docker-compose stack** in `contrib/`, with a
+  "Monitoring" docs page. Tests check that the dashboard and rules only use exported metrics.
 - Docs: "Stable32, TimeLab, allantools" migration page and a tools landscape page.
 
 ### Changed

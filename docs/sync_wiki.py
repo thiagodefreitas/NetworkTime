@@ -33,6 +33,7 @@ PAGES = {
     "docs/formats.md": "Input-Formats",
     "docs/statistics.md": "Statistics",
     "docs/network.md": "Network-and-Estimators",
+    "docs/monitoring.md": "Monitoring",
     "docs/validation.md": "Validation",
     "docs/migrating.md": "Stable32-TimeLab-allantools",
     "docs/api/index.md": "API-Reference",
@@ -45,7 +46,7 @@ PAGES = {
 SIDEBAR = [
     ("Home", "Home"), ("Getting started", "Getting-Started"), ("CLI reference", "CLI-Reference"),
     ("Input formats", "Input-Formats"), ("Statistics", "Statistics"),
-    ("Network & estimators", "Network-and-Estimators"), ("Validation", "Validation"),
+    ("Network & estimators", "Network-and-Estimators"), ("Monitoring", "Monitoring"), ("Validation", "Validation"),
     ("API reference", "API-Reference"), ("Live interop", "Live-Interop"),
     ("State of the art", "State-of-the-Art"), ("Tools landscape", "Tools-Landscape"), ("Changelog", "Changelog"), ("Roadmap", "Roadmap"),
 ]

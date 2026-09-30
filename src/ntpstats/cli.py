@@ -342,11 +342,19 @@ def cmd_monitor(args):
         print(f"note: polling faster than every {MIN_PUBLIC_INTERVAL:g} s is only appropriate for your own servers",
               file=sys.stderr)
 
+    reg = _metrics(args)
+
     def show(r):
+        if reg is not None:
+            reg.observe_ntp(r)
         print(f"{_utc(r.t4)} {r.server:24} offset {format_seconds(r.offset):>10}  delay {format_seconds(r.delay):>10}",
               flush=True)
 
     def err(server, exc):
+        if reg is not None:
+            from .metrics import error_kind
+
+            reg.error(server, error_kind(exc))
         print(f"{_utc(time.time())} {server:24} error: {exc}", file=sys.stderr, flush=True)
 
     m = Monitor(args.servers, args.interval, out_path=args.output, on_sample=show, on_error=err, count=args.count,
@@ -358,14 +366,40 @@ def cmd_monitor(args):
         pass
 
 
+def _metrics(args):
+    """Start the OpenMetrics endpoint if --metrics-port was given; returns the registry."""
+    if not getattr(args, "metrics_port", None):
+        return None
+    from .metrics import Registry, serve
+
+    reg = Registry(window=args.metrics_window)
+    serve(reg, args.metrics_host, args.metrics_port)
+    print(f"metrics on http://{args.metrics_host}:{args.metrics_port}/metrics", file=sys.stderr)
+    return reg
+
+
+def _metrics_args(s) -> None:
+    s.add_argument("--metrics-port", type=int, metavar="PORT", help="serve OpenMetrics/Prometheus metrics on this port")
+    s.add_argument("--metrics-host", default="127.0.0.1", help="address for --metrics-port (default 127.0.0.1)")
+    s.add_argument("--metrics-window", type=int, default=1024, help="samples kept per source for rolling TDEV/stddev")
+
+
 def cmd_watch(args):
     from .sources import LocalWatch
 
+    reg = _metrics(args)
+
     def show(d):
+        if reg is not None:
+            reg.observe_watch(args.daemon, d)
         print(f"{_utc(d['time'])} {args.daemon:6} offset {format_seconds(d['offset']):>10}  "
               f"freq {d.get('frequency_ppm', float('nan')):+.3f} ppm", flush=True)
 
     def err(src, exc):
+        if reg is not None:
+            from .metrics import error_kind
+
+            reg.error(args.daemon, error_kind(exc))
         print(f"{_utc(time.time())} {src}: {exc}", file=sys.stderr, flush=True)
 
     cmd = args.command_override.split() if args.command_override else None
@@ -608,6 +642,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-n", "--count", type=int, help="stop after N rounds")
     s.add_argument("--ntpv5", action="store_true", help="use the experimental NTPv5 draft-09 format")
     s.add_argument("--nts", action="store_true", help="authenticate with NTS, RFC 8915 (pip install 'ntpstats[nts]')")
+    _metrics_args(s)
     s.set_defaults(func=cmd_monitor)
 
     s = sub.add_parser("watch", help="log offset/frequency of the local chrony or ntpd/NTPsec (no log files needed)")
@@ -616,6 +651,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-i", "--interval", type=float, default=16.0)
     s.add_argument("-n", "--count", type=int, help="stop after N samples")
     s.add_argument("--command-override", metavar="CMD", help="e.g. 'ssh host chronyc' to watch a remote host")
+    _metrics_args(s)
     s.set_defaults(func=cmd_watch)
 
     s = sub.add_parser("ui", help="start the local web UI")

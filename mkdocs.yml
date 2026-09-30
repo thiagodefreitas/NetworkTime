@@ -38,6 +38,7 @@ nav:
   - Formats: formats.md
   - Statistics: statistics.md
   - Network & estimators: network.md
+  - Monitoring (Prometheus/Grafana): monitoring.md
   - Validation: validation.md
   - Stable32, TimeLab, allantools: migrating.md
   - API:
@@ -57,6 +58,7 @@ nav:
       - masks: api/masks.md
       - report: api/report.md
       - interop: api/interop.md
+      - metrics: api/metrics.md
       - compat.allantools: api/compat.md
   - Live interop: INTEROP.md
   - State of the art: STATE_OF_THE_ART.md

@@ -14,6 +14,6 @@ COPY src ./src
 RUN pip install --no-cache-dir ".[nts]" && useradd -m ntpstats
 USER ntpstats
 WORKDIR /data
-EXPOSE 8123
+EXPOSE 8123 9123
 ENTRYPOINT ["ntpstats"]
 CMD ["--help"]

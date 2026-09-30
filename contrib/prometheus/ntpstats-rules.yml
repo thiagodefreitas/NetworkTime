@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Prometheus alerting rules for the ntpstats exporter (ntpstats monitor/watch --metrics-port).
+# Thresholds are examples: set them to your own requirement, for example 100 us or 1 ms for
+# MiFID II RTS 25, or your application's tolerance.
+groups:
+  - name: ntpstats
+    rules:
+      - alert: NtpstatsSourceStale
+        expr: time() - ntpstats_last_sample_timestamp_seconds > 600
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "No sample from {{ $labels.source }} for 10 minutes"
+          description: "ntpstats has not received a valid response from {{ $labels.source }}. Check reachability, Kiss-o'-Death backoff and the errors panel."
+
+      - alert: NtpstatsOffsetBoundExceeded
+        expr: ntpstats_offset_bound_seconds > 0.001
+        for: 10m
+        labels: {severity: critical}
+        annotations:
+          summary: "Clock error bound via {{ $labels.source }} above 1 ms"
+          description: "|offset| + delay/2 + root delay/2 + root dispersion = {{ $value | humanizeDuration }} for 10 minutes."
+
+      - alert: NtpstatsOffsetUnstable
+        expr: ntpstats_tdev_seconds{tau!=""} > 0.0005
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "TDEV at tau={{ $labels.tau }}s via {{ $labels.source }} above 500 us"
+          description: "The rolling time deviation is high: path congestion, route changes or an unstable source."
+
+      - alert: NtpstatsErrors
+        expr: increase(ntpstats_errors_total[15m]) > 3
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.kind }} errors from {{ $labels.source }}"
+          description: "More than 3 {{ $labels.kind }} errors in 15 minutes (kod_rate means the server asked us to slow down)."
+
+      - alert: NtpstatsNotAuthenticated
+        expr: ntpstats_authenticated == 0 and on(source) ntpstats_samples_total > 0
+        for: 15m
+        labels: {severity: info}
+        annotations:
+          summary: "Samples from {{ $labels.source }} are not NTS-authenticated"
+          description: "Remove this rule if you do not use NTS (ntpstats monitor --nts)."

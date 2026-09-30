@@ -25,6 +25,6 @@
 | `simulate` | simulate NTP exchanges with ground truth; `--benchmark` |
 | `bench` | estimators × scenarios × seeds against ground truth; `--html`, `--csv`, `--list` |
 | `query` | one-shot measurement: NTPv4, `--nts`, `--ntpv5`, `--probe-v5`, `-4/-6` |
-| `monitor` | periodic SNTP/NTS/NTPv5 measurements to CSV (polite polling) |
-| `watch` | sample the local chrony (`chronyc -c tracking`) or ntpd (`ntpq -c rv`) |
+| `monitor` | periodic SNTP/NTS/NTPv5 measurements to CSV (polite polling); `--metrics-port` serves OpenMetrics ([Monitoring](monitoring.md)) |
+| `watch` | sample the local chrony (`chronyc -c tracking`) or ntpd (`ntpq -c rv`); `--metrics-port` as for `monitor` |
 | `ui` | start the local web UI |
