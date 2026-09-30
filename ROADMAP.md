@@ -1,66 +1,91 @@
 # Roadmap
 
-Direction: make `ntpstats` a **general NetworkTime validation, evaluation and study tool**. It
-should ingest any time-transfer log, apply the statistics used in metrology and in telecom
-standards, and provide a reproducible test bench for synchronisation algorithms. Items are tracked
-as [GitHub issues](https://github.com/thiagodefreitas/NetworkTime/issues).
+**Mission:** a free, open (MIT) and dependency-light toolkit for **validating, evaluating and
+studying network time**. It should be useful to engineers who deploy and certify NTP/PTP, and
+to researchers who publish on clocks and time transfer, and it should interoperate with the tools
+both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items are
+[GitHub issues](https://github.com/thiagodefreitas/NetworkTime/issues), labelled `industry`,
+`research`, `community`, `good first issue` and `help wanted`.
 
 *Reviewed 30 September 2026.*
 
-## Where the field is going, and what it means for ntpstats
+## Who it is for, and what they need
 
-| Trend (2025–2026) | Consequence for the project |
+| Audience | Today they use | What ntpstats should give them |
+|---|---|---|
+| **Operators** (NTP/NTS, cloud, enterprise) | chronyc, ntpq, Prometheus/Grafana, vendor GUIs | Statistics, masks and alerts on the dashboards they already have (#36); event detection (#23); support for the new daemons (#21) |
+| **PTP / telecom / TSN engineers** | linuxptp, Wireshark, PTP Track Hound, Calnex/VIAVI/Keysight software | Free, transparent PTP capture analysis and time-error metrics (#19, #20); import of instrument exports (#35); CI checks for devices and firmware (#36) |
+| **Regulated users** (finance, energy, critical infrastructure) | Vendor reports, manual evidence | A defensible UTC error bound and an archivable audit report (#22); holdover planning for GNSS outages (#26) |
+| **Metrologists / time labs** | Stable32, TimeLab, allantools, CGGTTS tools | Proven agreement (#28), format and API compatibility (#33), spectra and noise fits (#25), cornered hat and covariance (#27), GNSS time transfer inputs (#34) |
+| **Networking and systems researchers** | Ad-hoc scripts, OMNeT++/INET, ns-3, RIPE Atlas, NTP Pool data | Public datasets as inputs (#34), trace-driven bench and simulator interop (#29), an open longitudinal dataset (#30), citable software (#38) |
+
+## Where the field is going
+
+| Trend (2025–2026) | Consequence |
 |---|---|
-| PTP is the accuracy frontier: IEEE 1588 roll-up revision in comment resolution, NTS for PTP (draft-ietf-ntp-nts-for-ptp-04), G.8273.2 class C/D (max\|TE\| 30 ns / max\|TEL\| 5 ns) | Analyse PTP **packets** and **time error**, not just daemon logs (#19, #20) |
-| New daemons: ntpd-rs becomes Ubuntu's default (27.04); chrony 4.9 (RFC 10030 NTP-over-PTP); Windows and cloud clock-error bounds | Parse what people actually run, and verify advertised bounds (#21) |
-| Regulation asks for *evidence*: MiFID II RTS 25 (100 µs / 1 ms, traceable to UTC), DORA, NIS2 | A defensible error **bound** and an archivable report (#22) |
-| GNSS jamming/spoofing is routine; resilience and holdover matter | Event detection (#23) and holdover prediction (#26) |
-| IETF: Roughtime approved as Experimental RFC, NTS pools, NTPv5 drafts -08/-09, interleaved mode RFC 9769 | Measure the new protocols as they deploy (#24) |
-| Metrology practice: spectra, power-law fits, cornered-hat/covariance methods, Stable32 as the reference | Complete the IEEE 1139 / SP 1065 toolbox and prove agreement (#25, #27, #28) |
-| Datacenter research (Huygens, Sundial, Firefly, SyncWise) evaluates algorithms on real traces | Trace-driven bench, PTP servos, boundary-clock chains (#29) |
-| Little open longitudinal data on public NTP/NTS servers | Publish the weekly interop measurements as a citable dataset (#30) |
+| PTP is the accuracy frontier: IEEE 1588 roll-up revision, NTS for PTP (draft -04), G.8273.2 class C/D | Analyse PTP packets and time error (#19, #20) |
+| New daemons and stacks: ntpd-rs (Ubuntu 27.04 default), chrony 4.9, Meta's facebook/time, OCP Time Card | Parse what people actually run, and validate advertised uncertainty bounds (#21) |
+| Regulation asks for evidence: MiFID II RTS 25, DORA, NIS2 | Error bounds and audit reports (#22) |
+| GNSS jamming/spoofing is routine | Event detection and holdover prediction (#23, #26) |
+| IETF: Roughtime (Experimental RFC approved), NTS pools, NTPv5, RFC 9769 | Measure the new protocols as they deploy (#24) |
+| Measurement research at Internet scale (NTP Pool studies in PACMCS'24 and NDSS'26, NTS adoption surveys) | Read public datasets and publish our own (#34, #30) |
+| Datacenter sync research (Huygens, Sundial, Firefly, SyncWise) and TSN simulation | Trace-driven bench, PTP servos, simulator interop (#29) |
 
-## Next releases
+## Start here (quick wins, weeks)
+- **Stable32/TimeLab formats and an allantools-compatible API**: lowers the switching cost for
+  metrologists. ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33), good first issue)
+- **NIST SP 1065 NBS test vectors** in the tests, first step of cross-validation. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28), good first issue)
+- **Community on-ramp**: Zenodo DOI, Discussions, code of conduct, templates, conda-forge. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
+- **Grafana dashboard** for the existing monitor exporter. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36))
 
-### 2.7: PTP and telecom time error
-- **PTP in captures**: IEEE 1588 v2/v2.1 dissection (UDP and L2, one-/two-step,
-  correctionField), offset, per-direction delay and PDV per flow, and NTS4PTP TLV detection. ([#19](https://github.com/thiagodefreitas/NetworkTime/issues/19))
-- **Time-error metrics**: max|TE|, cTE, dTE_L/dTE_H (0.1 Hz), max|TEL|, with scalar limits in
-  masks, 1PPS/TIC input, and `ntpstats timeerror`. ([#20](https://github.com/thiagodefreitas/NetworkTime/issues/20))
-- **More sources**: ntpd-rs, Windows `w32tm`, AWS ClockBound bound validation, linuxptp `pmc` live
-  polling, and chrony 4.9. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+## Releases
 
-### 2.8: Trust and assurance
-- **UTC traceability and compliance report**: per-interval error bound (offset + asymmetry +
-  root delay/dispersion + reference), with gaps counted as unknown, and an HTML/JSON report with an
-  input manifest. `ntpstats audit`. ([#22](https://github.com/thiagodefreitas/NetworkTime/issues/22))
-- **Anomaly and change-point detection**: steps, frequency jumps, route and asymmetry changes,
-  falsetickers, leap smears and spoofing-like signatures, scored on the simulator. ([#23](https://github.com/thiagodefreitas/NetworkTime/issues/23))
-- **Protocol watch**: Roughtime client with consistency checks, NTS-KE pools, the current NTPv5
-  draft, and RFC 9769 interleaved mode, all in the weekly Live interop. ([#24](https://github.com/thiagodefreitas/NetworkTime/issues/24))
+### 2.7: PTP and telecom
+- PTP in captures: offset, per-direction delay, PDV, NTS4PTP TLVs. ([#19](https://github.com/thiagodefreitas/NetworkTime/issues/19))
+- Time-error metrics: max|TE|, cTE, dTE_L/H, max|TEL|, 1PPS/TIC input. ([#20](https://github.com/thiagodefreitas/NetworkTime/issues/20))
+- More sources: ntpd-rs, facebook/time, w32tm, ClockBound, Time Card, pmc, chrony 4.9. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+- Instrument import profiles (TIC/counters, Calnex, VIAVI, Keysight, Microchip exports). ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35))
 
-### 2.9: Metrology depth
-- **Frequency domain and noise fitting**: S_x(f), S_y(f) and L(f), a joint h_α fit with CIs, and
-  a fitted model as simulator input. ([#25](https://github.com/thiagodefreitas/NetworkTime/issues/25))
-- **Holdover and prediction**: TIE(t) envelope and time-to-violation, calibrated on real
-  and simulated outages. ([#26](https://github.com/thiagodefreitas/NetworkTime/issues/26))
-- **Three-cornered hat and Groslambert covariance**: per-server stability without a better
-  reference. ([#27](https://github.com/thiagodefreitas/NetworkTime/issues/27))
-- **Cross-validation**: NIST SP 1065 NBS data, Stable32 and a public dataset, with an agreement
-  table in the docs. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28))
+### 2.8: Trust and operations
+- UTC traceability and compliance report (`ntpstats audit`). ([#22](https://github.com/thiagodefreitas/NetworkTime/issues/22))
+- Anomaly and change-point detection. ([#23](https://github.com/thiagodefreitas/NetworkTime/issues/23))
+- Operations integration: dashboards, OpenTelemetry, a GitHub Action and a pytest plugin for timing checks in CI. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36))
+- Protocol watch: Roughtime, NTS pools, NTPv5, RFC 9769 interleaved mode. ([#24](https://github.com/thiagodefreitas/NetworkTime/issues/24))
 
-### 3.0: Research platform and reach
-- **Bench v2**: trace-driven simulation from captures, PTP PI/linreg servos, boundary-clock
-  chains, and more reference algorithms. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
-- **Open measurement dataset** from the weekly interop runs, with a trends page and a DOI. ([#30](https://github.com/thiagodefreitas/NetworkTime/issues/30))
-- **In-browser edition** (Pyodide) on the docs site: analyse logs locally with nothing uploaded. ([#31](https://github.com/thiagodefreitas/NetworkTime/issues/31))
-- **Stable API**: pandas/xarray adapters, Parquet/Arrow, notebooks in CI, and a deprecation
-  policy. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
+### 2.9: Metrology and research data
+- Frequency domain and h_α noise fitting. ([#25](https://github.com/thiagodefreitas/NetworkTime/issues/25))
+- Holdover and time-error prediction. ([#26](https://github.com/thiagodefreitas/NetworkTime/issues/26))
+- Three-cornered hat and Groslambert covariance. ([#27](https://github.com/thiagodefreitas/NetworkTime/issues/27))
+- Cross-validation with NIST SP 1065, Stable32 and public data. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28))
+- Ecosystem interop: Stable32, TimeLab and the allantools API. ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33))
+- Research data sources: RIPE Atlas, NTP Pool, NTS campaigns, CGGTTS, RINEX clock, Circular T. ([#34](https://github.com/thiagodefreitas/NetworkTime/issues/34))
 
-Priorities follow value per effort. #19 and #20 unlock the PTP audience and reuse the existing
-masks and network metrics. #22 and #23 serve operators and regulated users. #25–#28 give
-researchers what they would otherwise need Stable32 or lab software for. Suggestions and pull
-requests are welcome on any item.
+### 3.0: Platform
+- Research bench v2: trace-driven, PTP servos and BC chains, OMNeT++/INET and ns-3 interop. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+- Open measurement dataset from the weekly interop runs. ([#30](https://github.com/thiagodefreitas/NetworkTime/issues/30))
+- In-browser edition (Pyodide) on the docs site. ([#31](https://github.com/thiagodefreitas/NetworkTime/issues/31))
+- Stable API, pandas/xarray/Parquet, notebooks, deprecation policy. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
+- Plugin architecture for parsers, estimators, detectors, masks and profiles. ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37))
+
+### Continuous: community and citability
+JOSS paper, Zenodo DOIs, Discussions, contributor on-ramp, conda-forge and distribution packages,
+a reproduction gallery, and outreach (FOSDEM, the IETF hackathon, ITSF, ATIS WSTS, PTTI/ION,
+IFCS-EFTF, OCP TAP, time-nuts). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
+
+## How priorities are set
+1. **Reach per effort**: items that open a new audience with existing building blocks come
+   first. For example, #19 and #20 reuse the masks, network metrics and reports.
+2. **Trust**: anything that produces a number someone may act on (audit, TE pass/fail, holdover)
+   ships with its definition documented and a validation test.
+3. **Interoperate, don't replace**: read and write the formats of the tools people use, and
+   show agreement with them.
+4. **Contributor-shaped work**: formats, profiles and parsers are small and independent, and are
+   labelled so newcomers can take them.
+
+## Get involved
+Comment on an issue you care about, share a sample log or instrument export (anonymised is fine),
+or pick a `good first issue`. Data contributions are as valuable as code.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Done
 

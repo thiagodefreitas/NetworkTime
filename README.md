@@ -16,7 +16,14 @@ It started as a Google Summer of Code 2012 project for the NTP Project (kept unc
 [docs/STATE_OF_THE_ART.md](docs/STATE_OF_THE_ART.md) for what changed in NTP since 2012 and what
 was wrong with the original code, [docs/INTEROP.md](docs/INTEROP.md) for live results against
 public NTP/NTS servers, [CHANGELOG.md](CHANGELOG.md) for releases and
-[ROADMAP.md](ROADMAP.md) for where it is going.
+[ROADMAP.md](ROADMAP.md) for where it is going, and [docs/LANDSCAPE.md](docs/LANDSCAPE.md) for how it
+relates to Stable32, TimeLab, allantools, linuxptp, PTP Track Hound and other tools.
+
+**Contributions welcome**, from industry and research alike: sample logs and instrument exports
+are as valuable as code. Look for issues labelled
+[`good first issue`](https://github.com/thiagodefreitas/NetworkTime/labels/good%20first%20issue),
+[`industry`](https://github.com/thiagodefreitas/NetworkTime/labels/industry) or
+[`research`](https://github.com/thiagodefreitas/NetworkTime/labels/research).
 
 ![Offset view with RTS smoother and ground truth](docs/img/ui-offset-light.png)
 

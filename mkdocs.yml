@@ -57,6 +57,7 @@ nav:
       - report: api/report.md
   - Live interop: INTEROP.md
   - State of the art: STATE_OF_THE_ART.md
+  - Tools landscape: LANDSCAPE.md
 
 markdown_extensions:
   - pymdownx.highlight:
