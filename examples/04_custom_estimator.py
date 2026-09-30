@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Plug your own synchronisation algorithm into the ntpstats test bench.
 
 Register an Estimator and benchmark it against the built-in reference

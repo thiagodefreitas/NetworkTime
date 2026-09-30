@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Cross-validation against the published test suites of NIST SP 1065.
 
 W. J. Riley, *Handbook of Frequency Stability Analysis*, NIST Special

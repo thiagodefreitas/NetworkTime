@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Limit masks for stability curves (e.g. TDEV/MTIE network limits).
 
 Masks are *user supplied* (no standards text is bundled): a CSV/whitespace

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Lightweight local web UI: stdlib HTTP server + a static single-page app.
 
 No web framework, no Node toolchain, no CDN: the page and its only

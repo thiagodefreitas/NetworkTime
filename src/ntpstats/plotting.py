@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Publication-quality static figures (matplotlib is an optional dependency).
 
 Uses the object-oriented API with the Agg canvas only, so it works headless

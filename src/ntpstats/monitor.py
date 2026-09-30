@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Periodic SNTP measurement logger (replaces the 2012 ``estimators.py`` online mode).
 
 Writes CSV rows ``unix_time,offset,delay,server,address,stratum,root_delay,root_dispersion``

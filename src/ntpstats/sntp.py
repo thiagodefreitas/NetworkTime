@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Minimal, dependency-free SNTP (RFC 5905 / RFC 4330) client for measurements.
 
 Improvements over the ``ntplib`` 0.1.9 copy used in 2012:

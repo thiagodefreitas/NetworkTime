@@ -4,7 +4,6 @@ title: "ntpstats: NTP clock-offset and time-stability analysis toolkit"
 authors:
   - family-names: "de Freitas"
     given-names: "Thiago"
-    email: "thiagodefreitas@gmail.com"
 license: MIT
 repository-code: "https://github.com/thiagodefreitas/NetworkTime"
 version: 2.7.0

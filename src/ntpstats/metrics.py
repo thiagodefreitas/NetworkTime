@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """OpenMetrics (Prometheus) exporter for ``ntpstats monitor`` and ``ntpstats watch``.
 
 ``ntpstats monitor pool.ntp.org --metrics-port 9123`` serves ``/metrics``

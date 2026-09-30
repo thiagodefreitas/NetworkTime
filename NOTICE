@@ -1,5 +1,5 @@
 ntpstats — NTP clock-offset and time-stability analysis toolkit
-Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 Licensed under the MIT License (see LICENSE). Commercial use is welcome;
 please keep the copyright notice and credit the author. If you use ntpstats
 in academic work, please cite it (see CITATION.cff).

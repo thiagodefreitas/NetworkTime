@@ -38,7 +38,7 @@ Guidelines:
   logs (anonymise addresses using RFC 5737 ranges).
 - The web UI is plain JavaScript with no build step. Keep it that way.
 - New files carry the SPDX header:
-  `SPDX-License-Identifier: MIT` / `Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>`.
+  `SPDX-License-Identifier: MIT` / `Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)`.
 
 ## Versioning and releases
 

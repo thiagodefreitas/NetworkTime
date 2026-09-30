@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """NTP exchanges from packet captures (pcap and pcapng), standard library only.
 
 Client requests (mode 3) are matched with server responses (mode 4) by the

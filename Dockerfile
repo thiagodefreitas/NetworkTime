@@ -7,7 +7,7 @@ FROM python:3.12-slim
 LABEL org.opencontainers.image.title="ntpstats" \
       org.opencontainers.image.source="https://github.com/thiagodefreitas/NetworkTime" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.authors="Thiago de Freitas <thiagodefreitas@gmail.com>"
+      org.opencontainers.image.authors="Thiago de Freitas (https://github.com/thiagodefreitas)"
 WORKDIR /app
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src ./src

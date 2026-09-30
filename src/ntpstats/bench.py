@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Benchmark synchronisation estimators against simulated ground truth.
 
     rows = run_bench(load_scenarios(["internet", "examples/scenarios/route-change.toml"]),

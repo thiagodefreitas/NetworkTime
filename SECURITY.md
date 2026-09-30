@@ -6,8 +6,8 @@ files. Security reports are welcome and taken seriously.
 ## Reporting a vulnerability
 
 Please **do not open a public issue**. Report privately through GitHub's
-[private vulnerability reporting](https://github.com/thiagodefreitas/NetworkTime/security/advisories/new),
-or email thiagodefreitas@gmail.com with "ntpstats security" in the subject.
+[private vulnerability reporting](https://github.com/thiagodefreitas/NetworkTime/security/advisories/new).
+If that form is unavailable, contact @thiagodefreitas on GitHub without disclosing details publicly.
 
 Please include the version, how to reproduce it, and the impact you expect. You should get an
 answer within a week. Fixes are released as a patch version and credited in the changelog,

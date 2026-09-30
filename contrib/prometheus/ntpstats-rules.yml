@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 # Prometheus alerting rules for the ntpstats exporter (ntpstats monitor/watch --metrics-port).
 # Thresholds are examples: set them to your own requirement, for example 100 us or 1 ms for
 # MiFID II RTS 25, or your application's tolerance.

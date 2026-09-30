@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Data exchange with other frequency-stability tools.
 
 **Stable32** (W. Riley; free from IEEE UFFC) reads and writes plain ASCII

@@ -303,7 +303,7 @@ legacy/           the original 2012 GSoC code, untouched
 
 ## License and citation
 
-MIT License. © 2012–2026 **Thiago de Freitas** <thiagodefreitas@gmail.com>. Free for commercial
+MIT License. © 2012–2026 **Thiago de Freitas** ([@thiagodefreitas](https://github.com/thiagodefreitas)). Free for commercial
 and non-commercial use; please keep the copyright notice and credit the author (see
 [NOTICE](NOTICE)). If you use it in research, please cite it via [CITATION.cff](CITATION.cff).
 The bundled uPlot is MIT-licensed © Leon Sorokin. The code under `legacy/` keeps its original

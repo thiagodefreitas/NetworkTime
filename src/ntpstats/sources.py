@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Live samples from the local time daemon (no log files needed).
 
 * **chrony**: ``chronyc -c tracking`` (CSV). Field order from chrony's

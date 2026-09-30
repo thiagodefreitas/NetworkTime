@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2012-2026 Thiago de Freitas <thiagodefreitas@gmail.com>
+# Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """Drop-in functions with allantools-style signatures, computed by ntpstats.
 
 Code written for `allantools <https://github.com/aewallin/allantools>`_ can

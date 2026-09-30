@@ -12,7 +12,7 @@ __credits__ = ["Judah Levine", "Harlan Stenn", "Antonio Lima"]
 __license__ = "GPL"
 __version__ = "1.0"
 __maintainer__ = "Thiago de Freitas"
-__email__ = "thiago.oliveira@ee.ufcg.edu.br"
+__url__ = "https://github.com/thiagodefreitas"
 __status__ = "Prototype"
 
 from scipy import *
