@@ -12,6 +12,12 @@
 * **ntpd / NTPsec**: ``ntpq -c rv`` system variables (``offset`` in ms, ntpd
   convention; ``frequency`` ppm; ``sys_jitter``/``clk_jitter`` ms).
 
+* **linuxptp**: ``pmc -u -b 0 'GET CURRENT_DATA_SET' 'GET TIME_STATUS_NP'``
+  (``offsetFromMaster`` and ``master_offset`` in ns, local - master, negated
+  here; ``meanPathDelay`` ns; ``gmPresent``).
+* **facebook/time**: ``ptpcheck stats`` JSON (``ptp.offset_ns``, local -
+  master as reported by ptp4l, negated here; ``ptp.mean_path_delay_ns``).
+
 Only a subprocess is used; nothing is installed or configured. The command
 can be overridden (e.g. ``["ssh", "host", "chronyc"]``) to watch a remote host.
 """
@@ -115,11 +121,97 @@ def sample_ntpq(cmd: Sequence[str] = ("ntpq",)) -> Dict[str, object]:
     return d
 
 
+_PMC_KV = re.compile(r"^\s+([A-Za-z_][A-Za-z0-9_]*)\s+(\S+)\s*$")
+
+
+def parse_pmc(text: str) -> Dict[str, object]:
+    """Parse ``pmc`` CURRENT_DATA_SET / TIME_STATUS_NP responses."""
+    kv: Dict[str, str] = {}
+    for line in text.splitlines():
+        m = _PMC_KV.match(line)
+        if m and m.group(1) not in kv:
+            kv[m.group(1)] = m.group(2)
+    if "offsetFromMaster" not in kv and "master_offset" not in kv:
+        raise SourceError("pmc output has no offsetFromMaster/master_offset (is ptp4l running?)")
+
+    def ns(key):
+        try:
+            return float(kv[key]) * 1e-9
+        except (KeyError, ValueError):
+            return float("nan")
+
+    off = ns("offsetFromMaster")
+    if off != off:  # NaN: fall back to TIME_STATUS_NP
+        off = ns("master_offset")
+    return {
+        "offset": -off,
+        "mean_path_delay": ns("meanPathDelay"),
+        "master_offset": ns("master_offset"),
+        "steps_removed": float(kv.get("stepsRemoved", "nan")),
+        "gm_present": 1.0 if kv.get("gmPresent") == "true" else 0.0 if "gmPresent" in kv else float("nan"),
+        "gm_identity": kv.get("gmIdentity", ""),
+    }
+
+
+def sample_pmc(cmd: Sequence[str] = ("pmc", "-u", "-b", "0")) -> Dict[str, object]:
+    d = parse_pmc(_run([*cmd, "GET CURRENT_DATA_SET", "GET TIME_STATUS_NP"]))
+    d["time"] = time.time()
+    return d
+
+
+def parse_ptpcheck_stats(text: str) -> Dict[str, object]:
+    """Parse ``ptpcheck stats`` JSON (facebook/time)."""
+    import json
+
+    try:
+        j = json.loads(text.strip().splitlines()[-1])
+    except (ValueError, IndexError) as exc:
+        raise SourceError(f"unexpected ptpcheck output: {text[:80]!r}") from exc
+    if "ptp.offset_ns" not in j:
+        raise SourceError("ptpcheck stats output has no ptp.offset_ns")
+    return {
+        "offset": -float(j["ptp.offset_ns"]) * 1e-9,
+        "mean_path_delay": float(j.get("ptp.mean_path_delay_ns", float("nan"))) * 1e-9,
+        "steps_removed": float(j.get("ptp.steps_removed", float("nan"))),
+        "gm_present": float(j.get("ptp.gm_present", float("nan"))),
+    }
+
+
+def sample_ptpcheck(cmd: Sequence[str] = ("ptpcheck",)) -> Dict[str, object]:
+    d = parse_ptpcheck_stats(_run([*cmd, "stats"]))
+    d["time"] = time.time()
+    return d
+
+
+def prometheus_query_range(url: str, query: str, start: float, end: float, step="60",
+                           timeout: float = 30.0) -> dict:
+    """Run a Prometheus ``/api/v1/query_range`` request and return the JSON document."""
+    import json
+    import urllib.parse
+    import urllib.request
+
+    qs = urllib.parse.urlencode({"query": query, "start": f"{start:.3f}", "end": f"{end:.3f}", "step": str(step)})
+    full = url.rstrip("/") + "/api/v1/query_range?" + qs
+    if not full.startswith(("http://", "https://")):
+        raise SourceError("Prometheus URL must start with http:// or https://")
+    try:
+        with urllib.request.urlopen(full, timeout=timeout) as resp:  # noqa: S310 (scheme checked above)
+            doc = json.loads(resp.read().decode("utf-8"))
+    except (OSError, ValueError) as exc:
+        raise SourceError(f"Prometheus query failed: {exc}") from exc
+    if doc.get("status") != "success":
+        raise SourceError(f"Prometheus error: {doc.get('error', doc)}")
+    return doc
+
+
 #: daemon -> sampler function name (resolved at call time so it can be patched/replaced)
-SAMPLERS: Dict[str, str] = {"chrony": "sample_chrony", "ntpd": "sample_ntpq"}
+SAMPLERS: Dict[str, str] = {"chrony": "sample_chrony", "ntpd": "sample_ntpq", "ptp4l": "sample_pmc",
+                            "ptpcheck": "sample_ptpcheck"}
 NUMERIC_EXTRAS = {
     "chrony": ("last_offset", "rms_offset", "frequency_ppm", "skew_ppm", "root_delay", "root_dispersion", "stratum"),
     "ntpd": ("frequency_ppm", "sys_jitter", "clk_jitter", "clk_wander_ppm", "rootdelay", "rootdisp", "stratum"),
+    "ptp4l": ("mean_path_delay", "master_offset", "steps_removed", "gm_present"),
+    "ptpcheck": ("mean_path_delay", "steps_removed", "gm_present"),
 }
 
 
@@ -131,7 +223,7 @@ class LocalWatch:
                  on_error: Optional[Callable[[str, Exception], None]] = None,
                  count: Optional[int] = None, cmd: Optional[Sequence[str]] = None):
         if daemon not in SAMPLERS:
-            raise ValueError(f"unknown daemon {daemon!r}; choose chrony or ntpd")
+            raise ValueError(f"unknown daemon {daemon!r}; choose from {', '.join(SAMPLERS)}")
         self.daemon = daemon
         self.servers = [f"local {daemon}"]
         self.interval = float(interval)

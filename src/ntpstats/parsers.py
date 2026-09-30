@@ -42,7 +42,7 @@ import io
 import os
 import re
 from collections import OrderedDict
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Callable, Dict, Iterable, List, Optional, Sequence
 
 import numpy as np
 
@@ -62,6 +62,9 @@ FORMATS = (
     "csv",
     "stable32-phase",
     "stable32-freq",
+    "w32tm",
+    "prometheus",
+    "bounds",
     "gsoc2012",
 )
 
@@ -143,8 +146,24 @@ def _data_lines(lines: Iterable[str]) -> List[str]:
 
 
 # --------------------------------------------------------------- detection
+_W32_LINE = re.compile(r"^\s*(\d{1,2}):(\d{2}):(\d{2}),\s*(?:d:([+-]?[\d.]+)s\s+o:)?([+-]?[\d.]+)s\s*$")
+_W32_RDTSC = re.compile(r"rdtscstart\s*,\s*rdtscend\s*,\s*filetime", re.I)
+_BOUNDS_TEXT = re.compile(r"within\s+([\d.]+)\s+and\s+([\d.]+)\s+seconds", re.I)
+
+
 def detect_format(lines: Sequence[str]) -> str:
     """Guess the format of a log from its first lines."""
+    head = "\n".join(lines[:50])
+    if '"resultType"' in head and '"matrix"' in head:
+        return "prometheus"
+    if _W32_RDTSC.search(head) or ("Tracking " in head and any(_W32_LINE.match(ln) for ln in lines[:50])):
+        return "w32tm"
+    if _BOUNDS_TEXT.search(head):
+        return "bounds"
+    first = next((ln for ln in lines[:5] if ln.strip()), "")
+    cols = [c.strip().lower() for c in re.split(r"[,;\s]+", first.lstrip("#").strip())]
+    if "earliest" in cols and "latest" in cols:
+        return "bounds"
     header = " ".join(ln for ln in lines[:20] if ln.strip() and not ln.strip()[0].isdigit())
     for ln in lines[:200]:
         if _LEGACY.search(ln):
@@ -612,7 +631,106 @@ def parse_csv(lines, name="data", tau0: Optional[float] = None) -> List[TimeSeri
     return [s.sorted()]
 
 
-_PARSERS = {
+_W32_DATE_FORMATS = ("%m/%d/%Y %I:%M:%S %p", "%m/%d/%Y %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S",
+                     "%d.%m.%Y %H:%M:%S")
+FILETIME_UNIX_DELTA = 11644473600  # seconds from 1601-01-01 to 1970-01-01
+
+
+def parse_w32tm(lines, name="w32tm") -> List[TimeSeries]:
+    """``w32tm /stripchart /dataonly`` text, or ``w32tm /stripchart /rdtsc`` CSV.
+
+    The offset is w32tm's NtpOffset, "computed as per NTP offset
+    computations" (server - local), which is the ntpstats convention. The
+    text form only prints a time of day: the date comes from the "The current
+    time is ..." line when it can be read, and the times are the local wall
+    clock of the Windows host (the time zone is not in the output).
+    """
+    import datetime as _dt
+
+    target = ""
+    for ln in lines[:10]:
+        m = re.match(r"\s*Tracking\s+(\S+)", ln)
+        if m:
+            target = m.group(1).rstrip(".")
+    rd = [i for i, ln in enumerate(lines) if _W32_RDTSC.search(ln)]
+    if rd:
+        hdr = [h.strip().lower() for h in lines[rd[0]].split(",")]
+        ix = {h: k for k, h in enumerate(hdr)}
+        t, off, dly = [], [], []
+        for ln in lines[rd[0] + 1:]:
+            parts = [p.strip() for p in ln.split(",")]
+            if len(parts) < len(hdr):
+                continue
+            try:
+                ft = int(parts[ix["filetime"]], 0)
+                t.append(ft / 1e7 - FILETIME_UNIX_DELTA)
+                off.append(float(parts[ix["ntpoffset"]].rstrip("s")))
+                dly.append(float(parts[ix["roundtripdelay"]].rstrip("s")))
+            except (ValueError, KeyError):
+                continue
+        return [_finish(t, off, name, "w32tm", extra={"delay": dly}, meta={"peer": target, "mode": "rdtsc"})]
+    base = None
+    for ln in lines[:10]:
+        m = re.search(r"current time is\s+(.+?)\.?\s*$", ln, re.I)
+        if m:
+            for fmt in _W32_DATE_FORMATS:
+                try:
+                    base = _dt.datetime.strptime(m.group(1).strip(), fmt).replace(tzinfo=_dt.timezone.utc)
+                    break
+                except ValueError:
+                    continue
+    day0 = (base.replace(hour=0, minute=0, second=0, microsecond=0) if base
+            else _dt.datetime(1970, 1, 1, tzinfo=_dt.timezone.utc)).timestamp()
+    t, off, dly = [], [], []
+    day, last = 0, -1
+    for ln in lines:
+        m = _W32_LINE.match(ln)
+        if not m:
+            continue
+        sod = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
+        if sod < last - 43200:
+            day += 1  # past midnight
+        last = sod
+        t.append(day0 + day * 86400 + sod)
+        off.append(float(m.group(5)))
+        dly.append(float(m.group(4)) if m.group(4) else np.nan)
+    extra = {"delay": dly} if np.isfinite(dly).any() else None
+    meta = {"peer": target, "mode": "dataonly", "clock": "local wall clock of the Windows host"}
+    if base is None:
+        meta["note"] = "date not found in the output: times start at 1970-01-01"
+    return [_finish(t, off, name, "w32tm", extra=extra, meta=meta)]
+
+
+def parse_prometheus(lines, name="prometheus", negate: bool = False) -> List[TimeSeries]:
+    """A saved Prometheus ``query_range`` JSON response (one series per label set).
+
+    Offsets are taken as reference - local (e.g. ntpd-rs ``ntp_source_offset_seconds``,
+    "offset between the upstream source and system time"). Use ``negate`` for
+    metrics that report local - reference.
+    """
+    import json
+
+    doc = json.loads("\n".join(lines))
+    data = doc.get("data", doc)
+    if data.get("resultType") != "matrix":
+        raise ParseError("Prometheus JSON: expected a range query (resultType matrix)")
+    out = []
+    for r in data.get("result", []):
+        labels = r.get("metric", {})
+        vals = np.array([[float(a), float(b)] for a, b in r.get("values", [])], dtype=float).reshape(-1, 2)
+        if not len(vals):
+            continue
+        label = labels.get("name") or labels.get("address") or labels.get("instance") or labels.get("__name__", "")
+        extra_lab = ",".join(f"{k}={v}" for k, v in sorted(labels.items()) if k != "__name__")
+        off = -vals[:, 1] if negate else vals[:, 1]
+        out.append(_finish(vals[:, 0], off, f"{name} [{labels.get('__name__', 'query')} {label}]".strip(),
+                           "prometheus", meta={"peer": label, "labels": extra_lab}))
+    if not out:
+        raise ParseError("Prometheus JSON has no samples")
+    return out
+
+
+_PARSERS: Dict[str, Callable[..., List[TimeSeries]]] = {
     "loopstats": parse_loopstats,
     "peerstats": parse_peerstats,
     "rawstats": parse_rawstats,
@@ -621,6 +739,8 @@ _PARSERS = {
     "chrony-statistics": parse_chrony_statistics,
     "chrony-refclocks": parse_chrony_refclocks,
     "linuxptp": parse_linuxptp,
+    "w32tm": parse_w32tm,
+    "prometheus": parse_prometheus,
     "gsoc2012": parse_gsoc2012,
 }
 
@@ -657,6 +777,17 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
         fmt = detect_format(lines)
     if fmt == "csv":
         series = parse_csv(lines, label, tau0=tau0)
+    elif fmt == "bounds":
+        from .bounds import parse_bounds
+
+        series = parse_bounds(lines, label)
+    elif fmt.startswith("profile:"):
+        from .profiles import load_profile, parse_with_profile
+
+        try:
+            series = [parse_with_profile(lines, load_profile(fmt.split(":", 1)[1]), label, tau0=tau0)]
+        except ValueError as exc:
+            raise ParseError(str(exc)) from exc
     elif fmt in ("stable32-phase", "stable32-freq"):
         from .interop import read_stable32
 

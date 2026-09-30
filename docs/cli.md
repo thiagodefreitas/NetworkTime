@@ -5,7 +5,8 @@
 
 | Option | Meaning |
 |---|---|
-| `-f/--format` | force a format instead of auto-detection |
+| `-f/--format` | force a format instead of auto-detection; `profile:NAME` or `profile:FILE.toml` for instrument exports |
+| `--negate` | flip the offset sign (for sources that log local − reference) |
 | `--peer ADDR` / `--all-peers` | pick one peer/source (substring match) or analyse all |
 | `--start`, `--end` | time window (POSIX seconds or ISO 8601 UTC) |
 | `--outliers K` | drop samples beyond K·MAD of the detrended median |
@@ -27,5 +28,7 @@
 | `bench` | estimators × scenarios × seeds against ground truth; `--html`, `--csv`, `--list` |
 | `query` | one-shot measurement: NTPv4, `--nts`, `--ntpv5`, `--probe-v5`, `-4/-6` |
 | `monitor` | periodic SNTP/NTS/NTPv5 measurements to CSV (polite polling); `--metrics-port` serves OpenMetrics ([Monitoring](monitoring.md)) |
-| `watch` | sample the local chrony (`chronyc -c tracking`) or ntpd (`ntpq -c rv`); `--metrics-port` as for `monitor` |
+| `watch` | sample the local chrony (`chronyc -c tracking`), ntpd (`ntpq -c rv`), ptp4l (`pmc`) or `ptpcheck`; `--metrics-port` as for `monitor` |
+| `prom` | fetch a Prometheus range query (ntpd-rs, chrony_exporter, …) to a JSON file every command reads |
+| `bounds` | validate clock-error bounds (ClockBound, fbclock, CSV) against a reference; exit code 3 on violations |
 | `ui` | start the local web UI |

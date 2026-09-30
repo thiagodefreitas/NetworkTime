@@ -16,6 +16,10 @@ Formats are detected automatically; `-f/--format` overrides detection.
 | `csv` | generic `unix_time,offset[,…]`, `ntpstats monitor` output | offset column | any other columns |
 | `stable32-phase` | Stable32 data file (phase in s; optional MJD timetags; not auto-detected) | chosen column (default last) | — |
 | `stable32-freq` | Stable32 data file (fractional frequency; zeros are gaps; not auto-detected) | integrated to phase | — |
+| `w32tm` | Windows `w32tm /stripchart /dataonly` text or `/rdtsc` CSV | NtpOffset (server − local) | delay |
+| `prometheus` | saved Prometheus `query_range` JSON (`ntpstats prom`), e.g. ntpd-rs, chrony_exporter | metric value (use `--negate` for local − reference metrics) | labels in `meta` |
+| `bounds` | ClockBound output or `earliest,latest[,unix_time,status]` CSV | window centre − local | `bound` (half-width), `synchronized` |
+| `profile:NAME` / `profile:FILE.toml` | instrument exports described by a TOML profile ([Sources](sources.md)) | value column (TE negated) | chosen columns |
 | `gsoc2012` | the 2012 prototype's `estimators.log` | offset | — |
 
 `ntpstats convert` writes any of these as a Stable32 file or plain CSV (see

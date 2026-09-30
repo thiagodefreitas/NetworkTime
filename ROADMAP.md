@@ -44,13 +44,13 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ Time-error metrics: max|TE|, cTE, dTE_L/H, max|TEL|, 1PPS/TIC input, limits and masks. ([#20](https://github.com/thiagodefreitas/NetworkTime/issues/20))
 
 ### 2.9: Sources and instruments
-- More sources: ntpd-rs, facebook/time, w32tm, ClockBound, Time Card, pmc, chrony 4.9. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
-- Instrument import profiles (TIC/counters, Calnex, VIAVI, Keysight, Microchip exports). ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35))
+- ✅ More sources: linuxptp `pmc` and `ptpcheck` live, w32tm, Prometheus import (ntpd-rs, chrony_exporter), ClockBound/fbclock bound validation. Time Card, Timebeat and chrony 4.9 log checks wait for sample data. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+- ✅ Instrument import profiles (TOML, built-ins for generic TIC/TE layouts); vendor profiles from contributed samples. ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35))
 
 ### 2.10: Trust and operations
 - UTC traceability and compliance report (`ntpstats audit`). ([#22](https://github.com/thiagodefreitas/NetworkTime/issues/22))
 - Anomaly and change-point detection. ([#23](https://github.com/thiagodefreitas/NetworkTime/issues/23))
-- Operations integration, remaining parts: OpenTelemetry, Prometheus import, a GitHub Action and a pytest plugin for timing checks in CI. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36))
+- Operations integration, remaining parts: OpenTelemetry, a GitHub Action and a pytest plugin for timing checks in CI. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36))
 - Protocol watch: Roughtime, NTS pools, NTPv5, RFC 9769 interleaved mode. ([#24](https://github.com/thiagodefreitas/NetworkTime/issues/24))
 
 ### 2.11: Metrology and research data
@@ -101,3 +101,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.6 | Fast MTOT/Theo family on million-sample logs ([#18](https://github.com/thiagodefreitas/NetworkTime/issues/18)) |
 | 2.7 | NIST SP 1065 validation, MTOT bias correction, TTOT; Stable32 files and allantools API; Prometheus exporter and Grafana dashboard; community on-ramp |
 | 2.8 | PTP from packet captures ([#19](https://github.com/thiagodefreitas/NetworkTime/issues/19)); time-error metrics with limits and masks ([#20](https://github.com/thiagodefreitas/NetworkTime/issues/20)); ns-exact capture timestamps |
+| 2.9 | ptp4l/ptpcheck live, w32tm, Prometheus import, clock-error bound validation, instrument profiles, `--negate` |

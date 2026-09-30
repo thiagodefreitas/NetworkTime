@@ -19,20 +19,22 @@ these tools, not to replace them. Corrections are welcome as issues or pull requ
 | Tool | What it is | Relation to ntpstats |
 |---|---|---|
 | **chrony** / `chronyc` | The default client on most Linux distributions; logs tracking, measurements, statistics and refclocks | All of these logs are parsed, and chrony can be polled live |
-| **ntpd-rs** | Rust NTP/NTS daemon with experimental NTPv5; planned default in Ubuntu 27.04 | NTPv5 interop tested; log and metrics support planned ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
+| **ntpd-rs** | Rust NTP/NTS daemon with experimental NTPv5; planned default in Ubuntu 27.04 | NTPv5 interop tested; its Prometheus metrics are read with `ntpstats prom` ([Sources](sources.md)) |
 | **NTPsec** `ntpviz` | Percentile plots from `loopstats`/`peerstats` | Same inputs; ntpstats adds stability statistics, network metrics and chrony support |
 | **ntpperf** (M. Lichvar) | Load and timestamp-accuracy tester for NTP servers and PTP masters | Complementary: ntpstats analyses the resulting NTP and PTP captures |
-| `chrony_exporter` + Prometheus/Grafana | Operational dashboards | ntpstats exports OpenMetrics; dashboards and Prometheus import planned ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)) |
+| `chrony_exporter` + Prometheus/Grafana | Operational dashboards | ntpstats exports OpenMetrics with a Grafana dashboard ([Monitoring](monitoring.md)) and imports Prometheus range queries (`ntpstats prom`) |
 
 ## PTP and telecom
 
 | Tool | What it is | Relation to ntpstats |
 |---|---|---|
-| **linuxptp** (`ptp4l`, `phc2sys`, `ts2phc`, `pmc`) | The Linux PTP stack | Logs parsed; `pmc` live polling planned ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
+| **linuxptp** (`ptp4l`, `phc2sys`, `ts2phc`, `pmc`) | The Linux PTP stack | Logs parsed; live polling via `pmc` (`ntpstats watch ptp4l`) |
 | **Meinberg PTP Track Hound** (free, closed source) | Captures and decodes PTP traffic, groups devices, monitors | Complementary: ntpstats computes offset, PDV and time-error statistics from the captures ([PTP & time error](ptp.md)) |
 | **Calnex CAT**, VIAVI, Keysight, Microchip software | Vendor analysis for test equipment: TE, cTE, dTE, MTIE, TDEV, FPP with standard masks | ntpstats offers transparent, scriptable TE/cTE/dTE/MTIE/TDEV on exported data ([PTP & time error](ptp.md)); instrument import profiles planned ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)) |
-| **facebook/time** (ptpcheck, sptp, ptp4u, fbclock) | Meta's open-source PTP/NTP tools and TrueTime-style uncertainty | Planned ingestion and validation of the uncertainty window ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
-| **OCP TAP Time Card / Open Time Server** | Open-hardware grandmaster (GNSS + atomic oscillator) | Planned self-monitoring and holdover analysis ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21), [#26](https://github.com/thiagodefreitas/NetworkTime/issues/26)) |
+| **facebook/time** (ptpcheck, sptp, ptp4u, fbclock) | Meta's open-source PTP/NTP tools and TrueTime-style uncertainty | `ptpcheck stats` live polling (`ntpstats watch ptpcheck`); fbclock windows validated with `ntpstats bounds` |
+| **OCP TAP Time Card / Open Time Server** | Open-hardware grandmaster (GNSS + atomic oscillator) | Planned self-monitoring and holdover analysis; sample data welcome ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21), [#26](https://github.com/thiagodefreitas/NetworkTime/issues/26)) |
+| **AWS ClockBound** | Clock-error bound daemon for EC2 | Bounds validated against a reference (`ntpstats bounds`) |
+| **Windows w32tm** | The Windows time service | `w32tm /stripchart` output read directly |
 | **White Rabbit** (CERN OHWR) | Sub-ns time transfer | Its phase logs can be analysed as phase data; a dedicated format could arrive as a plugin ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37)) |
 | Wireshark | General capture and dissection | ntpstats reads the same pcap/pcapng files and computes the timing statistics |
 

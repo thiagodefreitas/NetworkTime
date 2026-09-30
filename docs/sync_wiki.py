@@ -34,6 +34,7 @@ PAGES = {
     "docs/statistics.md": "Statistics",
     "docs/network.md": "Network-and-Estimators",
     "docs/ptp.md": "PTP-and-Time-Error",
+    "docs/sources.md": "Sources-Instruments-Bounds",
     "docs/monitoring.md": "Monitoring",
     "docs/validation.md": "Validation",
     "docs/migrating.md": "Stable32-TimeLab-allantools",
@@ -47,7 +48,7 @@ PAGES = {
 SIDEBAR = [
     ("Home", "Home"), ("Getting started", "Getting-Started"), ("CLI reference", "CLI-Reference"),
     ("Input formats", "Input-Formats"), ("Statistics", "Statistics"),
-    ("Network & estimators", "Network-and-Estimators"), ("PTP & time error", "PTP-and-Time-Error"), ("Monitoring", "Monitoring"), ("Validation", "Validation"),
+    ("Network & estimators", "Network-and-Estimators"), ("PTP & time error", "PTP-and-Time-Error"), ("Sources & bounds", "Sources-Instruments-Bounds"), ("Monitoring", "Monitoring"), ("Validation", "Validation"),
     ("API reference", "API-Reference"), ("Live interop", "Live-Interop"),
     ("State of the art", "State-of-the-Art"), ("Tools landscape", "Tools-Landscape"), ("Changelog", "Changelog"), ("Roadmap", "Roadmap"),
 ]

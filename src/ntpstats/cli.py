@@ -47,6 +47,9 @@ def _load_args(args) -> List[TimeSeries]:
         else:
             s = load(path, fmt=args.format, tau0=args.tau0)
         for x in s:
+            if getattr(args, "negate", False):
+                x = TimeSeries(t=x.t, offset=-x.offset, name=x.name, source_format=x.source_format,
+                               extra=x.extra, meta=dict(x.meta, negated=True))
             if args.start is not None or args.end is not None:
                 x = x.between(args.start, args.end)
             if args.outliers:
@@ -67,9 +70,20 @@ def _utc(t: float) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(t))
 
 
+def _fmt(v: str) -> str:
+    if v == "auto" or v in FORMATS or v.startswith("profile:"):
+        return v
+    raise argparse.ArgumentTypeError(f"invalid format {v!r}; choose auto, {', '.join(FORMATS)} or profile:NAME|FILE")
+
+
+FORMAT_HELP = "input format (default: auto-detect); profile:NAME or profile:FILE.toml for instrument exports"
+
+
 def _common(p: argparse.ArgumentParser):
     p.add_argument("files", nargs="+", help="log files (loopstats, peerstats, rawstats, chrony logs, CSV...)")
-    p.add_argument("-f", "--format", default="auto", choices=("auto",) + FORMATS, help="input format (default: auto-detect)")
+    p.add_argument("-f", "--format", default="auto", type=_fmt, help=FORMAT_HELP)
+    p.add_argument("--negate", action="store_true", help="flip the sign of the offsets (for sources that log "
+                                                          "local - reference)")
     p.add_argument("--peer", help="select a peer/source (substring of its address) in multi-peer logs")
     p.add_argument("--all-peers", action="store_true", help="analyse every peer in multi-peer logs")
     p.add_argument("--start", type=_parse_time, help="ignore samples before this time (POSIX s or ISO 8601 UTC)")
@@ -122,6 +136,58 @@ def cmd_info(args):
         extras = [k for k in r if k.endswith("_median")]
         if extras:
             print("   columns      " + ", ".join(f"{k[:-7]} {r[k]:.4g}" for k in extras))
+
+
+def cmd_prom(args):
+    from .sources import prometheus_query_range
+
+    end = args.end if args.end is not None else time.time()
+    start = args.start if args.start is not None else end - _duration(args.since)
+    from .sources import SourceError
+
+    try:
+        doc = prometheus_query_range(args.url, args.query, start, end, args.step, timeout=args.timeout)
+    except SourceError as exc:
+        raise SystemExit(str(exc)) from None
+    n = sum(len(r.get("values", [])) for r in doc["data"]["result"])
+    with open(args.output, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh)
+    print(f"{len(doc['data']['result'])} series, {n} samples -> {args.output} "
+          f"(analyse with any command, e.g. ntpstats stability {args.output} --all-peers)", file=sys.stderr)
+
+
+def _duration(v: str) -> float:
+    m = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
+    v = v.strip()
+    return float(v[:-1]) * m[v[-1]] if v and v[-1] in m else float(v)
+
+
+def cmd_bounds(args):
+    from .bounds import validate
+
+    try:
+        b = load_one(args.bounds, fmt="bounds")
+    except ParseError as exc:
+        raise SystemExit(f"{args.bounds}: {exc}") from None
+    ref = load_one(args.reference, fmt=args.ref_format, peer=args.ref_peer)
+    if args.negate_reference:
+        ref = TimeSeries(t=ref.t, offset=-ref.offset, name=ref.name, extra=ref.extra, meta=ref.meta)
+    r = validate(b, ref, max_gap=args.max_gap, reference_uncertainty=args.ref_uncertainty)
+    rc = 3 if (r["compared"] and r["violation_rate"] > args.max_violation_rate) else 0
+    if args.json:
+        print(json.dumps(r, indent=2, default=float))
+        return rc
+    print(f"== {b.name} against {ref.name}")
+    if not r["compared"]:
+        print("  no overlap between the bounds and the reference")
+        return 0
+    print(f"  compared {r['compared']}: inside {r['inside']}, violated {r['violations']}, "
+          f"indeterminate {r['indeterminate']} (reference not good enough to tell)")
+    print(f"  violation rate {r['violation_rate']:.3%}; worst excess {format_seconds(r['worst_excess'])}")
+    print(f"  median bound {format_seconds(r['median_bound'])}; median |error| {format_seconds(r['median_abs_error'])}"
+          f" (tightness {r['tightness']:.2f}); reference uncertainty {format_seconds(r['median_reference_uncertainty'])}")
+    print(f"  [{'FAIL' if rc else 'PASS'}] violation rate <= {args.max_violation_rate:.3%}")
+    return rc
 
 
 def cmd_timeerror(args):
@@ -435,8 +501,9 @@ def cmd_watch(args):
     def show(d):
         if reg is not None:
             reg.observe_watch(args.daemon, d)
-        print(f"{_utc(d['time'])} {args.daemon:6} offset {format_seconds(d['offset']):>10}  "
-              f"freq {d.get('frequency_ppm', float('nan')):+.3f} ppm", flush=True)
+        tail = (f"freq {d['frequency_ppm']:+.3f} ppm" if "frequency_ppm" in d
+                else f"path delay {format_seconds(d.get('mean_path_delay', float('nan')))}")
+        print(f"{_utc(d['time'])} {args.daemon:8} offset {format_seconds(d['offset']):>10}  {tail}", flush=True)
 
     def err(src, exc):
         if reg is not None:
@@ -577,6 +644,31 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_timeerror)
 
+    s = sub.add_parser("prom", help="fetch a Prometheus range query (e.g. ntpd-rs or chrony_exporter offsets) "
+                                    "to a JSON file any command can read")
+    s.add_argument("url", help="Prometheus base URL, e.g. http://localhost:9090")
+    s.add_argument("query", help="PromQL, e.g. ntp_source_offset_seconds")
+    s.add_argument("--since", default="24h", help="how far back when --start is not given (e.g. 6h, 7d)")
+    s.add_argument("--start", type=_parse_time)
+    s.add_argument("--end", type=_parse_time)
+    s.add_argument("--step", default="60", help="resolution in seconds (default 60)")
+    s.add_argument("--timeout", type=float, default=30.0)
+    s.add_argument("-o", "--output", default="prometheus.json")
+    s.set_defaults(func=cmd_prom)
+
+    s = sub.add_parser("bounds", help="validate clock-error bounds (ClockBound, fbclock, CSV) against a reference")
+    s.add_argument("bounds", help="ClockBound output lines, or CSV with earliest,latest[,unix_time,status]")
+    s.add_argument("reference", help="better reference for the same host (PTP/PPS log, NTS monitor CSV, ...)")
+    s.add_argument("--ref-format", default="auto", type=_fmt)
+    s.add_argument("--ref-peer", help="select a source in a multi-peer reference log")
+    s.add_argument("--negate-reference", action="store_true", help="the reference logs local - reference")
+    s.add_argument("--ref-uncertainty", type=float, metavar="S",
+                   help="reference uncertainty in s (default: half its round-trip delay, else 0)")
+    s.add_argument("--max-gap", type=float, metavar="S", help="largest reference gap to interpolate across, s")
+    s.add_argument("--max-violation-rate", type=float, default=0.0, help="exit code 3 above this rate (default 0)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_bounds)
+
     s = sub.add_parser("convert", help="write a log as a Stable32 data file (phase or frequency) or plain CSV")
     _common(s)
     s.add_argument("-o", "--output", required=True, help="output path; {n} is replaced by the series index")
@@ -673,8 +765,8 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("compare", help="error of a source against a reference (e.g. NTP client vs PPS/GNSS)")
     s.add_argument("estimate", help="log with the offsets to evaluate")
     s.add_argument("reference", help="log with the reference offsets (same sign convention, overlapping time)")
-    s.add_argument("-f", "--format", default="auto", choices=("auto",) + FORMATS)
-    s.add_argument("--ref-format", default="auto", choices=("auto",) + FORMATS)
+    s.add_argument("-f", "--format", default="auto", type=_fmt)
+    s.add_argument("--ref-format", default="auto", type=_fmt)
     s.add_argument("--peer")
     s.add_argument("--ref-peer")
     s.add_argument("-o", "--output", help="write the error series as CSV")
@@ -705,8 +797,9 @@ def build_parser() -> argparse.ArgumentParser:
     _metrics_args(s)
     s.set_defaults(func=cmd_monitor)
 
-    s = sub.add_parser("watch", help="log offset/frequency of the local chrony or ntpd/NTPsec (no log files needed)")
-    s.add_argument("daemon", choices=("chrony", "ntpd"))
+    s = sub.add_parser("watch", help="log the local chrony, ntpd/NTPsec, ptp4l or ptpcheck (no log files needed)")
+    s.add_argument("daemon", choices=("chrony", "ntpd", "ptp4l", "ptpcheck"),
+                   help="chrony (chronyc), ntpd/NTPsec (ntpq), ptp4l (linuxptp pmc) or ptpcheck (facebook/time)")
     s.add_argument("-o", "--output", default="ntpstats-watch.csv")
     s.add_argument("-i", "--interval", type=float, default=16.0)
     s.add_argument("-n", "--count", type=int, help="stop after N samples")
@@ -716,7 +809,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("ui", help="start the local web UI")
     s.add_argument("files", nargs="*")
-    s.add_argument("-f", "--format", default="auto", choices=("auto",) + FORMATS)
+    s.add_argument("-f", "--format", default="auto", type=_fmt)
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8123)
     s.add_argument("--no-browser", action="store_true")

@@ -14,6 +14,28 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-09-30
+
+### Added
+- **Live PTP clients** (#21): `ntpstats watch ptp4l` polls linuxptp through `pmc`
+  (CURRENT_DATA_SET, TIME_STATUS_NP), and `ntpstats watch ptpcheck` polls facebook/time
+  `ptpcheck stats`. Both are negated into reference − local, offered in the UI's Live dialog,
+  and served to Prometheus with `--metrics-port`.
+- **Windows w32tm** (#21): `/stripchart /dataonly` text (with midnight rollover and the date
+  taken from the header) and `/rdtsc` CSV with exact FILETIME timestamps, auto-detected.
+- **Prometheus import** (#21, #36): `ntpstats prom URL QUERY` saves a range query (e.g. ntpd-rs
+  `ntp_source_offset_seconds`, chrony_exporter) as JSON, and any command reads it.
+- **Clock-error bound validation** (#21): `ntpstats bounds BOUNDS REFERENCE` classifies each
+  ClockBound/fbclock/CSV window as inside, violated or indeterminate against a better reference
+  (with its uncertainty), and reports the violation rate, worst excess and tightness. Exit code
+  3 above `--max-violation-rate`. Windows are parsed as exact decimals.
+- **Instrument import profiles** (#35): `-f profile:NAME|FILE.toml` describes column layouts
+  (value/time columns, units, TE or offset sign, ISO/MJD/unix/elapsed time, skipped banner rows,
+  extra columns). Built-ins: `te-csv`, `tic-ns`, `tic-s`, `iso-te-ns`.
+- `--negate` on every command, for sources that log local − reference.
+- Examples: `w32tm-stripchart.txt`, `clockbound.txt` with a reference (synthetic), and a
+  "Sources, instruments & bounds" docs page.
+
 ## [2.8.0] - 2026-09-30
 
 ### Added

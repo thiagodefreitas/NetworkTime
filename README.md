@@ -45,6 +45,9 @@ are as valuable as code. Look for issues labelled
   - **packet captures** (pcap/pcapng, including nanosecond and hardware timestamps): NTP
     exchanges and **PTP flows** (one-/two-step, E2E/P2P, UDP or Ethernet) are measured from the
     capture host's clock;
+  - **live**: chrony, ntpd/NTPsec, linuxptp (`pmc`) and facebook/time `ptpcheck`; Windows
+    `w32tm /stripchart`; Prometheus range queries (ntpd-rs, chrony_exporter);
+  - **instrument exports** via small TOML profiles (time-interval counters, PTP testers);
   - generic CSV and the 2012 `estimators.log`.
 
   Every sign convention is normalised to *reference − local*, following each implementation's
@@ -66,6 +69,8 @@ are as valuable as code. Look for issues labelled
 - **Telecom time error**: max|TE|, cTE, dTE_L/dTE_H, max|TEL|, and MTIE/TDEV of dTE_L, checked
   against your own limits and masks (`ntpstats timeerror`, exit code 3 on failure). Input can be
   a PTP capture, a linuxptp log or a time-interval counter.
+- **Clock-error bounds checked, not trusted**: `ntpstats bounds` measures how often AWS
+  ClockBound, fbclock or any `[earliest, latest]` window really contains true time.
 - **Works with the tools you have**:
   - Stable32 data files in and out (`ntpstats convert`);
   - an **allantools-compatible API** (`from ntpstats.compat import allantools`);

@@ -1,0 +1,3 @@
+# profiles
+
+::: ntpstats.profiles
