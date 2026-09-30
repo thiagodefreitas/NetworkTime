@@ -116,7 +116,7 @@ def phase_steps(s: TimeSeries, k: float = 8.0, window: int = 5, trend_window: in
     cand = np.flatnonzero(np.abs(r) > k * sigma) + 1
     events: List[Event] = []
     last = -10 * window
-    for i in cand:
+    for i in cand.tolist():  # plain ints
         if i - last < window:
             continue
         sl = float(slope[i - 1])
