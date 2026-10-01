@@ -52,6 +52,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# ntpstats never calls its own deprecated names (tests that check the warning catch it explicitly)
+filterwarnings = ["error::ntpstats.deprecation.NtpstatsDeprecationWarning"]
 
 [tool.ruff]
 line-length = 120

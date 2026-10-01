@@ -59,6 +59,18 @@ jobs:
           RESULT: ${{ steps.bounds.outputs.result }}
         run: test "$RESULT" = "fail"
 
+  notebooks:
+    # Example notebooks and the reproduction gallery run end to end (#32, #38)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[plot,data]" pytest nbmake
+      - name: Execute every notebook
+        run: pytest -q --nbmake examples/notebooks
+
   plugin:
     # The example plugin installed from its directory: discovery, use, and the contract suite (#37)
     runs-on: ubuntu-latest

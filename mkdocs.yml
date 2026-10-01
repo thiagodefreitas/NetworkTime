@@ -48,10 +48,12 @@ nav:
   - Research data (CGGTTS, Circular T, Atlas): research-data.md
   - Dataframes & Parquet: dataframes.md
   - Writing a plugin: plugins.md
+  - Notebooks & gallery: notebooks.md
   - Validation: validation.md
   - Stable32, TimeLab, allantools: migrating.md
   - API:
       - Overview: api/index.md
+      - Stable API: api/stable.md
       - series: api/series.md
       - parsers: api/parsers.md
       - stability: api/stability.md

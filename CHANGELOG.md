@@ -14,6 +14,32 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-10-01
+
+### Added
+- **Stable API** (#32): `from ntpstats import api as nt` gives the public surface in one namespace
+  (loading, stability, analysis, metrology, time error and assurance, estimators, simulator,
+  bench, reports, plugin types).
+  - Covered by a deprecation policy: one full minor release of `NtpstatsDeprecationWarning`
+    before a stable name or parameter changes. The warning is a `FutureWarning`, so it is shown
+    in scripts and notebooks.
+  - Helpers for contributors in `ntpstats.deprecation`: `deprecated`, `renamed_parameter`,
+    `moved`.
+  - The surface is frozen in `tests/data/api_surface.json`; CI fails on incompatible changes.
+  - Documented on the new *Stable API* page; the policy is in CONTRIBUTING.
+- **Large files** (#32, continues #13): `load_large` and `iter_chunks` read line-oriented logs in
+  blocks, gzip included, and give the same series as `load`.
+  - In a 300 000-line test, peak memory was about 2.4 times lower and reading twice as fast.
+  - `load` switches to block reading by itself for text logs above 256 MB.
+  - Supported formats: ntpd/NTPsec stats, chrony logs, linuxptp, CSV and the 2012 log.
+- **Notebooks and reproduction gallery** (#32, #38): four notebooks, executed in CI on every change:
+  - a chrony log to stability with intervals and a noise model;
+  - benchmarking your own estimator;
+  - compliance evidence (PTP time error, a UTC bound, a mask, an HTML report);
+  - a reproduction of the NIST SP 1065 test suites.
+
+  A docs page explains how to contribute a gallery entry.
+
 ## [2.14.0] - 2026-10-01
 
 ### Added

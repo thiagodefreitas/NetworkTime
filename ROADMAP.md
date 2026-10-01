@@ -74,9 +74,14 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ Plugin architecture for parsers, estimators, detectors, masks and profiles, with contract tests. ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37))
 - ✅ pandas/xarray/Parquet adapters and `py.typed`. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
 
+### 2.15: Stable API and notebooks
+- ✅ Stable API (`ntpstats.api`) with a frozen surface and a deprecation policy. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
+- ✅ Streaming reader for multi-GB logs. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32), [#13](https://github.com/thiagodefreitas/NetworkTime/issues/13))
+- ✅ Notebooks executed in CI, and the first gallery entry (NIST SP 1065). ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32), [#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
+
 ### 3.0: Platform
 - Research bench v2: trace-driven, PTP servos and BC chains, OMNeT++/INET and ns-3 interop. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
-- Stable API, notebooks, deprecation policy (✅ pandas/xarray/Parquet in 2.14). ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
+- Declare the 2.x stable API final: the 3.0 changelog lists every change to it, and deprecated names are removed. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
 
 ### Continuous: community and citability
 JOSS paper, Zenodo DOIs, Discussions, contributor on-ramp, conda-forge and distribution packages,
@@ -117,3 +122,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.12 | Power-law noise fit and spectra ([#25](https://github.com/thiagodefreitas/NetworkTime/issues/25)); holdover prediction ([#26](https://github.com/thiagodefreitas/NetworkTime/issues/26)); N-cornered hat and Groslambert covariance ([#27](https://github.com/thiagodefreitas/NetworkTime/issues/27)); CGGTTS, RINEX clock, Circular T, RIPE Atlas, NTP Pool ([#34](https://github.com/thiagodefreitas/NetworkTime/issues/34)); HTOT ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)) |
 | 2.13 | Open interop dataset ([#30](https://github.com/thiagodefreitas/NetworkTime/issues/30)); OpenTelemetry export ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)); EDF cross-check ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); Roughtime draft-08 |
 | 2.14 | In-browser edition ([#31](https://github.com/thiagodefreitas/NetworkTime/issues/31)); plugins ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37)); pandas/xarray/Parquet ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32)) |
+| 2.15 | Stable API and deprecation policy, streaming reader for large logs, notebooks in CI and the NIST SP 1065 gallery entry ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32), [#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)) |

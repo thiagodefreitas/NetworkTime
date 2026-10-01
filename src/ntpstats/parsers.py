@@ -46,6 +46,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Sequence
 
 import numpy as np
 
+from . import stream as _stream
 from .pcap import is_capture, parse_capture
 from .series import TimeSeries, mjd_to_unix
 
@@ -812,6 +813,10 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
             with open(f, encoding="utf-8", errors="replace") as fh:
                 parts.append(fh.read().rstrip("\n"))
         return load(io.StringIO("\n".join(parts) + "\n"), fmt=fmt, tau0=tau0, name=label)
+    if isinstance(source, (str, os.PathLike)) and fmt in ("auto",) + _stream.STREAMABLE:
+        # Very large text logs are parsed in blocks (ntpstats.stream) to bound memory.
+        if os.path.getsize(source) > _stream.STREAM_THRESHOLD and _stream.streamable(source, fmt):
+            return _stream.load_large(source, fmt, tau0=tau0, name=name)
     # Binary packet captures (pcap / pcapng)
     raw = None
     if isinstance(source, (bytes, bytearray)):

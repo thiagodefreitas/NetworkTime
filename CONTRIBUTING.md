@@ -40,6 +40,21 @@ Guidelines:
 - New files carry the SPDX header:
   `SPDX-License-Identifier: MIT` / `Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)`.
 
+## Stable API and deprecations
+
+`ntpstats.api` lists the stable names ([docs](https://thiagodefreitas.github.io/NetworkTime/api/stable/)).
+`tests/test_api.py` freezes them in `tests/data/api_surface.json`:
+
+- **Adding** a name, an optional parameter, a field or a method is always fine. Add it to
+  `ntpstats.api.__all__` and `docs/api/stable.md`, then regenerate the snapshot with
+  `NTPSTATS_UPDATE_API=1 pytest tests/test_api.py`.
+- **Removing or renaming** a stable name or parameter needs one full minor release of warnings
+  first. Use `ntpstats.deprecation` (`@deprecated`, `@renamed_parameter`, `moved` for a module
+  `__getattr__`), name the release that removes it (at least two minor releases later), and list
+  it under *Deprecated* in the changelog. The removal itself goes under *Removed*.
+- The test suite turns `NtpstatsDeprecationWarning` into an error, so the code base never uses
+  its own deprecated names; tests that check a warning catch it with `pytest.warns`.
+
 ## Versioning and releases
 
 The project follows [Semantic Versioning](https://semver.org/) and keeps a

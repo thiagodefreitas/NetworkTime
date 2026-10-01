@@ -288,6 +288,11 @@ meas, truth = simulate_ntp(Scenario(duration=86400, seed=1))
 print(compare(kalman_series(meas, smooth=True), truth))
 ```
 
+The names in `ntpstats.api` are the [stable API](https://thiagodefreitas.github.io/NetworkTime/api/stable/),
+covered by a deprecation policy. [Notebooks](examples/notebooks/) cover a chrony log to a noise model,
+benchmarking your own algorithm, compliance evidence, and a reproduction of NIST SP 1065. They run in CI.
+Logs of several gigabytes are read in blocks (`ntpstats.api.load_large`).
+
 More in [`examples/`](examples/): `01_quickstart.py`, `02_benchmark_filters.py` (a template for
 evaluating your own algorithm), `03_report_figure.py`, and `make_example_logs.py`, which
 regenerates the sample logs in `examples/data/` in each native format.

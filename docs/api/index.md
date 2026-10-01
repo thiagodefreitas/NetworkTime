@@ -1,5 +1,9 @@
 # Python API
 
+The **[stable API](stable.md)** (`from ntpstats import api as nt`) lists the names covered by the
+deprecation policy, in one namespace. The module pages below document everything, including the
+provisional parts.
+
 ```python
 from ntpstats import load, load_one
 from ntpstats.stability import series_stability
@@ -34,4 +38,5 @@ A [`TimeSeries`](series.md) has `t` (POSIX seconds), `offset` (seconds, referenc
 | [`ntpstats.otlp`](otlp.md) | OpenTelemetry (OTLP/HTTP JSON) export |
 | [`ntpstats.plugins`](plugins.md) | plugin entry points and discovery |
 | [`ntpstats.adapters`](adapters.md) | pandas, xarray, Parquet/Arrow |
+| [`ntpstats.api`](stable.md), `ntpstats.stream`, `ntpstats.deprecation` | stable surface, large files, deprecation helpers |
 | [`ntpstats.masks`](masks.md), [`ntpstats.report`](report.md) | masks, HTML reports |
