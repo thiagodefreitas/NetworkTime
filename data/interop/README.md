@@ -1,8 +1,9 @@
 # ntpstats open interop dataset
 
-Weekly measurements of public NTP, NTS, NTS-pool, NTPv5 and Roughtime servers, taken by the
+Monthly measurements of public NTP, NTS, NTS-pool, NTPv5 and Roughtime servers, taken by the
 [Live interop](../../.github/workflows/interop.yml) workflow from GitHub-hosted runners over
-IPv4. Every run appends to `YYYY/YYYY-MM-DD.jsonl`, one JSON object per probe. Each ntpstats
+IPv4. The first scheduled run of each month (the workflow runs weekly) is written to
+`YYYY/YYYY-MM-DD.jsonl`, one JSON object per probe (about 12 KB per run). Each ntpstats
 release is archived on Zenodo together with this directory, so every version of the dataset is
 citable (see `CITATION.cff`).
 
@@ -41,6 +42,6 @@ Caveats:
   path asymmetry; they are useful for availability, protocol support and gross errors, not for
   sub-millisecond accuracy.
 - Runners change between runs (the `address` and `runner` fields help).
-- Each server receives only a few packets per week.
+- Each server receives only a few packets per week; one run per month is recorded.
 
 The data are released under the repository's MIT license.

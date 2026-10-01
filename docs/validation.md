@@ -48,7 +48,7 @@ them need network access.
 ## Live interoperability
 
 The [Live interop](INTEROP.md) workflow queries public NTPv4, NTS, NTS-pool, NTPv5 and Roughtime
-servers every week from GitHub-hosted runners, and records the results in the open dataset
+servers every week from GitHub-hosted runners, and records one run per month in the open dataset
 [`data/interop/`](https://github.com/thiagodefreitas/NetworkTime/tree/master/data/interop).
 
 ## Not yet done

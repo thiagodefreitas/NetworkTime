@@ -1,6 +1,6 @@
 # Live interoperability check against public NTP / NTS / NTPv5 / Roughtime servers.
-# Runs weekly and on demand; results go to the job summary and, on the weekly run,
-# to the open dataset in data/interop/ (committed with [skip ci]).
+# Runs weekly and on demand; results go to the job summary. The first scheduled run of
+# each month is also recorded in the open dataset in data/interop/ (committed with [skip ci]).
 # Uses at most a few packets per server (well within pool/NIST etiquette).
 name: Live interop
 on:
@@ -33,6 +33,9 @@ jobs:
       - name: Record in the open dataset
         if: github.event_name == 'schedule' || inputs.record
         run: |
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%-d)" -gt 7 ]; then
+            echo "not the first run of the month: not recorded"; exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/interop

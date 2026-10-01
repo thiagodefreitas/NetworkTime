@@ -17,7 +17,7 @@ uploads to PyPI.
 ## [2.13.0] - 2026-10-01
 
 ### Added
-- **Open interop dataset** (#30): the weekly Live interop run appends one JSON record per probe
+- **Open interop dataset** (#30): the first Live interop run of each month writes one JSON record per probe
   (NTP, interleaved, NTS, NTS pool, NTPv5, Roughtime) to `data/interop/YYYY/YYYY-MM-DD.jsonl`,
   committed with `[skip ci]`. The dataset ships with each release, so it is archived on Zenodo.
   - Schema: `data/interop/README.md`.

@@ -2,7 +2,7 @@
 
 The [Live interop](https://github.com/thiagodefreitas/NetworkTime/blob/master/.github/workflows/interop.yml) workflow runs every Monday (and on demand)
 on GitHub-hosted runners and queries public servers with every ntpstats client. The latest
-results are in the workflow's job summary, and every weekly run is appended to the open dataset in
+results are in the workflow's job summary, and the first run of each month is recorded in the open dataset in
 [`data/interop/`](https://github.com/thiagodefreitas/NetworkTime/tree/master/data/interop) (JSON lines, schema in its README).
 The dataset ships with every release and is therefore archived on Zenodo with it:
 

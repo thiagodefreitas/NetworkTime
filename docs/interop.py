@@ -5,7 +5,7 @@
 
 Prints a Markdown report and, with ``--jsonl FILE``, writes one JSON record per
 probe (schema in ``data/interop/README.md``). Used by the "Live interop" GitHub
-workflow, whose weekly records form the open dataset in ``data/interop/``.
+workflow, whose monthly records form the open dataset in ``data/interop/``.
 Sends only a handful of packets per server.
 """
 

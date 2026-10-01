@@ -64,7 +64,7 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ Research data sources: RIPE Atlas, NTP Pool, CGGTTS (with common view), RINEX clock, Circular T; NTS campaign files via CSV profiles. ([#34](https://github.com/thiagodefreitas/NetworkTime/issues/34))
 
 ### 2.13: Open data and integrations
-- ✅ Open measurement dataset from the weekly interop runs, versioned with each release. ([#30](https://github.com/thiagodefreitas/NetworkTime/issues/30))
+- ✅ Open measurement dataset from the interop runs (monthly), versioned with each release. ([#30](https://github.com/thiagodefreitas/NetworkTime/issues/30))
 - ✅ OpenTelemetry export. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36))
 - ✅ EDF cross-check against the SP 1065/Stable32 approximations; comparison with Stable32 output files waits for contributed runs. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28))
 - ✅ Roughtime compatibility with draft-08 servers (Cloudflare).
