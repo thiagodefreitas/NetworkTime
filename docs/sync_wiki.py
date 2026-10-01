@@ -44,6 +44,7 @@ PAGES = {
     "docs/dataframes.md": "Dataframes-and-Parquet",
     "docs/plugins.md": "Writing-a-Plugin",
     "docs/notebooks.md": "Notebooks-and-Gallery",
+    "docs/research-bench.md": "Trace-Replay-and-PTP-Chains",
     "docs/validation.md": "Validation",
     "docs/migrating.md": "Stable32-TimeLab-allantools",
     "docs/api/index.md": "API-Reference",
@@ -56,7 +57,7 @@ PAGES = {
 SIDEBAR = [
     ("Home", "Home"), ("Getting started", "Getting-Started"), ("CLI reference", "CLI-Reference"), ("In your browser", "In-Your-Browser"),
     ("Input formats", "Input-Formats"), ("Statistics", "Statistics"),
-    ("Network & estimators", "Network-and-Estimators"), ("PTP & time error", "PTP-and-Time-Error"), ("Sources & bounds", "Sources-Instruments-Bounds"), ("Audit, events & CI", "Audit-Events-CI"), ("Monitoring", "Monitoring"), ("Protocols", "Protocols"), ("Metrology", "Metrology"), ("Research data", "Research-Data"), ("Dataframes & Parquet", "Dataframes-and-Parquet"), ("Writing a plugin", "Writing-a-Plugin"), ("Notebooks & gallery", "Notebooks-and-Gallery"), ("Validation", "Validation"),
+    ("Network & estimators", "Network-and-Estimators"), ("Trace replay & PTP chains", "Trace-Replay-and-PTP-Chains"), ("PTP & time error", "PTP-and-Time-Error"), ("Sources & bounds", "Sources-Instruments-Bounds"), ("Audit, events & CI", "Audit-Events-CI"), ("Monitoring", "Monitoring"), ("Protocols", "Protocols"), ("Metrology", "Metrology"), ("Research data", "Research-Data"), ("Dataframes & Parquet", "Dataframes-and-Parquet"), ("Writing a plugin", "Writing-a-Plugin"), ("Notebooks & gallery", "Notebooks-and-Gallery"), ("Validation", "Validation"),
     ("API reference", "API-Reference"), ("Live interop", "Live-Interop"),
     ("State of the art", "State-of-the-Art"), ("Tools landscape", "Tools-Landscape"), ("Changelog", "Changelog"), ("Roadmap", "Roadmap"),
 ]

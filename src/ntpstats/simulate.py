@@ -13,7 +13,7 @@ integration method, the approach commonly used by frequency-stability software.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -182,6 +182,8 @@ class ServerSpec:
     step_at: Optional[float] = None
     step: float = 0.0
     stagger: float = 0.0  # seconds after the common poll instant
+    #: a :class:`ntpstats.trace.TracePath`: real delays replace ``forward``/``backward``
+    trace: Optional[Any] = None
 
 
 @dataclass
@@ -196,11 +198,19 @@ class Scenario:
     seed: Optional[int] = None
     servers: List[ServerSpec] = field(default_factory=list)  # multi-server scenarios
     name: str = "scenario"
+    #: a :class:`ntpstats.trace.TracePath`: replay real delays instead of ``forward``/``backward``
+    trace: Optional[Any] = None
 
 
 def _measure(t, rel, theta, spec: ServerSpec, loss: float, rng, label: str):
-    df = spec.forward.sample(t.size, rng, rel)
-    db = spec.backward.sample(t.size, rng, rel)
+    lost_trace = None
+    if spec.trace is not None:
+        df, db = spec.trace.delays(rel, rng)
+        lost_trace = ~(np.isfinite(df) & np.isfinite(db))
+        df, db = np.nan_to_num(df), np.nan_to_num(db)
+    else:
+        df = spec.forward.sample(t.size, rng, rel)
+        db = spec.backward.sample(t.size, rng, rel)
     noise = rng.normal(0.0, spec.noise, t.size)
     server_err = np.full(t.size, spec.bias)
     if spec.step_at is not None:
@@ -208,7 +218,9 @@ def _measure(t, rel, theta, spec: ServerSpec, loss: float, rng, label: str):
     measured = theta + server_err + (df - db) / 2 + noise
     delay = df + db
     keep = rng.random(t.size) >= loss
-    if spec.forward.events or spec.backward.events:
+    if lost_trace is not None:
+        keep &= ~lost_trace
+    elif spec.forward.events or spec.backward.events:
         keep &= ~(spec.forward.loss_mask(rel, rng) | spec.backward.loss_mask(rel, rng))
     return TimeSeries(
         t[keep], measured[keep], name=label, source_format="simulated",
@@ -236,7 +248,7 @@ def simulate_ntp(sc: Optional[Scenario] = None, name: str = "simulated"):
     rel = t - t[0]
     x_local = sc.clock.phase(t, rng)  # local - true
     theta = -x_local  # true offset, server - local
-    spec = ServerSpec(name=name, forward=sc.forward, backward=sc.backward, noise=sc.server_noise)
+    spec = ServerSpec(name=name, forward=sc.forward, backward=sc.backward, noise=sc.server_noise, trace=sc.trace)
     meas = _measure(t, rel, theta, spec, sc.loss, rng, name)
     meas.meta["scenario"] = repr(sc)
     truth = TimeSeries(meas.t, meas.extra["true_offset"], name=f"{name} (truth)", source_format="simulated")
@@ -249,7 +261,8 @@ def simulate_multi(sc: Scenario, name: str = "simulated"):
     Returns ``(list_of_measured, truth)``; ``truth`` is the true offset on a
     fine common grid (poll / 4) so any estimator output can be scored.
     """
-    servers = sc.servers or [ServerSpec(name=name, forward=sc.forward, backward=sc.backward, noise=sc.server_noise)]
+    servers = sc.servers or [ServerSpec(name=name, forward=sc.forward, backward=sc.backward, noise=sc.server_noise,
+                                        trace=sc.trace)]
     rng = np.random.default_rng(sc.seed)
     step = sc.poll / 4
     grid = np.arange(0.0, sc.duration + sc.poll, step) + 1.7e9
@@ -305,7 +318,7 @@ PRESETS: Dict[str, Scenario] = {
 }
 
 
-def scenario_from_dict(d: dict) -> Scenario:
+def scenario_from_dict(d: dict, base_dir: str = ".") -> Scenario:
     """Build a :class:`Scenario` from a plain dict (e.g. a TOML scenario file).
 
     ```toml
@@ -327,6 +340,9 @@ def scenario_from_dict(d: dict) -> Scenario:
     name = "a"
     bias = 0.0
     forward = {base = 4e-3}
+    [trace]                # optional: real delays from a capture or log (replaces forward/backward)
+    file = "capture.pcap"  # relative to the scenario file
+    mode = "bootstrap"     # or "replay"
     ```
     """
     d = dict(d)
@@ -352,11 +368,19 @@ def scenario_from_dict(d: dict) -> Scenario:
         kw["clock"] = ClockModel(**d["clock"])
     kw["forward"] = path(d.get("forward"), base.forward)
     kw["backward"] = path(d.get("backward"), base.backward)
+    if "trace" in d:
+        from .trace import trace_path_from_dict
+
+        kw["trace"] = trace_path_from_dict(d["trace"], base_dir)
     if "servers" in d:
         specs = []
         for sd in d["servers"]:
             sd = dict(sd)
             fw, bw = sd.pop("forward", None), sd.pop("backward", None)
+            if "trace" in sd:
+                from .trace import trace_path_from_dict
+
+                sd["trace"] = trace_path_from_dict(sd["trace"], base_dir)
             specs.append(ServerSpec(**sd, forward=path(fw, PathModel()),
                                     backward=path(bw, PathModel(base=5e-3, queue_mean=3e-3, load=0.6))))
         kw["servers"] = specs

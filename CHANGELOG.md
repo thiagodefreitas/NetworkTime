@@ -14,6 +14,50 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-10-01
+
+Research bench v2, part 1 (#29). The new modules are provisional (not yet in `ntpstats.api`) until
+2.17 adds the simulator exchange formats.
+
+### Added
+- **Delay traces** (`ntpstats.trace`, `ntpstats trace`): per-direction one-way delays extracted
+  from any two-way exchanges.
+  - Inputs: NTP and PTP captures, chrony `measurements.log`, ntpd `peerstats`/`rawstats`, and
+    simulator output.
+  - The clock offset between the two ends is removed (`--detrend floor|linear|none`).
+  - The asymmetry is an explicit assumption (`--asymmetry`), since two-way timestamps cannot
+    measure it.
+  - `ntpstats trace` reports floors, PDV percentiles, loss and the correlation of the two
+    directions; `--csv` exports the trace.
+- **Trace replay in the bench**: `ntpstats bench trace:FILE`, or a `[trace]` table in a scenario
+  file.
+  - Modes: `replay` plays the trace in order; `bootstrap` draws random blocks, keeping the
+    short-term correlation and both directions together.
+  - `scale` multiplies the queueing.
+  - Checked by a round trip: delays extracted from a simulated network and replayed give the
+    same estimator scores as the model they came from.
+- **PTP servos and boundary-clock chains** (`ntpstats.ptpsim`, `ntpstats chain`): a grandmaster
+  and N boundary clocks, simulated with ground truth.
+  - Each node has its own oscillator, the E2E delay mechanism with a moving-median filter, and
+    linuxptp's PI servo (with its default gains) or an adaptive linear-regression servo.
+  - Links have asymmetry, timestamp noise, and modelled or replayed PDV.
+  - Time-error metrics are given per node and per hop: max|TE|, |cTE|, dTE_L MTIE, dTE_H.
+  - Each hop is checked against the commonly quoted G.8273.2 T-BC class limits (A/B/C) or your
+    own limits, and the end of the chain against a budget (default 1.1 µs); exit code 3 on
+    failure.
+  - `--kp`/`--ki` tune the servo. The warm-up follows the servo's lock time, and the command
+    warns when a run is too short to lock.
+- New notebook: a PTP chain against a time-error budget. With linuxptp's default gains, dynamic
+  time error grows much faster than the number of hops (gain peaking): about 50 ns at 10 hops,
+  about 600 ns at 20. A narrower loop keeps 20 hops near 25 ns. The bench notebook now also
+  replays a real log.
+
+### Fixed
+- Noise identification no longer divides by zero on perfectly alternating or noise-free data (lag-1
+  autocorrelation of −1, the white-PM limit).
+- Commands piped into `head` and similar tools stop quietly instead of printing a
+  `BrokenPipeError` traceback.
+
 ## [2.15.0] - 2026-10-01
 
 ### Added

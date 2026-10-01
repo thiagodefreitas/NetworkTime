@@ -42,6 +42,8 @@ TOML/JSON files. They describe the clock (frequency offset, drift, white/flicker
 noise, temperature cycle), per-server forward and backward paths with events (route change,
 congestion, outage), and falsetickers or stepping servers. Metrics are computed on
 estimate − truth after a 30-minute warm-up: RMS, bias, p95, max, MTIE over 1 h, and runtime.
+Scenarios can also replay the delays of a real capture or log; see
+[Trace replay & PTP chains](research-bench.md).
 
 Findings the bench makes visible:
 

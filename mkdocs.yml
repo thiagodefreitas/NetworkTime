@@ -39,6 +39,7 @@ nav:
   - Formats: formats.md
   - Statistics: statistics.md
   - Network & estimators: network.md
+  - Trace replay & PTP chains: research-bench.md
   - PTP captures & time error: ptp.md
   - Sources, instruments & bounds: sources.md
   - Audit, events & CI checks: assurance.md
@@ -64,6 +65,8 @@ nav:
       - estimators: api/estimators.md
       - simulate: api/simulate.md
       - bench: api/bench.md
+      - trace: api/trace.md
+      - ptpsim: api/ptpsim.md
       - sntp: api/sntp.md
       - nts: api/nts.md
       - roughtime: api/roughtime.md

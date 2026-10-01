@@ -328,3 +328,9 @@ def test_theobr_ratio_sampled_once_per_grid():
     exact = st.compute(x, 1.0, "theobr", [16, 64, 256], ci=None, max_work=0)
     assert exact.meta["theobr_ratio_terms"] == [1200 // 6 - 2] * 2
     np.testing.assert_allclose(r.dev, exact.dev, rtol=0.02)
+
+
+def test_noise_id_survives_perfectly_anticorrelated_data():
+    """Lag-1 autocorrelation of exactly -1 (alternating data) is the white-PM limit, not a crash."""
+    x = np.tile([1.0, -1.0], 50)
+    assert st.noise_alpha(x) == 2

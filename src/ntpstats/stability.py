@@ -699,7 +699,8 @@ def noise_alpha(x: np.ndarray, m: int = 1, dmax: int = 2, min_points: int = 30) 
         r1 = _lag1(z)
         if not np.isfinite(r1):
             return np.nan
-        delta = r1 / (1 + r1)
+        # r1 -> -1 (e.g. alternating or nearly constant data) is the white-PM limit, delta -> -inf
+        delta = r1 / (1 + r1) if r1 > -1 else -np.inf
         if delta < 0.25 or d >= dmax:
             p = -2 * (delta + d)
             return float(np.clip(np.round(p + 2), -2, 2)) + 0.0  # avoid -0.0

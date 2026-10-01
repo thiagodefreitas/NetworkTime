@@ -51,17 +51,35 @@ def _load_file(path: str) -> dict:
     return toml.loads(raw.decode("utf-8"))
 
 
+def trace_scenario(path: str, mode: str = "replay") -> Tuple[str, Scenario]:
+    """A scenario that replays the delays of a capture or log (``trace:FILE`` on the command line).
+
+    The poll interval and duration are those of the trace; the clock is the
+    ``internet`` preset's. For more control write a scenario file with a
+    ``[trace]`` table.
+    """
+    from .trace import TracePath, load_trace
+
+    tr = load_trace(path)
+    name = f"trace:{os.path.basename(path)}"
+    sc = replace(PRESETS["internet"], name=name, poll=tr.interval, duration=tr.duration,
+                 trace=TracePath(tr, mode=mode))
+    return name, sc
+
+
 def load_scenarios(specs: Iterable[str]) -> List[Tuple[str, Scenario]]:
     out = []
     for spec in specs:
         if spec in PRESETS:
             out.append((spec, replace(PRESETS[spec], name=spec)))
+        elif spec.startswith("trace:"):
+            out.append(trace_scenario(spec[len("trace:"):]))
         elif os.path.exists(spec):
             d = _load_file(spec)
             name = d.get("name") or os.path.splitext(os.path.basename(spec))[0]
-            out.append((name, scenario_from_dict(dict(d, name=name))))
+            out.append((name, scenario_from_dict(dict(d, name=name), base_dir=os.path.dirname(os.path.abspath(spec)))))
         else:
-            raise ValueError(f"unknown scenario {spec!r} (presets: {', '.join(PRESETS)})")
+            raise ValueError(f"unknown scenario {spec!r} (presets: {', '.join(PRESETS)}; trace:FILE replays a capture)")
     return out
 
 

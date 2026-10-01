@@ -15,8 +15,9 @@ jupyter lab
 | Notebook | For | What it shows |
 |---|---|---|
 | [From a chrony log to stability and a noise model](https://github.com/thiagodefreitas/NetworkTime/blob/master/examples/notebooks/01-chrony-stability-noise.ipynb) | operators, metrologists | load → summary → ADEV/MDEV/TDEV with 95 % intervals and noise ID → power-law noise fit → a simulator clock with the same noise → pandas |
-| [Benchmark your own synchronisation algorithm](https://github.com/thiagodefreitas/NetworkTime/blob/master/examples/notebooks/02-bench-custom-estimator.ipynb) | researchers | a new estimator in a few lines, scored against the reference algorithms on simulated paths with ground truth |
+| [Benchmark your own synchronisation algorithm](https://github.com/thiagodefreitas/NetworkTime/blob/master/examples/notebooks/02-bench-custom-estimator.ipynb) | researchers | a new estimator in a few lines, scored against the reference algorithms on simulated paths with ground truth, and on the delays of a real log |
 | [Compliance evidence](https://github.com/thiagodefreitas/NetworkTime/blob/master/examples/notebooks/03-compliance-report.ipynb) | regulated users, telecom | PTP time error from a capture against limits, a UTC error bound with its assumptions, a TDEV mask, an archivable HTML report |
+| [A PTP boundary-clock chain against a time-error budget](https://github.com/thiagodefreitas/NetworkTime/blob/master/examples/notebooks/05-ptp-chain-budget.ipynb) | telecom, datacenter timing | 2 to 20 boundary clocks against the 1.1 µs budget and T-BC class limits; why linuxptp's default gains do not scale along a chain (gain peaking) and a narrower loop does; asymmetry and PDV |
 | [Reproducing NIST SP 1065](https://github.com/thiagodefreitas/NetworkTime/blob/master/examples/notebooks/04-nist-sp1065-reproduction.ipynb) | everyone who needs to trust the numbers | the handbook's test suites (Tables 30 and 31) regenerated and compared with the printed values: agreement to all 7 digits |
 
 ## Contributing a gallery entry
@@ -33,5 +34,4 @@ tool. A good entry:
 
 Commit notebooks without outputs (the docs link to them on GitHub, which renders them). Ideas are
 tracked in [#38](https://github.com/thiagodefreitas/NetworkTime/issues/38): an NTP Pool offset
-distribution from public data, chrony against ntpd-rs on the same path, and a PTP boundary-clock
-chain against a time-error budget.
+distribution from public data, and chrony against ntpd-rs on the same path.

@@ -110,7 +110,11 @@ are as valuable as code. Look for issues labelled
     RADclock-style feed-forward, and RFC 5905 select/cluster/combine;
   - bring your own estimator via a small API or a package entry point; scenarios can be
     presets or TOML files;
-  - reproducible reports as tables, CSV/JSON or self-contained HTML.
+  - reproducible reports as tables, CSV/JSON or self-contained HTML;
+  - **real networks**: per-direction delays extracted from a capture or log (`ntpstats trace`),
+    replayed under the simulated clock (`ntpstats bench trace:FILE`);
+  - **PTP chains**: a grandmaster and N boundary clocks with linuxptp-style servos, checked per hop
+    and end to end against a time-error budget (`ntpstats chain`).
 - **Reports**: `ntpstats report` writes a single offline HTML file with charts, CI tables,
   network analysis, parameters and input hashes (also a *Report* button in the UI).
 - **Measurement clients** (they never set the clock):

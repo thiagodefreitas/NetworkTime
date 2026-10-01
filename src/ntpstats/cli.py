@@ -508,6 +508,117 @@ def cmd_dataset(args):
     return 0
 
 
+def cmd_trace(args):
+    from .trace import load_trace
+
+    tr = load_trace(args.file, peer=args.peer, fmt=args.format, detrend=args.detrend, window=args.window,
+                    asymmetry=args.asymmetry)
+    if args.csv:
+        with open(args.csv, "w", encoding="utf-8") as fh:
+            fh.write(tr.to_csv())
+        print(f"wrote {args.csv} (use it as [trace] file in a scenario, or: ntpstats bench trace:{args.csv})",
+              file=sys.stderr)
+    st = tr.stats()
+    if args.json:
+        print(json.dumps(st, indent=2, default=float))
+        return 0
+    dur = st["duration_s"]
+    span = f"{dur / 3600:.1f} h" if dur >= 7200 else f"{dur / 60:.0f} min" if dur >= 120 else f"{dur:.0f} s"
+    print(f"{st['name']}: {st['exchanges']} exchanges over {span}, "
+          f"every {format_seconds(st['interval_s'])}, loss {st['loss']:.1%}")
+    print(f"{'direction':>16} {'floor':>10} {'median':>10} {'p99':>10} {'PDV p99':>10}")
+    for key, label in (("to_ref", "to reference"), ("from_ref", "from reference")):
+        d = st.get(key)
+        if d:
+            print(f"{label:>16} {format_seconds(d['floor']):>10} {format_seconds(d['median']):>10} "
+                  f"{format_seconds(d['p99']):>10} {format_seconds(d['pdv_p99']):>10}")
+    if "pdv_correlation" in st:
+        print(f"correlation of the two directions: {st['pdv_correlation']:+.2f}")
+    print(f"detrend: {st.get('detrend')}; floors assumed equal + asymmetry {format_seconds(st.get('asymmetry', 0.0))}"
+          f" (two-way timestamps cannot measure it)")
+    if st.get("clipped"):
+        print(f"warning: {st['clipped']} delays came out negative and were set to 0 (check --detrend/--window)")
+    return 0
+
+
+def _time_value(v: str) -> float:
+    from .timeerror import _value
+
+    return _value(v)
+
+
+def cmd_chain(args):
+    import os
+    from dataclasses import replace
+
+    from . import ptpsim as P
+    from .simulate import PathModel
+
+    if args.scenario:
+        from .bench import _load_file
+
+        sc = P.chain_from_dict(_load_file(args.scenario), base_dir=os.path.dirname(os.path.abspath(args.scenario)))
+    else:
+        sc = P.ChainScenario()
+    link = sc.link
+    if args.asymmetry is not None:
+        link = replace(link, asymmetry=args.asymmetry)
+    if args.timestamp_noise is not None:
+        link = replace(link, timestamp_noise=args.timestamp_noise)
+    if args.pdv is not None:
+        link = replace(link, pdv=PathModel(base=link.delay, queue_mean=args.pdv, load=0.5))
+    if args.trace:
+        from .trace import TracePath, load_trace
+
+        link = replace(link, trace=TracePath(load_trace(args.trace), mode="bootstrap"))
+    kw = {k: v for k, v in (("hops", args.hops), ("servo", args.servo), ("duration", args.duration),
+                            ("sync_rate", args.sync_rate), ("delay_rate", args.delay_rate),
+                            ("asymmetry_spread", args.asymmetry_spread), ("warmup", args.warmup),
+                            ("seed", args.seed)) if v is not None}
+    opts = dict(sc.servo_options)
+    opts.update({k: v for k, v in (("kp", args.kp), ("ki", args.ki)) if v is not None})
+    sc = replace(sc, link=link, servo_options=opts, **kw)
+    res = P.simulate_chain(sc)
+    limits = None
+    if args.limits:
+        from .timeerror import load_limits
+
+        limits = load_limits(args.limits)
+    verdict = res.check(limits=limits, cls=None if limits else args.cls, budget=args.budget)
+    if args.csv:
+        with open(args.csv, "w", encoding="utf-8") as fh:
+            fh.write("t," + ",".join(f"te_node{i}" for i in range(1, len(res.te))) + "\n")
+            for k in range(0, res.t.size, max(1, int(round(sc.sync_rate)))):  # 1 row per second
+                fh.write(f"{res.t[k]:.6f}," + ",".join(f"{x[k]:.6e}" for x in res.te[1:]) + "\n")
+        print(f"wrote {args.csv} (time error of each node, local - grandmaster, s)", file=sys.stderr)
+    if args.json:
+        print(json.dumps({**res.as_dict(), "verdict": verdict}, indent=2, default=float))
+        return 0 if verdict["passed"] else 3
+    print(f"{sc.hops} boundary clocks, {sc.servo} servo, {sc.sync_rate:g} Sync/s, "
+          f"{sc.delay_rate or sc.sync_rate:g} Delay_Req/s, "
+          f"{sc.duration / 60:.0f} min (first {res.warmup:.0f} s excluded)")
+    lt = P.lock_time(sc)
+    if lt > res.warmup:
+        print(f"note: these servo settings take about {lt:.0f} s to settle along a chain; run longer "
+              f"(--duration {2 * lt:.0f}) or the numbers include locking")
+    lim = verdict["limits"]
+    bad = {(r["hop"], r["metric"]) for r in verdict["checks"] if not r["passed"]}
+    print(f"{'node':>4} {'asym':>8} | {'max|TE|':>9} {'|cTE|':>9} {'dTE_L MTIE':>10} {'dTE_H pp':>9} | "
+          f"{'hop adds max|TE|':>16} {'|cTE|':>9}  {'hop vs ' + (('class ' + args.cls) if not limits else 'limits')}")
+    for n, h in zip(res.nodes, res.hops):
+        flags = sorted(m for (hop, m) in bad if hop == h["hop"])
+        mark = "ok" if not flags and lim else ("FAIL " + ",".join(flags) if flags else "-")
+        print(f"{n['node']:>4} {format_seconds(h['asymmetry']):>8} | {format_seconds(n['max_te']):>9} "
+              f"{format_seconds(n['cte']):>9} {format_seconds(n.get('dte_l_mtie', float('nan'))):>10} "
+              f"{format_seconds(n['dte_h_pp']):>9} | {format_seconds(h['max_te']):>16} {format_seconds(h['cte']):>9}  {mark}")
+    if "budget" in verdict:
+        b = verdict["budget"]
+        print(f"end of chain max|TE| {format_seconds(b['value'])} vs budget {format_seconds(b['limit'])}: "
+              f"{'PASS' if b['passed'] else 'FAIL'} (margin {format_seconds(b['margin'])})")
+    print("overall:", "PASS" if verdict["passed"] else "FAIL")
+    return 0 if verdict["passed"] else 3
+
+
 def cmd_cv(args):
     from .research import common_view
 
@@ -1145,6 +1256,50 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_dataset)
 
+    s = sub.add_parser("chain", help="simulate a PTP grandmaster and N boundary clocks (servo, sync rate, "
+                       "asymmetry, PDV) and check the time error per hop and at the end; exit code 3 on failure")
+    s.add_argument("--hops", type=int, help="number of boundary clocks (default 10)")
+    s.add_argument("--servo", choices=("pi", "linreg"), help="slave servo (default pi, as linuxptp)")
+    s.add_argument("--kp", type=float, help="PI proportional gain (1/s; default linuxptp's, ~1.6 at 16 Sync/s)")
+    s.add_argument("--ki", type=float, help="PI integral gain per sample (default linuxptp's, ~0.1 at 16 Sync/s)")
+    s.add_argument("--duration", type=_duration, help="simulated time, e.g. 3600 or 1h (default 1h)")
+    s.add_argument("--sync-rate", type=float, help="Sync messages per second (default 16)")
+    s.add_argument("--delay-rate", type=float, help="Delay_Req per second (default: the Sync rate)")
+    s.add_argument("--asymmetry", type=_time_value, help="link asymmetry per hop, e.g. 10ns (master->slave longer)")
+    s.add_argument("--asymmetry-spread", type=_time_value, help="random per-hop asymmetry within +-this, e.g. 20ns")
+    s.add_argument("--timestamp-noise", type=_time_value, help="rms per timestamp, e.g. 4ns (default 4 ns)")
+    s.add_argument("--pdv", type=_time_value, help="mean queueing delay between boundary clocks (switches without "
+                                                  "PTP support), e.g. 2us")
+    s.add_argument("--trace", help="replay the delays of a capture or log on every link (bootstrap)")
+    s.add_argument("--class", dest="cls", choices=("A", "B", "C"), default="B",
+                   help="per-hop limits of a G.8273.2 T-BC class (default B)")
+    s.add_argument("--limits", help="file of per-hop 'metric,value' limits instead of a class "
+                                    "(max_te, cte, dte_l_mtie, dte_h_pp, ...)")
+    s.add_argument("--budget", type=_time_value, default=1.1e-6,
+                   help="end-of-chain max|TE| budget (default 1.1us, the G.8271.1 network limit)")
+    s.add_argument("--warmup", type=float, help="seconds excluded from the metrics (default: from the servo's "
+                                                "lock time, at least 300 s)")
+    s.add_argument("--scenario", help="TOML/JSON chain scenario ([chain], [chain.link], [chain.oscillator])")
+    s.add_argument("--seed", type=int)
+    s.add_argument("--csv", help="write the time error of every node (1 row per second)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_chain)
+
+    s = sub.add_parser("trace", help="extract per-direction network delays from a capture or log, to replay in "
+                       "the bench (ntpstats bench trace:FILE)")
+    s.add_argument("file", help="NTP/PTP capture, chrony measurements.log, peerstats, rawstats, or an exported trace")
+    s.add_argument("-f", "--format", default="auto", type=_fmt, help=FORMAT_HELP)
+    s.add_argument("--peer", help="select a peer/flow (substring of its address)")
+    s.add_argument("--detrend", choices=("floor", "linear", "none"), default="floor",
+                   help="how the clock offset between the two ends is removed (default floor: minimum-delay "
+                        "exchanges per window)")
+    s.add_argument("--window", type=float, help="detrend window, s (default max(16 exchanges, 900 s))")
+    s.add_argument("--asymmetry", type=float, default=0.0,
+                   help="known floor asymmetry, s (to-reference floor - from-reference floor)")
+    s.add_argument("--csv", help="write the trace (unix_time,offset,delay,to_ref,from_ref)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_trace)
+
     s = sub.add_parser("cv", help="GNSS time transfer: REF(A) - REF(B) from two CGGTTS files (common view or all in view)")
     s.add_argument("a")
     s.add_argument("b")
@@ -1319,7 +1474,13 @@ def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     if getattr(args, "ci", None) == 0:
         args.ci = None
-    rc = args.func(args)
+    try:
+        rc = args.func(args)
+    except BrokenPipeError:  # output piped into head & co.: stop quietly, like other Unix tools
+        import os
+
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return 1
     return int(rc or 0)
 
 
