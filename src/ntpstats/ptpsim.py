@@ -176,9 +176,7 @@ class LinRegServo:
         tn = self._interval  # next sync, relative to now
         var = np.where(ok & (m > 2), s2 * (1 + 1 / m + (tn - st / m) ** 2 / np.where(ok, sxx, 1.0)), np.inf)
         k = int(np.argmin(var)) if np.isfinite(var).any() else int(np.argmax(m))
-        best = (float(var[k]), float(slope[k]), float(icpt[k]))
-        _, slope, icpt = best
-        pred_free = icpt + slope * tn
+        pred_free = float(icpt[k]) + float(slope[k]) * tn
         # set the frequency so that free phase + corrections reaches zero at the next sync
         self._freq = float(np.clip(-(pred_free + self._corr) / self._interval, -self.max_frequency,
                                    self.max_frequency))
