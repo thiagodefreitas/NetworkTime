@@ -10,3 +10,4 @@ ntpstats-report.png
 site/
 coverage.xml
 .coverage
+docs/app/

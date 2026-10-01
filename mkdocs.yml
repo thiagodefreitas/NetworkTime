@@ -35,6 +35,7 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - CLI: cli.md
+  - In your browser: browser.md
   - Formats: formats.md
   - Statistics: statistics.md
   - Network & estimators: network.md
@@ -45,6 +46,8 @@ nav:
   - Protocols (Roughtime, NTS pools, RFC 9769): protocols.md
   - Metrology (noise model, hat, holdover): metrology.md
   - Research data (CGGTTS, Circular T, Atlas): research-data.md
+  - Dataframes & Parquet: dataframes.md
+  - Writing a plugin: plugins.md
   - Validation: validation.md
   - Stable32, TimeLab, allantools: migrating.md
   - API:
@@ -80,6 +83,8 @@ nav:
       - interop: api/interop.md
       - metrics: api/metrics.md
       - otlp: api/otlp.md
+      - plugins: api/plugins.md
+      - adapters: api/adapters.md
       - compat.allantools: api/compat.md
   - Live interop: INTEROP.md
   - State of the art: STATE_OF_THE_ART.md

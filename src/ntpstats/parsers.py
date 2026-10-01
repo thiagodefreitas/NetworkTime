@@ -71,6 +71,7 @@ FORMATS = (
     "ripe-atlas",
     "ntppool",
     "interop",
+    "parquet",
     "gsoc2012",
 )
 
@@ -162,11 +163,14 @@ def detect_format(lines: Sequence[str]) -> str:
     head = "\n".join(lines[:50])
     if '"resultType"' in head and '"matrix"' in head:
         return "prometheus"
-    from .research import detect as _research
+    from . import plugins, research  # noqa: F401  (research registers its formats as parser plugins)
 
-    found = _research(lines)
+    found = plugins.detect_plugin(lines, 0.9)  # installed plugins that are sure win
     if found:
         return found
+    for name, p in plugins.parsers().items():
+        if p.source == "built-in" and p.detect is not None and p.detect(lines) >= 0.9:
+            return name
     if _W32_RDTSC.search(head) or ("Tracking " in head and any(_W32_LINE.match(ln) for ln in lines[:50])):
         return "w32tm"
     if _BOUNDS_TEXT.search(head):
@@ -182,7 +186,10 @@ def detect_format(lines: Sequence[str]) -> str:
         if _PTP_PREFIX.search(ln) and (_PTP_SAMPLE.search(ln) or _PTP_SUMMARY.search(ln)):
             return "linuxptp"
     sample = [ln for ln in _data_lines(lines[:400]) if ln[0].isdigit() or ln[0] in "+-."][:50]
+    fallback = plugins.detect_plugin(lines, 0.5)
     if not sample:
+        if fallback:
+            return fallback
         raise ParseError("no data lines found")
     fields = sample[0].split()
     if _CHRONY_TS.match(sample[0]):
@@ -214,7 +221,7 @@ def detect_format(lines: Sequence[str]) -> str:
                 return "peerstats"  # status word written as all-digit hex
             return "rawstats"
         raise ParseError("MJD-stamped log of unknown type (clockstats/sysstats are not offset logs)")
-    return "csv"
+    return fallback or "csv"
 
 
 # ----------------------------------------------------------------- parsers
@@ -756,6 +763,36 @@ _PARSERS: Dict[str, Callable[..., List[TimeSeries]]] = {
 }
 
 
+def _plugin_parsers():
+    from . import plugins, research  # noqa: F401
+
+    return plugins.parsers()
+
+
+FORMAT_DESCRIPTIONS = {
+    "loopstats": "ntpd/NTPsec loopstats", "peerstats": "ntpd/NTPsec peerstats", "rawstats": "ntpd/NTPsec rawstats",
+    "chrony-tracking": "chrony tracking.log", "chrony-measurements": "chrony measurements.log",
+    "chrony-statistics": "chrony statistics.log", "chrony-refclocks": "chrony refclocks.log",
+    "linuxptp": "linuxptp (ptp4l/phc2sys/ts2phc)", "pcap": "pcap / pcapng capture (NTP, PTP)",
+    "csv": "CSV / columns", "stable32-phase": "Stable32 phase data", "stable32-freq": "Stable32 frequency data",
+    "w32tm": "Windows w32tm", "prometheus": "Prometheus query_range JSON", "bounds": "clock-error bounds",
+    "gsoc2012": "2012 estimators.log", "parquet": "Parquet (ntpstats.adapters, needs pyarrow)",
+}
+
+
+def format_descriptions() -> Dict[str, str]:
+    """Every format (built-in and plugin) with a short description."""
+    plug = {n: p.description for n, p in _plugin_parsers().items()}
+    return {f: FORMAT_DESCRIPTIONS.get(f) or plug.get(f) or f for f in all_formats()}
+
+
+def all_formats() -> List[str]:
+    """Built-in formats plus those of installed parser plugins."""
+    from . import plugins
+
+    return list(FORMATS) + [f for f in plugins.external_parsers() if f not in FORMATS]
+
+
 # --------------------------------------------------------------- public API
 def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional[str] = None) -> List[TimeSeries]:
     """Load a log file (path, file object or text) and return one
@@ -793,6 +830,18 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
         elif fmt == "pcap" or is_capture(head):
             with open(source, "rb") as fh:
                 raw = fh.read()
+    if isinstance(source, (str, os.PathLike)) and raw is None and fmt in ("auto", "parquet"):
+        with open(source, "rb") as fh:
+            if fh.read(4) == b"PAR1" or fmt == "parquet":
+                from .adapters import read_parquet
+
+                try:
+                    series = read_parquet(os.fspath(source), name=name or None)
+                except (ValueError, OSError) as exc:
+                    raise ParseError(str(exc)) from exc
+                for s in series:
+                    s.meta.setdefault("file", label)
+                return series
     if raw is not None and (fmt in ("auto", "pcap")) and is_capture(raw[:4]):
         try:
             series = parse_capture(raw, label)
@@ -828,21 +877,15 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
             raise ParseError(str(exc)) from exc
     elif fmt == "pcap":
         raise ParseError("not a pcap/pcapng capture")
-    elif fmt in ("cggtts", "rinex-clock", "circular-t", "ripe-atlas", "ntppool", "interop"):
-        from . import research
-
-        fn: Dict[str, Callable[..., List[TimeSeries]]] = {"cggtts": research.parse_cggtts, "rinex-clock": research.parse_rinex_clock,
-              "circular-t": research.parse_circular_t, "ntppool": research.parse_ntppool,
-              "interop": research.parse_interop}
+    elif fmt in _plugin_parsers():
         try:
-            series = (research.parse_ripe_atlas("\n".join(lines), label) if fmt == "ripe-atlas"
-                      else fn[fmt](lines, label))
+            series = _plugin_parsers()[fmt].parse(lines, label)
         except (ValueError, KeyError) as exc:
             raise ParseError(str(exc)) from exc
     elif fmt in _PARSERS:
         series = _PARSERS[fmt](lines, label)
     else:
-        raise ParseError(f"unknown format {fmt!r}; choose from {', '.join(FORMATS)}")
+        raise ParseError(f"unknown format {fmt!r}; choose from {', '.join(all_formats())}")
     for s in series:
         s.meta.setdefault("file", label)
     return series

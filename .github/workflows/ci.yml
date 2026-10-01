@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e ".[test,plot,nts]" pytest-cov ruff "mypy==1.19.1"
+      - run: pip install -e ".[test,plot,nts,data]" pytest-cov ruff "mypy==1.19.1"
       - name: Lint
         run: ruff check src tests examples docs
       - name: Type hints
@@ -58,3 +58,38 @@ jobs:
         env:
           RESULT: ${{ steps.bounds.outputs.result }}
         run: test "$RESULT" = "fail"
+
+  plugin:
+    # The example plugin installed from its directory: discovery, use, and the contract suite (#37)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e . pytest ./examples/plugins/ntpstats-toy-csv
+      - name: Plugin is discovered (exit code 1 on load errors)
+        run: ntpstats plugins
+      - name: Plugin format, detector and mask in use
+        run: |
+          ntpstats info examples/plugins/ntpstats-toy-csv/sample.toy | grep toycsv
+          ntpstats stability examples/plugins/ntpstats-toy-csv/sample.toy -k tdev --mask toy-tdev
+      - name: Contract suite
+        run: pytest -q --pyargs ntpstats.testing.plugin_contract
+
+  browser:
+    # In-browser edition (#31): Pyodide page vs installed package, same numbers (Playwright, Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[test]" playwright wheel
+      - run: python -m playwright install --with-deps chromium
+      - name: Build the in-browser edition
+        run: python docs/build_app.py
+      - name: Parity with the installed package
+        env:
+          NTPSTATS_BROWSER_TEST: "1"
+        run: pytest -q tests/browser

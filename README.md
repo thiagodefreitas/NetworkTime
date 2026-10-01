@@ -88,6 +88,9 @@ are as valuable as code. Look for issues labelled
   ClockBound, fbclock or any `[earliest, latest]` window really contains true time.
 - **Works with the tools you have**:
   - Stable32 data files in and out (`ntpstats convert`);
+  - **pandas, xarray and Parquet** (`series.to_pandas()`, `convert --to parquet`);
+  - **plugins**: other packages add formats, estimators, detectors, masks and profiles
+    (`ntpstats plugins`);
   - an **allantools-compatible API** (`from ntpstats.compat import allantools`);
   - **Prometheus/OpenMetrics** and **OpenTelemetry (OTLP)** from `monitor`/`watch`, including an error bound and rolling
     TDEV, plus a Grafana dashboard, alert rules and a docker-compose stack in
@@ -126,7 +129,8 @@ are as valuable as code. Look for issues labelled
   library HTTP server with one static page and [uPlot](https://github.com/leeoniya/uPlot) (≈50 kB,
   bundled, MIT), so there is no Qt, Electron, Node or CDN, and it works offline. Light and dark
   themes, drag-and-drop, overlay comparison, zoom-to-analyse, PNG/CSV export and a live
-  monitor.
+  monitor. The same UI also runs **in the browser** on the docs site (Pyodide/WebAssembly; files
+  never leave your machine).
 - **Small footprint**: the only runtime dependency is **numpy**. matplotlib is optional
   (static/publication figures).
 
@@ -136,6 +140,7 @@ are as valuable as code. Look for issues labelled
 pip install ntpstats                # core + UI (numpy only)
 pip install "ntpstats[plot]"        # + matplotlib figures
 pip install "ntpstats[nts]"         # + NTS client (pyOpenSSL, cryptography)
+pip install "ntpstats[data]"        # + pandas, xarray, Parquet
 pip install git+https://github.com/thiagodefreitas/NetworkTime.git   # latest master
 # from a checkout, for development:
 pip install -e ".[test,plot,nts,docs]" && pytest

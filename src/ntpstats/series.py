@@ -72,6 +72,27 @@ class TimeSeries:
     def __len__(self) -> int:
         return int(self.t.size)
 
+    # ----------------------------------------------------------- adapters
+    def to_pandas(self):
+        """DataFrame with a UTC DatetimeIndex (needs pandas; see :mod:`ntpstats.adapters`)."""
+        from .adapters import to_pandas
+
+        return to_pandas(self)
+
+    @classmethod
+    def from_pandas(cls, df, offset: str = "offset", time: Optional[str] = None, name: Optional[str] = None,
+                    negate: bool = False) -> "TimeSeries":
+        """From a DataFrame (see :func:`ntpstats.adapters.from_pandas`)."""
+        from .adapters import from_pandas
+
+        return from_pandas(df, offset=offset, time=time, name=name, negate=negate)
+
+    def to_parquet(self, path: str, compression: str = "zstd") -> None:
+        """Write as Parquet (needs pyarrow); every command reads it back."""
+        from .adapters import write_parquet
+
+        write_parquet(self, path, compression)
+
     # ------------------------------------------------------------------ views
     def select(self, mask) -> "TimeSeries":
         """Return a new series keeping only the samples where ``mask`` is true

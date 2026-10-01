@@ -21,10 +21,12 @@ import mimetypes
 import os
 import re
 import socket
+import sys
 import threading
 import time
 import traceback
 import webbrowser
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, quote, unquote, urlparse
@@ -58,6 +60,8 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 VENDOR_DIR = os.path.join(os.path.dirname(__file__), "vendor")
 MAX_UPLOAD = 512 * 1024 * 1024
 CSRF_HEADER = "X-NTPStats"
+#: False in the in-browser (Pyodide) edition: no sockets, so no live NTP/NTS, monitor or local daemons
+LIVE_AVAILABLE = sys.platform != "emscripten"
 
 
 # ------------------------------------------------------------------- state
@@ -471,6 +475,144 @@ def api_monitor_status():
 
 
 # ------------------------------------------------------------------ server
+@dataclass
+class ApiResponse:
+    status: int
+    body: bytes
+    content_type: str = "application/json"
+    headers: Dict[str, str] = field(default_factory=dict)
+
+
+def _json_response(obj, status: int = 200) -> ApiResponse:
+    return ApiResponse(status, json.dumps(obj, default=_json_default, allow_nan=False).encode())
+
+
+def _err(status: int, msg: str) -> ApiResponse:
+    return _json_response({"error": msg}, status)
+
+
+def dispatch(method: str, path: str, headers: Optional[Dict[str, str]] = None, body: bytes = b"") -> ApiResponse:
+    """Answer one ``/api/...`` request. Used by the HTTP server and by the in-browser (Pyodide) edition.
+
+    Transport concerns (Host and CSRF header checks, static files) stay in the
+    HTTP handler; this function only routes and computes.
+    """
+    headers = {k.lower(): v for k, v in (headers or {}).items()}
+    url = urlparse(path)
+    params = parse_qs(url.query)
+    parts = [unquote(p) for p in url.path.strip("/").split("/") if p]
+    if not parts or parts[0] != "api":
+        return _err(404, "not found")
+    route = parts[1:]
+    try:
+        if method == "GET":
+            return _dispatch_get(route, params)
+        if method == "POST":
+            return _dispatch_post(route, params, headers, body)
+        if method == "DELETE":
+            if len(route) == 2 and route[0] == "datasets":
+                with STORE.lock:
+                    if route[1] == STORE.monitor_id:
+                        api_monitor_stop({})
+                        STORE.monitor_id = None
+                    existed = STORE.datasets.pop(route[1], None) is not None
+                return _json_response({"deleted": existed})
+            return _err(404, "unknown endpoint")
+        return _err(405, "method not allowed")
+    except KeyError:
+        return _err(404, "unknown dataset")
+    except (ValueError, ParseError, NTPError, SourceError, OSError) as exc:
+        return _err(400, str(exc))
+    except Exception as exc:  # pragma: no cover - surfaced to the UI
+        traceback.print_exc()
+        return _err(500, f"{type(exc).__name__}: {exc}")
+
+
+_GET_ROUTES = {
+    "series": lambda sid, p: api_series(sid, p), "stability": lambda sid, p: api_stability(sid, p),
+    "histogram": lambda sid, p: api_histogram(sid, p), "network": lambda sid, p: api_network(sid, p),
+    "events": lambda sid, p: api_events(sid, p), "timeerror": lambda sid, p: api_timeerror(sid, p),
+    "noise": lambda sid, p: api_noise(sid, p), "spectrum": lambda sid, p: api_spectrum(sid, p),
+    "holdover": lambda sid, p: api_holdover(sid, p), "dynamic": lambda sid, p: api_dynamic(sid, p),
+}
+
+
+def _dispatch_get(route, params) -> ApiResponse:
+    if route == ["info"]:
+        from ..parsers import format_descriptions
+
+        return _json_response({"version": __version__, "kinds": {k: DESCRIPTIONS[k] for k in KINDS},
+                               "formats": [{"name": f, "description": d} for f, d in format_descriptions().items()],
+                               "live": LIVE_AVAILABLE})
+    if route == ["datasets"]:
+        with STORE.lock:
+            return _json_response([STORE.describe(i) for i in STORE.datasets])
+    if route == ["monitor"]:
+        return _json_response(api_monitor_status())
+    if len(route) == 2 and route[0] in _GET_ROUTES:
+        return _json_response(_GET_ROUTES[route[0]](route[1], params))
+    if len(route) == 3 and route[0] == "export":
+        sid, what = route[1], route[2]
+        name = STORE.get(sid).name.replace(" ", "_").replace("/", "_")
+        if what == "series.csv":
+            text = export_csv(sid, params)
+        elif what == "stability.csv":
+            text = export_stability_csv(sid, params)
+        elif what == "report.html":
+            from ..report import dataset_report
+
+            kinds = [k for k in _q(params, "kinds", "oadev,mdev,tdev").split(",") if k in KINDS]
+            det = _q(params, "detrend", None)
+            text = dataset_report([_prepare(sid, params)], kinds=kinds or ["oadev"],
+                                  detrend=None if det in (None, "none") else det,
+                                  ci=_q(params, "ci", 0.683, float) or 0.683, title=f"ntpstats report: {name}")
+            return ApiResponse(200, text.encode(), "text/html; charset=utf-8",
+                               {"Content-Disposition": _disposition(f"{name}-report.html")})
+        elif what == "summary.json":
+            text = json.dumps(_clean(summary(_prepare(sid, params))), indent=2)
+        else:
+            return _err(404, "unknown export")
+        ctype = "application/json" if what.endswith(".json") else "text/csv"
+        return ApiResponse(200, text.encode(), ctype, {"Content-Disposition": _disposition(f"{name}-{what}")})
+    return _err(404, "unknown endpoint")
+
+
+def _dispatch_post(route, params, headers, raw: bytes) -> ApiResponse:
+    if len(raw) > MAX_UPLOAD:
+        return _err(400, "upload too large")
+    if route == ["upload"]:
+        name = unquote(headers.get("x-filename") or "upload")
+        fmt = _q(params, "format", "auto")
+        tau0 = _q(params, "tau0", None, float)
+        src = raw if is_capture(raw[:4]) else io.StringIO(raw.decode("utf-8", errors="replace"))
+        series = load(src, fmt=fmt, tau0=tau0, name=name)
+        ids = [STORE.add(s) for s in series]
+        return _json_response([STORE.describe(i) for i in ids])
+    if route == ["mask"]:
+        name = unquote(headers.get("x-filename") or "mask")
+        mask = load_mask(io.StringIO(raw.decode("utf-8", errors="replace")), name=name, kind=_q(params, "kind", None))
+        with STORE.lock:
+            mid = f"m{len(STORE.masks) + 1}"
+            STORE.masks[mid] = mask
+        return _json_response(dict(mask.as_dict(), id=mid))
+    body = json.loads(raw or b"{}")
+    if route == ["query"]:
+        r = query(str(body.get("server", "")).strip(), timeout=float(body.get("timeout", 2.0)),
+                  version=int(body.get("version", 4)))
+        return _json_response(r.as_dict())
+    if route == ["simulate"]:
+        return _json_response(api_simulate(body))
+    if route == ["monitor", "start"]:
+        return _json_response(api_monitor_start(body))
+    if route == ["monitor", "stop"]:
+        return _json_response(api_monitor_stop(body))
+    if len(route) == 2 and route[0] == "rename":
+        with STORE.lock:
+            STORE.get(route[1]).name = str(body.get("name", ""))[:200]
+        return _json_response(STORE.describe(route[1]))
+    return _err(404, "unknown endpoint")
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = f"ntpstats/{__version__}"
     allowed_hosts = ("127.0.0.1", "localhost", "[::1]")
@@ -530,142 +672,36 @@ class Handler(BaseHTTPRequestHandler):
         with open(full, "rb") as fh:
             self._send(200, fh.read(), ctype, {"Cache-Control": "no-cache"})
 
+    def _reply(self, r: "ApiResponse"):
+        self._send(r.status, r.body, r.content_type, r.headers)
+
     # -- verbs
     def do_GET(self):
         if not self._host_ok():
             return self._error(403, "forbidden host")
         url = urlparse(self.path)
-        params = parse_qs(url.query)
         parts = [unquote(p) for p in url.path.strip("/").split("/") if p]
-        try:
-            if not parts:
-                return self._static("index.html")
-            if parts[0] in ("static", "vendor"):
-                return self._static("/".join(parts[1:]) if parts[0] == "static" else "/".join(parts))
-            if parts[0] != "api":
-                return self._error(404, "not found")
-            route = parts[1:]
-            if route == ["info"]:
-                return self._json({"version": __version__, "kinds": {k: DESCRIPTIONS[k] for k in KINDS}})
-            if route == ["datasets"]:
-                with STORE.lock:
-                    return self._json([STORE.describe(i) for i in STORE.datasets])
-            if route == ["monitor"]:
-                return self._json(api_monitor_status())
-            if len(route) == 2 and route[0] == "series":
-                return self._json(api_series(route[1], params))
-            if len(route) == 2 and route[0] == "stability":
-                return self._json(api_stability(route[1], params))
-            if len(route) == 2 and route[0] == "histogram":
-                return self._json(api_histogram(route[1], params))
-            if len(route) == 2 and route[0] == "network":
-                return self._json(api_network(route[1], params))
-            if len(route) == 2 and route[0] == "events":
-                return self._json(api_events(route[1], params))
-            if len(route) == 2 and route[0] == "timeerror":
-                return self._json(api_timeerror(route[1], params))
-            if len(route) == 2 and route[0] == "noise":
-                return self._json(api_noise(route[1], params))
-            if len(route) == 2 and route[0] == "spectrum":
-                return self._json(api_spectrum(route[1], params))
-            if len(route) == 2 and route[0] == "holdover":
-                return self._json(api_holdover(route[1], params))
-            if len(route) == 2 and route[0] == "dynamic":
-                return self._json(api_dynamic(route[1], params))
-            if len(route) == 3 and route[0] == "export":
-                sid, what = route[1], route[2]
-                name = STORE.get(sid).name.replace(" ", "_").replace("/", "_")
-                if what == "series.csv":
-                    body = export_csv(sid, params)
-                elif what == "stability.csv":
-                    body = export_stability_csv(sid, params)
-                elif what == "report.html":
-                    from ..report import dataset_report
-
-                    kinds = [k for k in _q(params, "kinds", "oadev,mdev,tdev").split(",") if k in KINDS]
-                    det = _q(params, "detrend", None)
-                    body = dataset_report([_prepare(sid, params)], kinds=kinds or ["oadev"],
-                                          detrend=None if det in (None, "none") else det,
-                                          ci=_q(params, "ci", 0.683, float) or 0.683, title=f"ntpstats report: {name}")
-                    return self._send(200, body.encode(), "text/html; charset=utf-8",
-                                      {"Content-Disposition": _disposition(f"{name}-report.html")})
-                elif what == "summary.json":
-                    body = json.dumps(_clean(summary(_prepare(sid, params))), indent=2)
-                else:
-                    return self._error(404, "unknown export")
-                ctype = "application/json" if what.endswith(".json") else "text/csv"
-                return self._send(200, body.encode(), ctype, {"Content-Disposition": _disposition(f"{name}-{what}")})
-            return self._error(404, "unknown endpoint")
-        except KeyError:
-            return self._error(404, "unknown dataset")
-        except (ValueError, ParseError) as exc:
-            return self._error(400, str(exc))
-        except Exception as exc:  # pragma: no cover - surfaced to the UI
-            traceback.print_exc()
-            return self._error(500, f"{type(exc).__name__}: {exc}")
+        if not parts:
+            return self._static("index.html")
+        if parts[0] in ("static", "vendor"):
+            return self._static("/".join(parts[1:]) if parts[0] == "static" else "/".join(parts))
+        return self._reply(dispatch("GET", self.path))
 
     def do_POST(self):
         if not self._host_ok():
             return self._error(403, "forbidden host")
         if self.headers.get(CSRF_HEADER) != "1":
             return self._error(403, "missing request header")
-        url = urlparse(self.path)
-        params = parse_qs(url.query)
-        route = [unquote(p) for p in url.path.strip("/").split("/") if p][1:]
         try:
-            if route == ["upload"]:
-                name = unquote(self.headers.get("X-Filename") or "upload")
-                body = self._body()
-                fmt = _q(params, "format", "auto")
-                tau0 = _q(params, "tau0", None, float)
-                src = body if is_capture(body[:4]) else io.StringIO(body.decode("utf-8", errors="replace"))
-                series = load(src, fmt=fmt, tau0=tau0, name=name)
-                ids = [STORE.add(s) for s in series]
-                return self._json([STORE.describe(i) for i in ids])
-            if route == ["mask"]:
-                name = unquote(self.headers.get("X-Filename") or "mask")
-                mask = load_mask(io.StringIO(self._body().decode("utf-8", errors="replace")), name=name,
-                                 kind=_q(params, "kind", None))
-                with STORE.lock:
-                    mid = f"m{len(STORE.masks) + 1}"
-                    STORE.masks[mid] = mask
-                return self._json(dict(mask.as_dict(), id=mid))
-            body = json.loads(self._body() or b"{}")
-            if route == ["query"]:
-                r = query(str(body.get("server", "")).strip(), timeout=float(body.get("timeout", 2.0)),
-                          version=int(body.get("version", 4)))
-                return self._json(r.as_dict())
-            if route == ["simulate"]:
-                return self._json(api_simulate(body))
-            if route == ["monitor", "start"]:
-                return self._json(api_monitor_start(body))
-            if route == ["monitor", "stop"]:
-                return self._json(api_monitor_stop(body))
-            if len(route) == 2 and route[0] == "rename":
-                with STORE.lock:
-                    STORE.get(route[1]).name = str(body.get("name", ""))[:200]
-                return self._json(STORE.describe(route[1]))
-            return self._error(404, "unknown endpoint")
-        except KeyError:
-            return self._error(404, "unknown dataset")
-        except (ValueError, ParseError, NTPError, SourceError, OSError) as exc:
+            body = self._body()
+        except ValueError as exc:
             return self._error(400, str(exc))
-        except Exception as exc:  # pragma: no cover
-            traceback.print_exc()
-            return self._error(500, f"{type(exc).__name__}: {exc}")
+        return self._reply(dispatch("POST", self.path, {k: v for k, v in self.headers.items()}, body))
 
     def do_DELETE(self):
         if not self._host_ok() or self.headers.get(CSRF_HEADER) != "1":
             return self._error(403, "forbidden")
-        route = [p for p in urlparse(self.path).path.strip("/").split("/") if p][1:]
-        if len(route) == 2 and route[0] == "datasets":
-            with STORE.lock:
-                if route[1] == STORE.monitor_id:
-                    api_monitor_stop({})
-                    STORE.monitor_id = None
-                existed = STORE.datasets.pop(route[1], None) is not None
-            return self._json({"deleted": existed})
-        return self._error(404, "unknown endpoint")
+        return self._reply(dispatch("DELETE", self.path))
 
 
 class _Server(ThreadingHTTPServer):

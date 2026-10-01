@@ -239,6 +239,13 @@ def detect(s: TimeSeries, step_k: float = 8.0, freq_thresh: float = 5.0, min_fre
     fq = frequency_changes(s, thresh=freq_thresh, min_change=min_freq_change)
     fl = delay_floor_changes(s, block=floor_block)
     ev += fq + fl + leap_smears(fq)
+    from .plugins import detectors
+
+    for d in detectors().values():  # installed detector plugins; a failing one is skipped
+        try:
+            ev += [e for e in d.detect(s) if isinstance(e, Event)]
+        except Exception:
+            continue
     if "delay" in s.extra:
         win = path_window if path_window is not None else 2 * floor_block * s.median_interval()
         for e in ev:

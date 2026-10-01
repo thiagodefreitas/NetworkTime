@@ -16,7 +16,7 @@
 |---|---|
 | `info` | summary statistics (percentiles, trend, gaps, auxiliary columns) |
 | `timeerror` | max\|TE\|, cTE, dTE_L/dTE_H, max\|TEL\|, MTIE/TDEV of dTE_L; `--limits`, `--mask` (exit code 3 on failure), `--input-is-te`, `--units` ([PTP & time error](ptp.md)) |
-| `convert` | write a log as a Stable32 phase/frequency file or plain CSV (`--to`, `--no-timetags`) |
+| `convert` | write a log as a Stable32 phase/frequency file, plain CSV or Parquet (`--to`, `--no-timetags`) |
 | `stability` | ADEV/OADEV/MDEV/TDEV/HDEV/TOTDEV/MTOT/TTOT/HTOT/Theo1/TheoBR/TheoH/MTIE/TIErms with CIs; `--mask FILE` (exit code 3 on failure), `--exact`, `--raw-mtot`, `--csv`, `--json` |
 | `dynamic` | sliding-window stability matrix (time × τ) |
 | `network` | delay floor, queueing, asymmetry indicator, floor packet percentage |
@@ -37,6 +37,7 @@
 | `spectrum` (`psd`) | phase or frequency PSD (Welch or sine multitaper, gap-aware, log bins), `--carrier` for L(f) |
 | `hat` | individual stability of 3+ sources from their differences: Groslambert covariance, three- or N-cornered hat |
 | `holdover` | predicted TIE after loss of reference, time to violate `--limit`s, `--backtest` calibration, `--min-holdover` (exit code 3) |
+| `plugins` | installed plugins (parsers, estimators, detectors, masks, profiles) and load errors ([Writing a plugin](plugins.md)) |
 | `dataset` | summary of the open interop dataset (`data/interop/`): availability, median offset and delay, protocol support per server |
 | `cv` | GNSS time transfer between two CGGTTS files: common view or all in view ([Research data](research-data.md)) |
 | `bounds` | validate clock-error bounds (ClockBound, fbclock, CSV) against a reference; exit code 3 on violations |

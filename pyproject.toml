@@ -27,6 +27,7 @@ plot = ["matplotlib>=3.6"]
 nts = ["pyOpenSSL>=23.2", "cryptography>=42"]
 test = ["pytest>=7", "tomli>=2; python_version < '3.11'"]
 toml = ["tomli>=2; python_version < '3.11'"]
+data = ["pandas>=1.5", "pyarrow>=12", "xarray>=2023.1"]
 docs = ["mkdocs>=1.5,<2", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
 
 [project.urls]
@@ -46,6 +47,7 @@ version = {attr = "ntpstats.__version__"}
 where = ["src"]
 
 [tool.setuptools.package-data]
+"ntpstats" = ["py.typed"]
 "ntpstats.web" = ["static/*", "vendor/*"]
 
 [tool.pytest.ini_options]

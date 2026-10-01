@@ -73,14 +73,18 @@ def _toml(text: str) -> Dict[str, Any]:
 
 def load_profile(ref: str) -> Dict[str, Any]:
     """A built-in profile name, or the path of a TOML profile file."""
+    from .plugins import profile as plugin_profile
+
     if ref in BUILTIN:
         prof = dict(BUILTIN[ref], name=ref)
+    elif plugin_profile(ref) is not None:
+        prof = plugin_profile(ref)  # type: ignore[assignment]
     elif os.path.isfile(ref):
         with open(ref, encoding="utf-8") as fh:
             prof = _toml(fh.read())
         prof.setdefault("name", os.path.splitext(os.path.basename(ref))[0])
     else:
-        raise ValueError(f"unknown profile {ref!r}: not a built-in ({', '.join(BUILTIN)}) nor a file")
+        raise ValueError(f"unknown profile {ref!r}: not a built-in ({', '.join(BUILTIN)}), a plugin, nor a file")
     unknown = set(prof) - _KEYS
     if unknown:
         raise ValueError(f"profile {prof['name']}: unknown keys {sorted(unknown)}")

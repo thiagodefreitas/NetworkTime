@@ -14,6 +14,30 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-10-01
+
+### Added
+- **In-browser edition** (#31): the web UI runs entirely in the browser on the docs site, with
+  Pyodide (WebAssembly). Files never leave the machine. `docs/build_app.py` builds it from the
+  package wheel; a CI job checks with Playwright and Chromium that the page gives the same numbers
+  as the installed package. Live probes stay in the installed tool.
+- **Plugins** (#37): other packages add parsers, estimators, event detectors, masks and import
+  profiles through entry points (`ntpstats.parsers`, `.estimators`, `.detectors`, `.masks`,
+  `.profiles`).
+  - `ntpstats plugins` lists everything, with where it comes from and load errors.
+  - A plugin that fails to load is reported and never breaks the tool.
+  - Contract tests for plugin authors: `pytest --pyargs ntpstats.testing.plugin_contract`.
+  - Worked example in `examples/plugins/ntpstats-toy-csv`, installed and checked in CI.
+  - The built-in research formats are registered through the same API.
+- **Dataframes and Parquet** (part of #32): `TimeSeries.to_pandas()` / `from_pandas()`,
+  `StabilityResult.to_dataframe()`, `DynamicResult.to_xarray()`, and Parquet files that keep
+  float64 precision and the metadata (`convert --to parquet`; Parquet input is auto-detected).
+  Optional extra `ntpstats[data]`; the package ships a `py.typed` marker.
+
+### Changed
+- The web server's `/api` routing is a plain `dispatch()` function, shared by the HTTP server and
+  the browser edition. The UI's format list comes from `/api/info`, so plugin formats appear.
+
 ## [2.13.0] - 2026-10-01
 
 ### Added

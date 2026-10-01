@@ -69,11 +69,14 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ EDF cross-check against the SP 1065/Stable32 approximations; comparison with Stable32 output files waits for contributed runs. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28))
 - ✅ Roughtime compatibility with draft-08 servers (Cloudflare).
 
+### 2.14: Platform foundations
+- ✅ In-browser edition (Pyodide) on the docs site, checked against the installed package in CI. ([#31](https://github.com/thiagodefreitas/NetworkTime/issues/31))
+- ✅ Plugin architecture for parsers, estimators, detectors, masks and profiles, with contract tests. ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37))
+- ✅ pandas/xarray/Parquet adapters and `py.typed`. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
+
 ### 3.0: Platform
 - Research bench v2: trace-driven, PTP servos and BC chains, OMNeT++/INET and ns-3 interop. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
-- In-browser edition (Pyodide) on the docs site. ([#31](https://github.com/thiagodefreitas/NetworkTime/issues/31))
-- Stable API, pandas/xarray/Parquet, notebooks, deprecation policy. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
-- Plugin architecture for parsers, estimators, detectors, masks and profiles. ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37))
+- Stable API, notebooks, deprecation policy (✅ pandas/xarray/Parquet in 2.14). ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
 
 ### Continuous: community and citability
 JOSS paper, Zenodo DOIs, Discussions, contributor on-ramp, conda-forge and distribution packages,
@@ -113,3 +116,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.11 | Roughtime client with chained measurements and malfeasance reports; NTS pools; RFC 9769 interleaved mode (client and captures); all in the Live interop ([#24](https://github.com/thiagodefreitas/NetworkTime/issues/24)) |
 | 2.12 | Power-law noise fit and spectra ([#25](https://github.com/thiagodefreitas/NetworkTime/issues/25)); holdover prediction ([#26](https://github.com/thiagodefreitas/NetworkTime/issues/26)); N-cornered hat and Groslambert covariance ([#27](https://github.com/thiagodefreitas/NetworkTime/issues/27)); CGGTTS, RINEX clock, Circular T, RIPE Atlas, NTP Pool ([#34](https://github.com/thiagodefreitas/NetworkTime/issues/34)); HTOT ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)) |
 | 2.13 | Open interop dataset ([#30](https://github.com/thiagodefreitas/NetworkTime/issues/30)); OpenTelemetry export ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)); EDF cross-check ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); Roughtime draft-08 |
+| 2.14 | In-browser edition ([#31](https://github.com/thiagodefreitas/NetworkTime/issues/31)); plugins ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37)); pandas/xarray/Parquet ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32)) |

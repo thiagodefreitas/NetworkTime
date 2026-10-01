@@ -1,0 +1,3 @@
+# ntpstats.adapters
+
+::: ntpstats.adapters

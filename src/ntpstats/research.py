@@ -466,3 +466,27 @@ def detect(lines: Sequence[str]) -> Optional[str]:
     if (h.startswith("[") or h.startswith("{")) and '"type": "ntp"' in head.replace('"type":"ntp"', '"type": "ntp"'):
         return "ripe-atlas"
     return None
+
+
+# ------------------------------------------------------------------ registration (the plugin API, used in-house)
+def _register() -> None:
+    from .plugins import ParserPlugin, register_parser
+
+    def det(fmt):
+        return lambda lines: 1.0 if detect(lines) == fmt else 0.0
+
+    for fmt, fn, desc in (
+        ("cggtts", parse_cggtts, "CGGTTS V2E GNSS time transfer (BIPM)"),
+        ("rinex-clock", parse_rinex_clock, "RINEX clock files (IGS .clk)"),
+        ("circular-t", parse_circular_t, "BIPM Circular T, UTC - UTC(k)"),
+        ("ntppool", parse_ntppool, "NTP Pool monitor score logs"),
+        ("interop", parse_interop, "ntpstats open interop dataset (JSON lines)"),
+    ):
+        register_parser(ParserPlugin(fmt, fn, det(fmt), desc))
+    def atlas(lines: Sequence[str], name: str = "atlas") -> List[TimeSeries]:
+        return parse_ripe_atlas("\n".join(lines), name)
+
+    register_parser(ParserPlugin("ripe-atlas", atlas, det("ripe-atlas"), "RIPE Atlas NTP measurement results (JSON)"))
+
+
+_register()

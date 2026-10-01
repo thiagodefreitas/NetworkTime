@@ -110,6 +110,12 @@ class StabilityResult:
             "ci": self.ci,
         }
 
+    def to_dataframe(self):
+        """pandas DataFrame, one row per tau (see :func:`ntpstats.adapters.stability_to_dataframe`)."""
+        from .adapters import stability_to_dataframe
+
+        return stability_to_dataframe(self)
+
     def to_csv(self, fh) -> None:
         fh.write("tau,%s,err,n,lo,hi,edf,alpha\n" % self.kind)
         nan = np.full(self.taus.shape, np.nan)
@@ -747,6 +753,12 @@ class DynamicResult:
     dev: np.ndarray  # shape (len(times), len(taus)); NaN where not computable
     window: float
     step: float
+
+    def to_xarray(self):
+        """xarray DataArray with dims (time, tau) (see :func:`ntpstats.adapters.dynamic_to_xarray`)."""
+        from .adapters import dynamic_to_xarray
+
+        return dynamic_to_xarray(self)
 
     def as_dict(self) -> dict:
         return {

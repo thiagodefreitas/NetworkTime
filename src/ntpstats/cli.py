@@ -15,7 +15,7 @@ import numpy as np
 
 from . import __version__
 from .analysis import compare, format_seconds, remove_outliers, summary
-from .parsers import FORMATS, ParseError, load, load_one
+from .parsers import ParseError, load, load_one
 from .series import TimeSeries
 from .stability import DESCRIPTIONS, KINDS, NOISE_NAMES, series_stability
 
@@ -71,9 +71,11 @@ def _utc(t: float) -> str:
 
 
 def _fmt(v: str) -> str:
-    if v == "auto" or v in FORMATS or v.startswith("profile:"):
+    from .parsers import all_formats
+
+    if v == "auto" or v.startswith("profile:") or v in all_formats():
         return v
-    raise argparse.ArgumentTypeError(f"invalid format {v!r}; choose auto, {', '.join(FORMATS)} or profile:NAME|FILE")
+    raise argparse.ArgumentTypeError(f"invalid format {v!r}; choose auto, {', '.join(all_formats())} or profile:NAME|FILE")
 
 
 FORMAT_HELP = "input format (default: auto-detect); profile:NAME or profile:FILE.toml for instrument exports"
@@ -108,6 +110,12 @@ def cmd_convert(args):
                 for k in range(len(s)):
                     vals = [s.t[k], s.offset[k]] + [s.extra[c][k] for c in s.extra]
                     fh.write(",".join(f"{float(v):.15g}" for v in vals) + "\n")
+            rows = len(s)
+        elif args.to == "parquet":
+            try:
+                s.to_parquet(path)
+            except ImportError as exc:
+                raise SystemExit(str(exc)) from None
             rows = len(s)
         else:
             rows = write_stable32(s, path, data_type=args.to.split("-")[1], timetags=not args.no_timetags,
@@ -447,6 +455,27 @@ def cmd_holdover(args):
     if args.json:
         print(json.dumps(out, indent=2, default=float))
     return rc
+
+
+def cmd_plugins(args):
+    from .plugins import listing
+
+    data = listing()
+    if args.json:
+        print(json.dumps(data, indent=2))
+        return 1 if data.get("errors") else 0
+    for kind, rows in data.items():
+        print(f"{kind}:")
+        ext = [r for r in rows if r["source"] != "built-in"]
+        shown = rows if args.all or kind == "errors" else ext
+        for r in shown:
+            print(f"  {r['name']:24} {r['source']:28} {r['description']}")
+        hidden = len(rows) - len(shown)
+        if hidden:
+            print(f"  ({hidden} built-in; --all to list)")
+        if not rows:
+            print("  (none)")
+    return 1 if data.get("errors") else 0
 
 
 def cmd_dataset(args):
@@ -1048,10 +1077,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_bounds)
 
-    s = sub.add_parser("convert", help="write a log as a Stable32 data file (phase or frequency) or plain CSV")
+    s = sub.add_parser("convert", help="write a log as a Stable32 data file (phase or frequency), plain CSV or Parquet")
     _common(s)
     s.add_argument("-o", "--output", required=True, help="output path; {n} is replaced by the series index")
-    s.add_argument("--to", choices=("stable32-phase", "stable32-freq", "csv"), default="stable32-phase")
+    s.add_argument("--to", choices=("stable32-phase", "stable32-freq", "csv", "parquet"), default="stable32-phase")
     s.add_argument("--no-timetags", action="store_true", help="Stable32: values only, no MJD column")
     s.add_argument("--resample", type=float, metavar="TAU0", help="grid spacing (default: median sample interval)")
     s.add_argument("--max-gap", type=float, default=3.0, help="gaps longer than this many tau0 are marked as gaps")
@@ -1103,6 +1132,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-holdover", metavar="DURATION", help="exit 3 unless the first limit holds this long")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_holdover)
+
+    s = sub.add_parser("plugins", help="list installed plugins (parsers, estimators, detectors, masks, profiles)")
+    s.add_argument("--all", action="store_true", help="also list the built-ins")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_plugins)
 
     s = sub.add_parser("dataset", help="summarise the open interop dataset (data/interop): availability, "
                        "offsets, protocol support per server")

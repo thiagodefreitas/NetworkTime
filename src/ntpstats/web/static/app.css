@@ -174,3 +174,8 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 6px;
 .chip.pass { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
 .chip.fail { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
 td.fail { color: var(--bad); font-weight: 600; }
+
+/* in-browser edition: boot banner */
+.boot { position: sticky; top: 0; z-index: 50; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--grid);
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; font-size: 14px; }
+.boot small { color: var(--muted); flex-basis: 100%; }

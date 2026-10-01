@@ -59,6 +59,14 @@ def load_mask(source, name: Optional[str] = None, kind: Optional[str] = None) ->
     if hasattr(source, "read"):
         text = source.read()
         label = name or getattr(source, "name", "mask")
+    elif isinstance(source, str) and "\n" not in source and not os.path.exists(source):
+        from .plugins import mask as plugin_mask
+
+        m = plugin_mask(source)
+        if m is not None:
+            return Mask(m.taus, m.limits, m.name, kind) if kind else m
+        text = source
+        label = name or "mask"
     elif isinstance(source, (str, os.PathLike)) and os.path.isfile(source):
         with open(source, encoding="utf-8") as fh:
             text = fh.read()

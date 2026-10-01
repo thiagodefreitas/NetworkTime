@@ -21,7 +21,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - run: pip install -e ".[docs]"
+      - run: pip install -e ".[docs]" wheel
+      - name: In-browser edition (Pyodide) into docs/app
+        run: python docs/build_app.py
       - name: Build (strict)
         run: mkdocs build --strict
       - name: Deploy to gh-pages

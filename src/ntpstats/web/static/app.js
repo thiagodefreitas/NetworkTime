@@ -64,6 +64,37 @@ function busy(delta) {
   $("#busy").hidden = busyCount <= 0;
 }
 
+// Network transport: fetch() against the local server, or the in-browser (Pyodide) bridge.
+async function fetchTransport(method, path, headers, body) {
+  const r = await fetch(path, { method, headers, body });
+  const h = {};
+  r.headers.forEach((v, k) => (h[k] = v));
+  return { status: r.status, contentType: r.headers.get("Content-Type") || "", headers: h,
+           bytes: new Uint8Array(await r.arrayBuffer()) };
+}
+const transport = window.NTPSTATS_TRANSPORT || fetchTransport;
+
+// Downloads (CSV, report): navigate to the URL, or in the browser edition build a Blob from the bridge's answer.
+async function download(path) {
+  if (!window.NTPSTATS_BROWSER) { location.href = path; return; }
+  busy(1);
+  try {
+    const r = await transport("GET", path, { "X-NTPStats": "1" }, null);
+    if (r.status >= 400) throw new Error(new TextDecoder().decode(r.bytes));
+    const disp = r.headers["Content-Disposition"] || r.headers["content-disposition"] || "";
+    const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disp);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([r.bytes], { type: r.contentType }));
+    a.download = m ? decodeURIComponent(m[1]) : path.split("/").pop().split("?")[0];
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    busy(-1);
+  }
+}
+
 async function api(path, opts = {}) {
   busy(1);
   try {
@@ -73,9 +104,10 @@ async function api(path, opts = {}) {
       body = JSON.stringify(body);
       headers["Content-Type"] = "application/json";
     }
-    const r = await fetch(path, { method: opts.method || "GET", headers, body });
-    const data = r.headers.get("Content-Type")?.includes("json") ? await r.json() : await r.text();
-    if (!r.ok) throw new Error(data.error || data || r.statusText);
+    const r = await transport(opts.method || "GET", path, headers, body);
+    const text = new TextDecoder().decode(r.bytes);
+    const data = r.contentType.includes("json") ? JSON.parse(text) : text;
+    if (r.status >= 400) throw new Error(data.error || data || `HTTP ${r.status}`);
     return data;
   } finally {
     busy(-1);
@@ -752,6 +784,13 @@ async function pollLive() {
 function init() {
   api("/api/info").then((i) => {
     $("#version").textContent = "v" + i.version;
+    if (i.live === false) {  // in-browser edition: no sockets
+      $$("[data-dialog=dlg-live]").forEach((b) => { b.disabled = true; b.title = "Live NTP/NTS and monitoring need the installed version (pip install ntpstats)"; });
+    }
+    if (i.formats) {
+      $("#format").innerHTML = `<option value="auto">auto-detect</option>` +
+        i.formats.map((f) => `<option value="${esc(f.name)}">${esc(f.description)}</option>`).join("");
+    }
     $("#kinds").innerHTML = Object.keys(i.kinds).map((k) =>
       `<button data-kind="${k}" title="${esc(i.kinds[k])}" class="${state.kinds.has(k) ? "on" : ""}">${KIND_LABEL[k] || k}</button>`).join("");
   });
@@ -783,11 +822,11 @@ function init() {
   $$("[data-csv]").forEach((b) => b.addEventListener("click", () => {
     if (!state.active) return;
     const extra = b.dataset.csv === "stability.csv" ? { kinds: [...state.kinds].join(","), taus: $("#taus").value, ci: $("#ci").value } : {};
-    location.href = `/api/export/${state.active}/${b.dataset.csv}?${params(extra)}`;
+    download(`/api/export/${state.active}/${b.dataset.csv}?${params(extra)}`);
   }));
   $("#report-btn").addEventListener("click", () => {
     if (!state.active) return toast("select a dataset first", true);
-    location.href = `/api/export/${state.active}/report.html?${params({ kinds: [...state.kinds].filter((k) => k !== "mtie").join(",") || "oadev", ci: $("#ci").value })}`;
+    download(`/api/export/${state.active}/report.html?${params({ kinds: [...state.kinds].filter((k) => k !== "mtie").join(",") || "oadev", ci: $("#ci").value })}`);
   });
   $("#apply-zoom").addEventListener("click", () => {
     state.range = state.zoom;

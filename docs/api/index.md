@@ -32,4 +32,6 @@ A [`TimeSeries`](series.md) has `t` (POSIX seconds), `offset` (seconds, referenc
 | [`ntpstats.hat`](hat.md), [`ntpstats.holdover`](holdover.md) | N-cornered hat / Groslambert covariance; holdover prediction |
 | [`ntpstats.research`](research.md) | CGGTTS, RINEX clock, Circular T, RIPE Atlas, NTP Pool, the interop dataset |
 | [`ntpstats.otlp`](otlp.md) | OpenTelemetry (OTLP/HTTP JSON) export |
+| [`ntpstats.plugins`](plugins.md) | plugin entry points and discovery |
+| [`ntpstats.adapters`](adapters.md) | pandas, xarray, Parquet/Arrow |
 | [`ntpstats.masks`](masks.md), [`ntpstats.report`](report.md) | masks, HTML reports |
