@@ -40,6 +40,10 @@ uploads to PyPI.
 
   A docs page explains how to contribute a gallery entry.
 
+With these, #32 is complete. Its last step, a 3.0 changelog that lists every change to the stable
+API, is part of the 3.0 release checklist (CONTRIBUTING). The research bench v2 (#29) is planned
+for 2.16 and 2.17.
+
 ## [2.14.0] - 2026-10-01
 
 ### Added

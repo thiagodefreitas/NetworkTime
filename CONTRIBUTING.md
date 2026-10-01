@@ -55,6 +55,12 @@ Guidelines:
 - The test suite turns `NtpstatsDeprecationWarning` into an error, so the code base never uses
   its own deprecated names; tests that check a warning catch it with `pytest.warns`.
 
+### Major releases
+
+A major release (the next is 3.0) also removes the names whose deprecation period has ended, and
+its changelog lists every change to the stable API since the previous major release. Generate that
+list with `git diff v2.15.0 -- tests/data/api_surface.json`.
+
 ## Versioning and releases
 
 The project follows [Semantic Versioning](https://semver.org/) and keeps a

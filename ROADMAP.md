@@ -74,14 +74,21 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ Plugin architecture for parsers, estimators, detectors, masks and profiles, with contract tests. ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37))
 - ✅ pandas/xarray/Parquet adapters and `py.typed`. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
 
-### 2.15: Stable API and notebooks
+### 2.15: Stable API and notebooks (completes [#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
 - ✅ Stable API (`ntpstats.api`) with a frozen surface and a deprecation policy. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
 - ✅ Streaming reader for multi-GB logs. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32), [#13](https://github.com/thiagodefreitas/NetworkTime/issues/13))
 - ✅ Notebooks executed in CI, and the first gallery entry (NIST SP 1065). ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32), [#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 
-### 3.0: Platform
-- Research bench v2: trace-driven, PTP servos and BC chains, OMNeT++/INET and ns-3 interop. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
-- Declare the 2.x stable API final: the 3.0 changelog lists every change to it, and deprecated names are removed. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
+### 2.16: Research bench v2, part 1 (trace-driven and PTP)
+- Trace replay: per-direction delays from captures and monitor logs drive the simulated path, with the capture host's clock detrended out. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+- PTP models: a linuxptp-style PI servo and the `linreg` servo, sync/delay-request rates, and chains of N boundary clocks scored against the time-error budgets. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+
+### 2.17: Research bench v2, part 2 (simulators and algorithms)
+- OMNeT++/INET and ns-3 interop: export oscillator noise and PDV traces, import their result vectors. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+- More reference algorithms (ntpd-rs-like selection, Huygens-style convex hull, an SPTP-style client) and a reproducible benchmark example. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+
+### 3.0: API final
+- The stable API is declared final: the 3.0 changelog lists every change since 2.15 (from `tests/data/api_surface.json`), and names deprecated by then are removed. No other breaking changes are planned; 3.0 waits until there is something to remove.
 
 ### Continuous: community and citability
 JOSS paper, Zenodo DOIs, Discussions, contributor on-ramp, conda-forge and distribution packages,
