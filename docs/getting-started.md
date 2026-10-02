@@ -20,9 +20,32 @@ ntpstats ui /var/log/chrony/measurements.log /var/log/ntpstats/peerstats
 ```
 
 This opens `http://127.0.0.1:8123`: a local page served by the Python standard library with a
-bundled chart library. It has no external requests and works offline. Drop more files onto the
-page, tick datasets to compare them, drag on a chart to zoom and *Analyze zoomed range*, and use
-*Report* to download a self-contained HTML report.
+bundled chart library (uPlot, about 50 kB). It makes no external requests, needs no build step and
+works offline. The left rail has five workspaces:
+
+| Workspace | Pages |
+|---|---|
+| **Analyze** | overview, offset (Kalman/RTS/min-delay overlays), stability with confidence intervals, masks, noise model and dynamic view, distribution, network (wedge, FPP, one-way delays), spectrum, holdover, events |
+| **Compare** | every dataset side by side, a dataset against a reference (PPS, GNSS, a better server), the N-cornered hat |
+| **Comply** | time error (TE/TEL, MTIE/TDEV of dTE_L), UTC audit with a verdict and an evidence report |
+| **Lab** | simulator presets, the estimator bench (presets or the delays of a loaded dataset), PTP boundary-clock chains against a budget |
+| **Live** | SNTP/NTPv5 queries and monitoring, local chrony, ntpd, ptp4l |
+
+Drop files anywhere. The dataset list shows a sparkline of each dataset; tick datasets to overlay
+them, double-click a name to rename it. Drag on a time chart to zoom, then *Analyse zoomed range*.
+**Ctrl K** opens a command palette for pages, datasets and actions, and every page has its own
+address (`#/comply/audit`), so links and the back button work.
+
+| Key | Action |
+|---|---|
+| `Ctrl K` | command palette |
+| `1` … `5` | workspaces |
+| `[` `]` | previous / next page |
+| `J` `K` | next / previous dataset |
+| `/` | filter datasets |
+| `O`, `D`, `T`, `?` | open files, datasets panel, theme, shortcuts |
+
+![Audit with verdict and error bound](img/ui-audit.png)
 
 ## First analyses
 

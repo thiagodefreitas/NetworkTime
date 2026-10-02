@@ -31,6 +31,7 @@ are as valuable as code. Look for issues labelled
 | | |
 |---|---|
 | ![Stability with confidence bands and slope guides](docs/img/ui-stability.png) | ![Network wedge, delay floor and FPP](docs/img/ui-network.png) |
+| ![UTC audit with verdict and error bound](docs/img/ui-audit.png) | ![PTP boundary-clock chain against a time-error budget](docs/img/ui-chain.png) |
 | ![Comparing two peers](docs/img/ui-stability-compare.png) | ![Dark mode](docs/img/ui-offset-dark.png) |
 
 ## Highlights
@@ -131,9 +132,12 @@ are as valuable as code. Look for issues labelled
     **chrony** (`chronyc -c tracking`) or **ntpd/NTPsec** (`ntpq -c rv`) without log files.
 - **Lightweight UI**: `ntpstats ui` starts a local web app. It runs on the Python standard
   library HTTP server with one static page and [uPlot](https://github.com/leeoniya/uPlot) (≈50 kB,
-  bundled, MIT), so there is no Qt, Electron, Node or CDN, and it works offline. Light and dark
-  themes, drag-and-drop, overlay comparison, zoom-to-analyse, PNG/CSV export and a live
-  monitor. The same UI also runs **in the browser** on the docs site (Pyodide/WebAssembly; files
+  bundled, MIT), so there is no Qt, Electron, Node or CDN, and it works offline.
+  - Five workspaces: *Analyze*, *Compare* (reference, cornered hat), *Comply* (time error, audit with
+    a verdict), *Lab* (simulator, estimator bench, PTP chains) and *Live*.
+  - A command palette (Ctrl K), keyboard shortcuts and a link for every page.
+  - Dataset sparklines, light and dark themes, drag-and-drop, overlays, zoom-to-analyse, and
+    PNG/CSV/HTML export. The same UI also runs **in the browser** on the docs site (Pyodide/WebAssembly; files
   never leave your machine).
 - **Small footprint**: the only runtime dependency is **numpy**. matplotlib is optional
   (static/publication figures).

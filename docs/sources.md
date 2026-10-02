@@ -16,7 +16,7 @@ Recorded columns:
 - **ptpcheck**: `ptp.offset_ns` and `ptp.mean_path_delay_ns`.
 
 Both tools report local − master, so the offsets are negated into the ntpstats convention
-(reference − local). The web UI's *Live* dialog offers the same sources.
+(reference − local). The web UI's *Live* workspace offers the same sources.
 
 ## Windows (w32tm)
 

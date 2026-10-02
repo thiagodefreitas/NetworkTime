@@ -79,7 +79,7 @@ dte_h_pp, 70ns
 Metrics: `max_te`, `cte`, `cte_window`, `max_tel`, `dte_l_pp`, `dte_h_pp`. `--mask` files
 are the usual `tau,mtie` or `tau,tdev` masks ([Statistics](statistics.md)) and apply to dTE_L.
 The exit code is 3 when any limit or mask fails, so the command fits CI pipelines. The web UI
-shows the same metrics as cards on the Overview tab.
+shows them on *Comply → Time error*, with the TE/TEL chart and the MTIE and TDEV of dTE_L.
 
 An example capture (synthetic, hardware-timestamp style, 25 minutes at 1 Hz) is in
 `examples/data/ptp-capture.pcapng`.

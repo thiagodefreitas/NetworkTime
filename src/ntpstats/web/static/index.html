@@ -7,106 +7,124 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ntpstats</title>
 <meta name="author" content="Thiago de Freitas">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%233b82f6'/%3E%3Cpath d='M16 7v9l6 4' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta name="description" content="Network time analysis: NTP, PTP, stability, time error, audit and simulation">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232563eb'/%3E%3Cpath d='M16 7v9l6 4' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/vendor/uPlot.min.css">
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-analyze" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></symbol>
+  <symbol id="i-compare" viewBox="0 0 24 24"><path d="M4 7h11"/><path d="M4 12h16"/><path d="M4 17h8"/><circle cx="18" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></symbol>
+  <symbol id="i-comply" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-lab" viewBox="0 0 24 24"><path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/><path d="M7.5 15h9"/></symbol>
+  <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 16.5a6.5 6.5 0 0 1 0-9"/><path d="M16.5 7.5a6.5 6.5 0 0 1 0 9"/><path d="M4.5 19.5a10.5 10.5 0 0 1 0-15"/><path d="M19.5 4.5a10.5 10.5 0 0 1 0 15"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M12 4v11"/><path d="M7 9l5-5 5 5"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17h.01"/></symbol>
+</svg>
+
 <header class="topbar">
+  <button class="iconbtn" id="toggle-side" title="Show or hide the datasets panel (D)"><svg><use href="#i-panel"/></svg></button>
   <div class="brand">
     <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14"/><path d="M16 7v9l6 4"/></svg>
-    <span>ntpstats</span><small id="version"></small>
+    <span>ntpstats</span><small id="version"></small><small id="edition" class="edition"></small>
   </div>
+  <button class="search" id="palette-btn" title="Commands and navigation (Ctrl+K)">
+    <svg><use href="#i-search"/></svg><span>Search pages, datasets and actions…</span><kbd>Ctrl K</kbd>
+  </button>
   <div class="actions">
-    <label class="btn primary" title="Open log files (or drop them anywhere)">
-      <input id="file-input" type="file" multiple hidden>
-      <span>Open logs…</span>
+    <select id="format" title="Input format of the next files you open"><option value="auto">auto-detect</option></select>
+    <label class="btn primary" title="Open logs, captures or CSV (or drop them anywhere)">
+      <input id="file-input" type="file" multiple hidden><svg><use href="#i-open"/></svg><span>Open</span>
     </label>
-    <select id="format" title="Input format">
-      <option value="auto">auto-detect</option>
-      <option value="loopstats">ntpd/NTPsec loopstats</option>
-      <option value="peerstats">ntpd/NTPsec peerstats</option>
-      <option value="rawstats">ntpd/NTPsec rawstats</option>
-      <option value="chrony-tracking">chrony tracking.log</option>
-      <option value="chrony-measurements">chrony measurements.log</option>
-      <option value="chrony-statistics">chrony statistics.log</option>
-      <option value="chrony-refclocks">chrony refclocks.log</option>
-      <option value="linuxptp">linuxptp (ptp4l/phc2sys/ts2phc)</option>
-      <option value="pcap">pcap / pcapng capture</option>
-      <option value="csv">CSV / columns</option>
-      <option value="gsoc2012">2012 estimators.log</option>
-    </select>
-    <button class="btn" id="report-btn" title="Download a self-contained HTML report of the active dataset">Report</button>
-    <button class="btn" data-dialog="dlg-sim">Simulate</button>
-    <button class="btn" data-dialog="dlg-live">Live <span id="live-dot" class="dot"></span></button>
-    <button class="btn icon" id="theme" title="Toggle light/dark">◐</button>
+    <button class="iconbtn" id="theme" title="Light or dark theme (T)"><svg><use href="#i-sun"/></svg></button>
+    <button class="iconbtn" id="help-btn" title="Keyboard shortcuts (?)"><svg><use href="#i-help"/></svg></button>
   </div>
 </header>
 
-<div class="layout">
-  <aside class="sidebar">
-    <div class="side-head">Datasets <span class="hint">tick to compare</span></div>
+<div class="shell">
+  <nav class="rail" aria-label="Workspaces">
+    <button data-ws="analyze" title="Analyze one dataset (1)"><svg><use href="#i-analyze"/></svg><span>Analyze</span></button>
+    <button data-ws="compare" title="Compare datasets (2)"><svg><use href="#i-compare"/></svg><span>Compare</span></button>
+    <button data-ws="comply" title="Time error and audit (3)"><svg><use href="#i-comply"/></svg><span>Comply</span></button>
+    <button data-ws="lab" title="Simulate, benchmark, PTP chains (4)"><svg><use href="#i-lab"/></svg><span>Lab</span></button>
+    <button data-ws="live" title="Live measurement (5)"><svg><use href="#i-live"/></svg><span>Live</span><i id="live-dot" class="dot"></i></button>
+  </nav>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="side-head">
+      <b>Datasets</b><span class="hint" id="ds-count"></span>
+    </div>
+    <input id="ds-filter" class="filter" type="search" placeholder="Filter  ( / )" aria-label="Filter datasets">
     <ul id="datasets" class="datasets"></ul>
     <div id="empty-side" class="empty-side">
-      <p>No data yet.</p>
-      <p>Open ntpd/NTPsec <code>loopstats</code>, <code>peerstats</code>, <code>rawstats</code>, chrony <code>tracking/measurements/statistics/refclocks</code>, linuxptp logs, pcap captures or CSV — or drop files here.</p>
-      <button class="btn small" id="demo">Load a simulated demo</button>
+      <p><b>No data yet.</b> Drop files anywhere, or press <b>Open</b>.</p>
+      <p class="hint">ntpd/NTPsec stats, chrony logs, linuxptp, pcap/pcapng (NTP, PTP), Prometheus, w32tm, CGGTTS, RINEX clock, Circular T, RIPE Atlas, OMNeT++ vectors, CSV, Parquet.</p>
+      <p class="hint">Or try a simulated demo with the true offset:</p>
+      <div class="demo-grid">
+        <button class="btn small" data-demo="internet">Internet</button>
+        <button class="btn small" data-demo="lan">LAN</button>
+        <button class="btn small" data-demo="route-change">Route change</button>
+        <button class="btn small" data-demo="falseticker">Falseticker</button>
+      </div>
     </div>
+    <p class="hint side-foot">Click to analyse; tick to overlay. Double-click a name to rename.</p>
   </aside>
 
-  <main>
-    <nav class="tabs" role="tablist">
-      <button role="tab" data-tab="overview" class="active">Overview</button>
-      <button role="tab" data-tab="offset">Offset</button>
-      <button role="tab" data-tab="stability">Stability</button>
-      <button role="tab" data-tab="distribution">Distribution</button>
-      <button role="tab" data-tab="network">Network</button>
-      <button role="tab" data-tab="spectrum">Spectrum</button>
-      <button role="tab" data-tab="holdover">Holdover</button>
-    </nav>
-
-    <div class="controls">
-      <label>Detrend
-        <select id="detrend">
-          <option value="none">none</option>
-          <option value="linear">linear (freq.)</option>
-          <option value="quadratic">quadratic (drift)</option>
-        </select>
-      </label>
-      <label>Outliers
-        <select id="outliers">
-          <option value="">keep</option>
-          <option value="5">drop &gt; 5 MAD</option>
-          <option value="3">drop &gt; 3 MAD</option>
-        </select>
-      </label>
-      <span id="range-chip" class="chip" hidden></span>
-      <button id="apply-zoom" class="btn small" hidden>Analyze zoomed range</button>
-      <span class="grow"></span>
-      <span id="busy" class="busy" hidden></span>
+  <main id="main">
+    <div class="pagebar">
+      <nav class="tabs" id="tabs" role="tablist"></nav>
+      <div class="controls" id="global-controls">
+        <label>Detrend
+          <select id="detrend">
+            <option value="none">none</option>
+            <option value="linear">linear</option>
+            <option value="quadratic">quadratic</option>
+          </select>
+        </label>
+        <label>Outliers
+          <select id="outliers">
+            <option value="">keep</option>
+            <option value="5">&gt; 5 MAD</option>
+            <option value="3">&gt; 3 MAD</option>
+          </select>
+        </label>
+        <span id="range-chip" class="chip" hidden title="Click to analyse the whole dataset again"></span>
+        <button id="apply-zoom" class="btn small" hidden>Analyse zoomed range</button>
+      </div>
     </div>
 
-    <section id="tab-overview" class="tab active">
+    <!-- ========================= ANALYZE ========================= -->
+    <section class="page" data-page="analyze/overview" data-title="Overview">
+      <div id="welcome" class="welcome">
+        <h2>Network time analysis</h2>
+        <p>Open a log or capture, or start from a demo. Everything runs on this machine.</p>
+        <div class="tiles">
+          <a href="#/analyze/stability" class="tile"><b>Stability</b><span>ADEV … TheoH, MTIE with χ² intervals and noise ID</span></a>
+          <a href="#/comply/timeerror" class="tile"><b>Time error</b><span>max|TE|, cTE, dTE_L/dTE_H, MTIE of dTE_L</span></a>
+          <a href="#/comply/audit" class="tile"><b>Audit</b><span>UTC error bound, verdict and evidence report</span></a>
+          <a href="#/compare/hat" class="tile"><b>Cornered hat</b><span>which of three clocks is the noisy one</span></a>
+          <a href="#/lab/bench" class="tile"><b>Bench</b><span>score estimators against ground truth</span></a>
+          <a href="#/lab/chain" class="tile"><b>PTP chain</b><span>boundary clocks against a time-error budget</span></a>
+        </div>
+      </div>
       <div id="cards" class="cards"></div>
-      <div id="compare-table"></div>
+      <div class="grid2">
+        <div class="panel" id="ov-offset-panel" hidden><div class="panel-head"><h3>Offset</h3></div><div class="chart short" id="chart-ov"></div></div>
+        <div class="panel" id="ov-adev-panel" hidden><div class="panel-head"><h3>Overlapping ADEV</h3></div><div class="chart short" id="chart-ov-adev"></div></div>
+      </div>
       <div id="te-wrap" hidden>
         <h3>Time error <span class="hint">TE = local − reference; 0.1 Hz filter (ITU-T G.8260 definitions)</span></h3>
         <div id="te-cards" class="cards"></div>
-        <p class="note" id="te-note"></p>
       </div>
-      <div id="welcome" class="welcome">
-        <h2>Network time analysis, 2026 edition</h2>
-        <p>Load clock-offset logs from <b>ntpd 4.2.8</b>, <b>NTPsec</b> or <b>chrony</b>, a CSV from <code>ntpstats monitor</code>,
-          or generate a simulated NTP exchange with known ground truth.</p>
-        <ul>
-          <li><b>Offset</b> — time series with detrending, outlier rejection, Kalman / RTS / min-delay overlays. Drag to zoom.</li>
-          <li><b>Stability</b> — ADEV, overlapping ADEV, MDEV, TDEV, Hadamard and MTIE with χ² confidence bands and automatic noise identification.</li>
-          <li><b>Network</b> — delay floor, offset-vs-delay wedge, asymmetry indicator and floor packet percentage (G.8260 style).</li>
-        </ul>
-      </div>
+      <div id="ov-events"></div>
     </section>
 
-    <section id="tab-offset" class="tab">
+    <section class="page" data-page="analyze/offset" data-title="Offset">
       <div class="subcontrols">
         <label>Overlay
           <select id="overlay">
@@ -116,193 +134,312 @@
             <option value="mindelay">min-delay filter</option>
           </select>
         </label>
-        <label>Auxiliary
-          <select id="aux"></select>
-        </label>
+        <label>Second panel <select id="aux"></select></label>
         <span class="grow"></span>
-        <button class="btn small" data-export="offset">PNG</button>
         <button class="btn small" data-csv="series.csv">CSV</button>
       </div>
-      <div class="chart" id="chart-offset"></div>
-      <div class="chart short" id="chart-aux"></div>
+      <div class="panel"><div class="panel-head"><h3>Offset <span class="hint">reference − local · drag to zoom, double-click to reset</span></h3><span class="grow"></span><button class="mini" data-export="offset">PNG</button><button class="mini" data-expand title="Expand"><svg><use href="#i-expand"/></svg></button></div>
+        <div class="chart" id="chart-offset"></div><div class="chart short" id="chart-aux"></div></div>
       <p class="note" id="offset-note"></p>
-      <div id="events"></div>
     </section>
 
-    <section id="tab-stability" class="tab">
+    <section class="page" data-page="analyze/stability" data-title="Stability">
       <div class="subcontrols">
         <div class="chips" id="kinds"></div>
-        <label>τ spacing
-          <select id="taus">
+        <label>τ <select id="taus">
             <option value="octave">octave</option>
             <option value="decade">1-2-5</option>
             <option value="dense">dense</option>
             <option value="all">all</option>
-          </select>
-        </label>
-        <label>Confidence
-          <select id="ci">
+          </select></label>
+        <label>Interval <select id="ci">
             <option value="0.683">68.3 %</option>
             <option value="0.95">95 %</option>
             <option value="0">off</option>
-          </select>
-        </label>
-        <label class="check"><input type="checkbox" id="slopes"> slope guides</label>
-        <label class="btn small" title="Load a limit mask: CSV with a header naming the statistic, e.g. tau,tdev or tau,mtie (default TDEV)">
-          <input id="mask-input" type="file" hidden><span id="mask-label">Mask…</span>
-        </label>
-        <span id="mask-chip" class="chip" hidden></span>
+          </select></label>
+        <label class="check"><input type="checkbox" id="slopes"> slopes</label>
+        <label class="check" title="Fit h_-2..h_2 and overlay the model"><input type="checkbox" id="noisefit"> noise model</label>
         <label class="check"><input type="checkbox" id="dyn"> dynamic</label>
-        <label class="check" title="Fit h_-2..h_2 (white/flicker PM, white/flicker/random-walk FM) and overlay the model"><input type="checkbox" id="noisefit"> noise model</label>
+        <label class="btn small" title="Limit mask: CSV with a header naming the statistic, e.g. tau,tdev">
+          <input id="mask-input" type="file" hidden><span id="mask-label">Mask…</span></label>
+        <span id="mask-chip" class="chip" hidden title="Click to remove the mask"></span>
         <span class="grow"></span>
-        <button class="btn small" data-export="stability">PNG</button>
         <button class="btn small" data-csv="stability.csv">CSV</button>
       </div>
-      <div class="chart tall" id="chart-stability"></div>
-      <div id="dyn-wrap" hidden>
-        <h3>Dynamic stability (sliding window)</h3>
-        <div class="chart heat"><canvas id="heat"></canvas></div>
-        <p class="note" id="dyn-note"></p>
-      </div>
+      <div class="panel"><div class="panel-head"><h3>Stability</h3><span class="grow"></span><button class="mini" data-export="stability">PNG</button><button class="mini" data-expand><svg><use href="#i-expand"/></svg></button></div>
+        <div class="chart tall" id="chart-stability"></div></div>
+      <div id="dyn-wrap" hidden class="panel"><div class="panel-head"><h3>Dynamic stability (sliding window)</h3></div>
+        <div class="chart heat"><canvas id="heat"></canvas></div><p class="note" id="dyn-note"></p></div>
       <div id="noise-wrap" hidden>
-        <h3>Power-law noise model <span class="hint">S_y(f) = Σ h_α f^α, fitted to OADEV; dashed curves on the chart</span></h3>
+        <h3>Power-law noise model <span class="hint">S_y(f) = Σ h_α f^α, fitted to OADEV; dashed curves</span></h3>
         <div id="noise-table" class="table-wrap"></div>
         <p class="note" id="noise-note"></p>
       </div>
-      <div id="stability-table" class="table-wrap"></div>
+      <details class="details" open><summary>Values, intervals and noise per τ</summary><div id="stability-table" class="table-wrap"></div></details>
     </section>
 
-    <section id="tab-distribution" class="tab">
+    <section class="page" data-page="analyze/distribution" data-title="Distribution">
       <div class="subcontrols">
         <label>Bins <input type="number" id="bins" value="60" min="5" max="500" step="5"></label>
         <span class="grow"></span>
-        <button class="btn small" data-export="hist">PNG</button>
       </div>
-      <div class="chart tall" id="chart-hist"></div>
-      <p class="note">Histogram of the offset (after the selected detrending) with a Gaussian of equal mean and standard deviation. Heavy tails indicate queueing spikes or path changes.</p>
+      <div class="panel"><div class="panel-head"><h3>Offset distribution</h3><span class="grow"></span><button class="mini" data-export="hist">PNG</button></div>
+        <div class="chart tall" id="chart-hist"></div></div>
+      <p class="note">With the selected detrending; the dashed curve is a Gaussian of equal mean and σ. Heavy tails mean queueing spikes or path changes.</p>
     </section>
 
-    <section id="tab-network" class="tab">
+    <section class="page" data-page="analyze/network" data-title="Network">
       <div id="net-cards" class="cards"></div>
       <div class="grid2">
-        <div><h3>Offset vs. queueing delay (wedge)</h3><div class="chart" id="chart-wedge"></div></div>
-        <div><h3>Round-trip delay</h3><div class="chart" id="chart-delay"></div></div>
+        <div class="panel"><div class="panel-head"><h3>Offset vs. queueing delay (wedge)</h3></div><div class="chart" id="chart-wedge"></div></div>
+        <div class="panel"><div class="panel-head"><h3>Round-trip delay</h3></div><div class="chart" id="chart-delay"></div></div>
       </div>
-      <h3>Floor packet percentage</h3>
-      <div class="chart short" id="chart-fpp"></div>
+      <div class="panel"><div class="panel-head"><h3>Floor packet percentage</h3></div><div class="chart short" id="chart-fpp"></div></div>
+      <div class="panel" id="trace-panel"><div class="panel-head"><h3>One-way delays <span class="hint">extracted per direction; floors assumed equal</span></h3><span class="grow"></span><a class="mini" href="#/lab/bench" id="trace-to-bench">Replay in the bench →</a></div>
+        <div id="trace-cards" class="cards"></div><div class="chart short" id="chart-trace"></div></div>
       <p class="note" id="net-note"></p>
     </section>
-    <section id="tab-spectrum" class="tab">
+
+    <section class="page" data-page="analyze/spectrum" data-title="Spectrum">
       <div class="subcontrols">
-        <label>Spectrum
-          <select id="sp-kind">
+        <label>Spectrum <select id="sp-kind">
             <option value="y">frequency S_y(f)</option>
             <option value="x">phase S_x(f)</option>
-          </select>
-        </label>
-        <label>Method
-          <select id="sp-method">
+          </select></label>
+        <label>Method <select id="sp-method">
             <option value="welch">Welch (Hann, 50 %)</option>
             <option value="multitaper">sine multitaper</option>
-          </select>
-        </label>
-        <label title="With the phase spectrum: show L(f) for this carrier">Carrier Hz <input type="number" id="sp-carrier" placeholder="e.g. 10e6" step="any"></label>
-        <span class="grow"></span>
-        <button class="btn small" data-export="spectrum">PNG</button>
+          </select></label>
+        <label title="With the phase spectrum: show L(f) for this carrier">Carrier Hz <input type="number" id="sp-carrier" placeholder="10e6" step="any"></label>
       </div>
-      <div class="chart tall" id="chart-spectrum"></div>
+      <div class="panel"><div class="panel-head"><h3>Power spectral density</h3><span class="grow"></span><button class="mini" data-export="spectrum">PNG</button></div>
+        <div class="chart tall" id="chart-spectrum"></div></div>
       <p class="note" id="sp-note"></p>
     </section>
 
-    <section id="tab-holdover" class="tab">
+    <section class="page" data-page="analyze/holdover" data-title="Holdover">
       <div class="subcontrols">
-        <label>Horizon
-          <select id="ho-horizon">
+        <label>Horizon <select id="ho-horizon">
             <option value="3600">1 h</option>
             <option value="14400">4 h</option>
             <option value="86400" selected>1 day</option>
             <option value="604800">1 week</option>
-          </select>
-        </label>
+          </select></label>
         <label title="Comma-separated, e.g. 1.1us,100us">Limits <input type="text" id="ho-limits" value="1.1us,100us,1ms" size="14"></label>
-        <label>Holdover
-          <select id="ho-model">
+        <label>Model <select id="ho-model">
             <option value="frequency">last frequency</option>
             <option value="drift">frequency + drift</option>
-          </select>
-        </label>
-        <label title="Phase from the offset column, or integrate a frequency column (chrony tracking)">Phase from
-          <select id="ho-source">
+          </select></label>
+        <label>Phase from <select id="ho-source">
             <option value="offset">offset</option>
             <option value="frequency">frequency column</option>
-          </select>
-        </label>
-        <span class="grow"></span>
-        <button class="btn small" data-export="holdover">PNG</button>
+          </select></label>
       </div>
       <div id="ho-cards" class="cards"></div>
-      <div class="chart tall" id="chart-holdover"></div>
+      <div class="panel"><div class="panel-head"><h3>Predicted time error after loss of reference</h3><span class="grow"></span><button class="mini" data-export="holdover">PNG</button></div>
+        <div class="chart tall" id="chart-holdover"></div></div>
       <p class="note" id="ho-note"></p>
+    </section>
+
+    <section class="page" data-page="analyze/events" data-title="Events">
+      <div id="ev-cards" class="cards"></div>
+      <div id="events"></div>
+    </section>
+
+    <!-- ========================= COMPARE ========================= -->
+    <section class="page" data-page="compare/table" data-title="Side by side">
+      <p class="note">Every loaded dataset; click a row to analyse it, tick to overlay it on the Analyze charts.</p>
+      <div id="compare-table" class="table-wrap"></div>
+    </section>
+
+    <section class="page" data-page="compare/reference" data-title="Against a reference">
+      <div class="subcontrols">
+        <label>Reference <select id="ref-select"></select></label>
+        <span class="hint">The active dataset minus the reference (e.g. a PPS or a better server), at the active dataset's times.</span>
+      </div>
+      <div id="ref-cards" class="cards"></div>
+      <div class="grid2">
+        <div class="panel"><div class="panel-head"><h3>Difference over time</h3></div><div class="chart" id="chart-ref-diff"></div></div>
+        <div class="panel"><div class="panel-head"><h3>TDEV and MTIE of the difference</h3></div><div class="chart" id="chart-ref-stab"></div></div>
+      </div>
+    </section>
+
+    <section class="page" data-page="compare/hat" data-title="Cornered hat">
+      <div class="subcontrols">
+        <label>Method <select id="hat-method">
+            <option value="gcov">Groslambert covariance</option>
+            <option value="hat">N-cornered hat</option>
+          </select></label>
+        <span class="hint">Uses the active dataset and the ticked ones (three or more), measured against each other over a common time span.</span>
+      </div>
+      <div class="panel"><div class="panel-head"><h3>Individual stability of each source</h3><span class="grow"></span><button class="mini" data-export="hat">PNG</button></div>
+        <div class="chart tall" id="chart-hat"></div></div>
+      <div id="hat-table" class="table-wrap"></div>
+      <p class="note" id="hat-note"></p>
+    </section>
+
+    <!-- ========================= COMPLY ========================= -->
+    <section class="page" data-page="comply/timeerror" data-title="Time error">
+      <div class="subcontrols">
+        <label>Low-pass <select id="te-lpf">
+            <option value="0.1">0.1 Hz</option>
+            <option value="1">1 Hz</option>
+            <option value="0.01">0.01 Hz</option>
+          </select></label>
+        <label>cTE window <select id="te-win">
+            <option value="1000">1000 s</option>
+            <option value="100">100 s</option>
+            <option value="10000">10 000 s</option>
+          </select></label>
+      </div>
+      <div id="te-full-cards" class="cards"></div>
+      <div class="grid2">
+        <div class="panel"><div class="panel-head"><h3>TE and TEL</h3></div><div class="chart" id="chart-te"></div></div>
+        <div class="panel"><div class="panel-head"><h3>MTIE and TDEV of dTE_L</h3></div><div class="chart" id="chart-te-mtie"></div></div>
+      </div>
+      <p class="note" id="te-full-note"></p>
+    </section>
+
+    <section class="page" data-page="comply/audit" data-title="Audit">
+      <div class="subcontrols">
+        <label>Limit <input type="text" id="au-limit" value="1ms" size="7" title="e.g. 100us (RTS 25) or 1ms"></label>
+        <label>Window <select id="au-window">
+            <option value="3600">1 h</option>
+            <option value="86400">1 day</option>
+            <option value="600">10 min</option>
+          </select></label>
+        <label title="Uncertainty of the top of the chain (e.g. the server's GNSS)">Reference ± <input type="text" id="au-ref" value="0s" size="6"></label>
+        <label title="Known path asymmetry allowance; default: half the round trip">Asymmetry <input type="text" id="au-asym" placeholder="½ RTT" size="7"></label>
+        <span class="grow"></span>
+        <button class="btn small" id="au-report">Evidence report</button>
+      </div>
+      <div id="au-verdict"></div>
+      <div id="au-cards" class="cards"></div>
+      <div class="panel"><div class="panel-head"><h3>Error bound to UTC and measured offset</h3><span class="grow"></span><button class="mini" data-export="audit">PNG</button></div>
+        <div class="chart" id="chart-audit"></div></div>
+      <div class="grid2">
+        <div><h3>Rules applied</h3><div id="au-rules" class="kvlist"></div></div>
+        <div><h3>Worst samples</h3><div id="au-worst" class="table-wrap"></div></div>
+      </div>
+      <details class="details"><summary>Windows</summary><div id="au-windows" class="table-wrap"></div></details>
+    </section>
+
+    <!-- ========================= LAB ========================= -->
+    <section class="page" data-page="lab/simulate" data-title="Simulate">
+      <p class="note">A free-running clock measured through a modelled network; every dataset carries the true offset, so filters can be scored.</p>
+      <div class="presets" id="presets">
+        <button class="preset" data-preset="lan"><b>LAN</b><span>16 s poll, µs paths</span></button>
+        <button class="preset" data-preset="internet"><b>Internet</b><span>64 s poll, ms asymmetric queueing</span></button>
+        <button class="preset" data-preset="congested"><b>Congested</b><span>heavy queueing, 2 % loss</span></button>
+        <button class="preset" data-preset="route-change"><b>Route change</b><span>+4 ms at 8 h, evening congestion</span></button>
+        <button class="preset" data-preset="falseticker"><b>Falseticker</b><span>4 servers, one wrong, one stepping</span></button>
+      </div>
+      <div class="subcontrols">
+        <label>Duration (h) <input id="sim-hours" type="number" value="24" min="0.1" step="0.1"></label>
+        <label>Seed <input id="sim-seed" type="number" value="1"></label>
+        <span class="hint">Pick a scenario above to generate it.</span>
+      </div>
+    </section>
+
+    <section class="page" data-page="lab/bench" data-title="Bench">
+      <div class="formgrid">
+        <div><h3>Scenarios</h3><div class="chips" id="bench-scenarios"></div></div>
+        <div><h3>Estimators</h3><div class="chips" id="bench-estimators"></div></div>
+      </div>
+      <div class="subcontrols">
+        <label>Seeds <input id="bench-seeds" type="number" value="2" min="1" max="10"></label>
+        <label>Duration (h) <input id="bench-hours" type="number" value="12" min="1" step="1"></label>
+        <span class="grow"></span>
+        <button class="btn primary" id="bench-run">Run benchmark</button>
+      </div>
+      <p class="note" id="bench-note">Errors are estimate − true offset after a 30-minute warm-up, mean over seeds; the bar is the RMS on a log scale, shortest is best.</p>
+      <div id="bench-table" class="table-wrap"></div>
+    </section>
+
+    <section class="page" data-page="lab/chain" data-title="PTP chain">
+      <div class="subcontrols">
+        <label>Hops <input id="ch-hops" type="number" value="10" min="1" max="64"></label>
+        <label>Servo <select id="ch-servo"><option value="pi">PI (linuxptp)</option><option value="linreg">linreg</option></select></label>
+        <label>Sync/s <select id="ch-rate"><option>16</option><option>8</option><option>4</option><option>1</option></select></label>
+        <label>Duration <select id="ch-dur"><option value="1200">20 min</option><option value="3600">1 h</option><option value="600">10 min</option></select></label>
+        <label title="random per-hop asymmetry within ± this">Asymmetry ± <input id="ch-asym" type="text" value="10ns" size="6"></label>
+        <label title="queueing between boundary clocks (switches without PTP support)">PDV <input id="ch-pdv" type="text" placeholder="none" size="6"></label>
+        <label title="PI gains; empty: linuxptp defaults">kp <input id="ch-kp" type="text" size="4"></label>
+        <label>ki <input id="ch-ki" type="text" size="6"></label>
+        <label>Class <select id="ch-class"><option>B</option><option>A</option><option>C</option></select></label>
+        <label>Budget <input id="ch-budget" type="text" value="1.1us" size="6"></label>
+        <span class="grow"></span>
+        <button class="btn primary" id="ch-run">Simulate chain</button>
+      </div>
+      <div id="ch-verdict"></div>
+      <div class="grid2">
+        <div class="panel"><div class="panel-head"><h3>max|TE| along the chain</h3><span class="grow"></span><button class="mini" data-export="chain">PNG</button></div><div class="chart" id="chart-chain"></div></div>
+        <div class="panel"><div class="panel-head"><h3>Time error of selected nodes</h3></div><div class="chart" id="chart-chain-te"></div></div>
+      </div>
+      <div id="ch-table" class="table-wrap"></div>
+      <p class="note" id="ch-note"></p>
+    </section>
+
+    <!-- ========================= LIVE ========================= -->
+    <section class="page" data-page="live/monitor" data-title="Monitor">
+      <div id="live-unavailable" class="callout" hidden>Live measurement needs the installed tool (<code>pip install ntpstats</code>, then <code>ntpstats ui</code>): browsers cannot send NTP packets.</div>
+      <form id="live-form" class="formcard">
+        <label>Source <select name="source">
+            <option value="sntp">SNTP queries to servers</option>
+            <option value="chrony">local chrony (chronyc -c tracking)</option>
+            <option value="ntpd">local ntpd / NTPsec (ntpq -c rv)</option>
+            <option value="ptp4l">local ptp4l (linuxptp pmc)</option>
+            <option value="ptpcheck">local PTP via ptpcheck</option>
+          </select></label>
+        <label>Servers <input name="servers" value="pool.ntp.org" placeholder="time.cloudflare.com, ptbtime1.ptb.de"></label>
+        <label>Protocol <select name="version"><option value="4">NTPv4</option><option value="5">NTPv5 (draft, experimental)</option></select></label>
+        <label>Interval (s) <input name="interval" type="number" value="64" min="1"></label>
+        <menu>
+          <button value="query" class="btn">Query once</button>
+          <button value="stop" class="btn">Stop</button>
+          <button value="start" class="btn primary">Start monitor</button>
+        </menu>
+        <p class="note">SNTP with a random transmit timestamp, KoD aware. Poll public servers no faster than every 64 s.</p>
+      </form>
+      <div id="live-status" class="note"></div>
+      <pre id="query-result" class="kv"></pre>
     </section>
   </main>
 </div>
 
-<dialog id="dlg-sim">
-  <form method="dialog">
-    <h3>Simulate NTP exchanges</h3>
-    <p class="note">Free-running oscillator (frequency offset, drift, white/random-walk FM) measured through an asymmetric
-      queueing network. The dataset carries a <code>true_offset</code> column so filters can be scored against ground truth.</p>
-    <label>Scenario
-      <select name="preset">
-        <option value="lan">LAN (16 s poll, µs-level paths)</option>
-        <option value="internet" selected>Internet (64 s poll, ms-level asymmetric queueing)</option>
-        <option value="congested">Congested (heavy asymmetric queueing, 2 % loss)</option>
-        <option value="route-change">Route change at 8 h + evening congestion, temperature wander</option>
-        <option value="falseticker">4 servers: one falseticker, one stepping (first server shown)</option>
-      </select>
-    </label>
-    <label>Duration (hours) <input name="hours" type="number" value="24" min="0.1" step="0.1"></label>
-    <label>Seed <input name="seed" type="number" value="1"></label>
-    <menu><button value="cancel" class="btn">Cancel</button><button value="ok" class="btn primary">Generate</button></menu>
-  </form>
+<footer class="statusbar">
+  <span id="st-ds">no datasets</span>
+  <span id="st-active"></span>
+  <span class="grow"></span>
+  <span id="busy" class="busy" hidden></span>
+  <span class="hint">Ctrl K commands · ? shortcuts</span>
+  <span>© 2012–2026 Thiago de Freitas · MIT</span>
+</footer>
+
+<dialog id="palette" class="palette">
+  <input id="palette-input" placeholder="Go to a page, pick a dataset, run an action…" autocomplete="off" aria-label="Command">
+  <ul id="palette-list"></ul>
 </dialog>
 
-<dialog id="dlg-live">
-  <form method="dialog">
-    <h3>Live measurement</h3>
-    <p class="note">SNTP queries from this machine (random transmit timestamp, KoD aware). Please poll public servers no faster than every 64 s.</p>
-    <label>Source
-      <select name="source">
-        <option value="sntp">SNTP queries to servers</option>
-        <option value="chrony">local chrony (chronyc -c tracking)</option>
-        <option value="ntpd">local ntpd / NTPsec (ntpq -c rv)</option>
-        <option value="ptp4l">local ptp4l (linuxptp pmc)</option>
-        <option value="ptpcheck">local PTP via ptpcheck (facebook/time)</option>
-      </select>
-    </label>
-    <label>Servers <input name="servers" value="pool.ntp.org" placeholder="time.cloudflare.com, ptbtime1.ptb.de"></label>
-    <label>Protocol
-      <select name="version">
-        <option value="4">NTPv4</option>
-        <option value="5">NTPv5 (draft-09, experimental)</option>
-      </select>
-    </label>
-    <label>Interval (s) <input name="interval" type="number" value="64" min="1"></label>
-    <div id="live-status" class="note"></div>
-    <div id="query-result" class="kv"></div>
-    <menu>
-      <button value="cancel" class="btn">Close</button>
-      <button value="query" class="btn">Query once</button>
-      <button value="stop" class="btn" id="live-stop">Stop</button>
-      <button value="start" class="btn primary">Start monitor</button>
-    </menu>
-  </form>
+<dialog id="help">
+  <h3>Keyboard shortcuts</h3>
+  <table class="keys">
+    <tr><td><kbd>Ctrl</kbd> <kbd>K</kbd></td><td>commands, pages and datasets</td></tr>
+    <tr><td><kbd>1</kbd> … <kbd>5</kbd></td><td>Analyze, Compare, Comply, Lab, Live</td></tr>
+    <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+    <tr><td><kbd>J</kbd> <kbd>K</kbd></td><td>next / previous dataset</td></tr>
+    <tr><td><kbd>/</kbd></td><td>filter datasets</td></tr>
+    <tr><td><kbd>O</kbd></td><td>open files</td></tr>
+    <tr><td><kbd>D</kbd></td><td>show or hide the datasets panel</td></tr>
+    <tr><td><kbd>T</kbd></td><td>light or dark theme</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>close, reset zoom</td></tr>
+  </table>
+  <p class="note">Every page has its own address (for example <code>#/analyze/stability</code>), so the browser's back button and bookmarks work.</p>
+  <form method="dialog"><menu><button class="btn">Close</button></menu></form>
 </dialog>
 
-<div id="toast" class="toast" hidden></div>
-<div id="drop" class="drop" hidden>Drop log files to load</div>
-
-<footer>ntpstats — © 2012–2026 Thiago de Freitas · MIT License</footer>
+<div id="toast" class="toast" hidden role="status"></div>
+<div id="drop" class="drop" hidden>Drop logs or captures to load them</div>
 
 <script src="/vendor/uPlot.iife.min.js"></script>
 <script src="/static/app.js"></script>

@@ -49,7 +49,7 @@ columns are the share of runs in which the interval contained the true h_α.
 \* Random-walk FM with its corner near the longest averaging time. A type at the edge of detection
 is the hard case. It will not be reported in most runs, and its upper limit is then what matters.
 
-The web UI's *noise model* switch (Stability tab) overlays the fitted curves and lists the
+The web UI's *noise model* switch (*Analyze → Stability*) overlays the fitted curves and lists the
 coefficients.
 
 ## Spectra

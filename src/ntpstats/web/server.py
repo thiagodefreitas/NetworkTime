@@ -100,10 +100,24 @@ class Store:
             "end": float(s.t[-1]) if len(s) else None,
             "columns": sorted(s.extra),
             "live": sid == self.monitor_id,
+            "spark": _spark(s),
         }
 
 
 STORE = Store()
+
+
+def _spark(s: TimeSeries, n: int = 48) -> List[Optional[float]]:
+    """A tiny min/max-decimated outline of the offset for the dataset list."""
+    if len(s) < 2:
+        return []
+    edges = np.linspace(0, len(s), min(n, len(s)) + 1).astype(int)
+    out: List[Optional[float]] = []
+    for a, b in zip(edges[:-1], edges[1:]):
+        seg = s.offset[a:b]
+        seg = seg[np.isfinite(seg)]
+        out.append(float(np.median(seg)) if seg.size else None)
+    return out
 
 
 # ----------------------------------------------------------------- helpers
@@ -273,6 +287,9 @@ def api_timeerror(sid, params):
     r = time_error(s, lpf_hz=_q(params, "lpf_hz", 0.1, float), cte_window=_q(params, "cte_window", 1000.0, float))
     d = r.as_dict()
     d.update({"id": sid, "name": s.name})
+    if _q(params, "series", None):  # arrays for the TE/TEL chart
+        idx = _decimate(r.t, np.nan_to_num(r.te), _q(params, "max_points", 4000, int))
+        d.update({"t": _f(r.t[idx]), "te": _f(r.te[idx]), "tel": _f(r.tel[idx])})
     return _clean(d)
 
 
@@ -354,6 +371,130 @@ def api_network(sid, params):
         "fpp": {"t": _f(ft), "pct": _f(fpp), "window": win},
         "detrend": det,
     }
+
+
+def _audit_run(sid, params):
+    from ..audit import AuditConfig, audit
+    from ..events import detect
+    from ..timeerror import _value
+
+    s = _prepare(sid, params)
+    limit = _value(_q(params, "limit", "1ms"))
+    cfg = AuditConfig(limit=limit, window=_q(params, "window", 3600.0, float),
+                      reference_uncertainty=_value(_q(params, "reference_uncertainty", "0s")),
+                      asymmetry=(_value(_q(params, "asymmetry")) if _q(params, "asymmetry") else None))
+    return s, audit(s, cfg, events=detect(s))
+
+
+def api_audit(sid, params):
+    s, r = _audit_run(sid, params)
+    t, bound = r.pop("_t"), r.pop("_bound")
+    idx = _decimate(t, bound, _q(params, "max_points", 3000, int))
+    r["t"], r["bound"] = _f(t[idx]), _f(bound[idx])
+    r["offset"] = _f(np.interp(t[idx], s.t, s.offset))
+    r.update({"id": sid, "name": s.name})
+    return _clean(json.loads(json.dumps(r, default=_json_default)))
+
+
+def api_trace(sid, params):
+    from ..trace import from_series
+
+    s = _prepare(sid, params)
+    tr = from_series(s, detrend=_q(params, "detrend_trace", "floor"), window=_q(params, "window", None, float),
+                     asymmetry=_q(params, "asymmetry", 0.0, float))
+    idx = _decimate(tr.t, np.nan_to_num(tr.to_ref + tr.from_ref), _q(params, "max_points", 4000, int))
+    return _clean({"id": sid, "name": s.name, "stats": tr.stats(), "t": _f(tr.t[idx] + s.t[0]),
+                   "to_ref": _f(tr.to_ref[idx]), "from_ref": _f(tr.from_ref[idx])})
+
+
+def api_compare(sid, params):
+    from ..analysis import compare
+
+    est = _prepare(sid, params)
+    ref = STORE.get(_q(params, "ref", ""))
+    lo, hi = max(est.t[0], ref.t[0]), min(est.t[-1], ref.t[-1])
+    if hi <= lo:
+        raise ValueError("the two datasets do not overlap in time")
+    est = est.between(lo, hi)
+    diff = est.offset - np.interp(est.t, ref.t, ref.offset)
+    d = TimeSeries(est.t, diff, name=f"{est.name} - {ref.name}")
+    stats = compare(est, ref)
+    res = series_stability(d, kinds=["tdev", "mtie"], ci=0.683) if len(d) >= 8 else []
+    idx = _decimate(d.t, diff, _q(params, "max_points", 4000, int))
+    return _clean({"id": sid, "ref": ref.name, "name": est.name, "stats": stats, "t": _f(d.t[idx]),
+                   "diff": _f(diff[idx]), "stability": [r.as_dict() for r in res]})
+
+
+def api_hat(params):
+    from ..hat import hat_series
+
+    ids = [i for i in (_q(params, "ids", "") or "").split(",") if i]
+    if len(ids) < 3:
+        raise ValueError("the cornered hat needs three or more datasets")
+    res = hat_series([STORE.get(i) for i in ids], method=_q(params, "method", "gcov"))
+    d = res.as_dict()
+    d["ids"] = ids
+    return _clean(json.loads(json.dumps(d, default=_json_default)))
+
+
+def api_estimators():
+    from ..estimators import available
+
+    return {"estimators": [{"name": n, "description": e.description, "multi": bool(e.multi)}
+                           for n, e in sorted(available().items())],
+            "presets": list(PRESETS)}
+
+
+def api_bench(body):
+    from dataclasses import replace as _replace
+
+    from ..bench import run_bench, summarize
+    from ..trace import TracePath, from_series
+
+    scenarios = []
+    for spec in body.get("scenarios") or ["internet"]:
+        spec = str(spec)
+        if spec in PRESETS:
+            scenarios.append((spec, _replace(PRESETS[spec], name=spec)))
+        elif spec.startswith("trace:"):  # replay the delays of a loaded dataset
+            src = STORE.get(spec[6:])
+            tr = from_series(src)
+            scenarios.append((f"trace: {src.name}", _replace(PRESETS["internet"], name=src.name, poll=tr.interval,
+                                                            duration=tr.duration, trace=TracePath(tr))))
+        else:
+            raise ValueError(f"unknown scenario {spec}")
+    seeds = [int(x) for x in body.get("seeds", [1, 2])][:10]
+    duration = float(body["duration"]) if body.get("duration") else None
+    if duration and duration > 7 * 86400:
+        raise ValueError("duration too long for the UI (at most 7 days)")
+    rows = run_bench(scenarios, body.get("estimators") or None, seeds, duration=duration,
+                     warmup=float(body.get("warmup", 1800.0)))
+    return _clean({"rows": rows, "table": summarize(rows)})
+
+
+def api_chain(body):
+    from .. import ptpsim as P
+    from ..simulate import PathModel
+
+    link = P.Link(asymmetry=float(body.get("asymmetry", 0.0)), timestamp_noise=float(body.get("timestamp_noise", 4e-9)),
+                  pdv=PathModel(queue_mean=float(body["pdv"]), load=0.5) if body.get("pdv") else None)
+    opts = {k: float(body[k]) for k in ("kp", "ki") if body.get(k) not in (None, "")}
+    sc = P.ChainScenario(hops=int(body.get("hops", 10)), duration=float(body.get("duration", 1800.0)),
+                         sync_rate=float(body.get("sync_rate", 16.0)), servo=str(body.get("servo", "pi")),
+                         servo_options=opts, link=link, asymmetry_spread=float(body.get("asymmetry_spread", 0.0)),
+                         seed=int(body.get("seed", 1)))
+    if not 1 <= sc.hops <= 64 or sc.duration * sc.sync_rate * sc.hops > 4e6:
+        raise ValueError("chain too large for the UI (hops x duration x sync rate)")
+    res = P.simulate_chain(sc)
+    cls = body.get("cls") or "B"
+    verdict = res.check(cls=cls if cls in P.CLASS_LIMITS else None, budget=float(body.get("budget", P.NETWORK_LIMIT)))
+    step = max(1, int(round(sc.sync_rate)))  # one point per second
+    te = {str(i): _f(res.te[i][::step]) for i in range(1, len(res.te))}
+    out = {**res.as_dict(), "verdict": verdict, "t": _f(res.t[::step]), "te": te}
+    if body.get("store"):
+        ids = [STORE.add(res.series(i)) for i in range(1, len(res.te))]
+        out["datasets"] = [STORE.describe(i) for i in ids]
+    return _clean(json.loads(json.dumps(out, default=_json_default)))
 
 
 def api_simulate(body):
@@ -534,6 +675,8 @@ _GET_ROUTES = {
     "events": lambda sid, p: api_events(sid, p), "timeerror": lambda sid, p: api_timeerror(sid, p),
     "noise": lambda sid, p: api_noise(sid, p), "spectrum": lambda sid, p: api_spectrum(sid, p),
     "holdover": lambda sid, p: api_holdover(sid, p), "dynamic": lambda sid, p: api_dynamic(sid, p),
+    "audit": lambda sid, p: api_audit(sid, p), "trace": lambda sid, p: api_trace(sid, p),
+    "compare": lambda sid, p: api_compare(sid, p),
 }
 
 
@@ -549,6 +692,10 @@ def _dispatch_get(route, params) -> ApiResponse:
             return _json_response([STORE.describe(i) for i in STORE.datasets])
     if route == ["monitor"]:
         return _json_response(api_monitor_status())
+    if route == ["hat"]:
+        return _json_response(api_hat(params))
+    if route == ["estimators"]:
+        return _json_response(api_estimators())
     if len(route) == 2 and route[0] in _GET_ROUTES:
         return _json_response(_GET_ROUTES[route[0]](route[1], params))
     if len(route) == 3 and route[0] == "export":
@@ -568,6 +715,13 @@ def _dispatch_get(route, params) -> ApiResponse:
                                   ci=_q(params, "ci", 0.683, float) or 0.683, title=f"ntpstats report: {name}")
             return ApiResponse(200, text.encode(), "text/html; charset=utf-8",
                                {"Content-Disposition": _disposition(f"{name}-report.html")})
+        elif what == "audit.html":
+            from ..audit import to_html
+
+            _s, res = _audit_run(sid, params)
+            text = to_html([res], inputs=[], title=f"UTC traceability audit: {name}")
+            return ApiResponse(200, text.encode(), "text/html; charset=utf-8",
+                               {"Content-Disposition": _disposition(f"{name}-audit.html")})
         elif what == "summary.json":
             text = json.dumps(_clean(summary(_prepare(sid, params))), indent=2)
         else:
@@ -602,6 +756,10 @@ def _dispatch_post(route, params, headers, raw: bytes) -> ApiResponse:
         return _json_response(r.as_dict())
     if route == ["simulate"]:
         return _json_response(api_simulate(body))
+    if route == ["bench"]:
+        return _json_response(api_bench(body))
+    if route == ["chain"]:
+        return _json_response(api_chain(body))
     if route == ["monitor", "start"]:
         return _json_response(api_monitor_start(body))
     if route == ["monitor", "stop"]:

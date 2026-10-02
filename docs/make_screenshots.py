@@ -27,45 +27,61 @@ threading.Thread(target=httpd.serve_forever, daemon=True).start()
 url = f"http://127.0.0.1:{httpd.server_address[1]}/"
 
 exe = (glob.glob("/opt/pw-browsers/chromium-*/chrome-linux/chrome") or [None])[0]
+
+
+def shot(page, name, wait=900):
+    page.wait_for_timeout(wait)
+    page.screenshot(path=f"{OUT}/{name}.png")
+
+
 with sync_playwright() as p:
     browser = p.chromium.launch(executable_path=exe) if exe else p.chromium.launch()
     for theme in ("light", "dark"):
-        page = browser.new_page(viewport={"width": 1440, "height": 900}, color_scheme=theme)
+        page = browser.new_page(viewport={"width": 1440, "height": 900}, color_scheme=theme,
+                                bypass_csp=True)  # waits below use eval
         errors = []
         page.on("pageerror", lambda e, errors=errors: errors.append(str(e)))
-        page.goto(url)
-        page.wait_for_timeout(600)
         if theme == "light":
-            page.screenshot(path=f"{OUT}/ui-welcome.png")
+            page.goto(url + "#/analyze/overview")
+            shot(page, "ui-welcome", 600)
+        page.goto(url + "#/lab/simulate")
+        page.wait_for_timeout(600)
         # simulated dataset with ground truth
-        page.click("text=Simulate")
-        page.select_option("#dlg-sim select[name=preset]", "internet")
-        page.click("#dlg-sim button[value=ok]")
-        page.wait_for_timeout(900)
+        page.click("#presets [data-preset=internet]")
+        page.wait_for_function("location.hash === '#/analyze/offset'")
         page.select_option("#detrend", "linear")
         page.select_option("#overlay", "rts")
-        page.wait_for_timeout(1200)
-        page.screenshot(path=f"{OUT}/ui-offset-{theme}.png")
+        shot(page, f"ui-offset-{theme}", 3400)  # after the toast
         if theme == "dark":
             break
-        page.click("[data-tab=stability]")
+        page.goto(url + "#/analyze/stability")
         page.click("#kinds button[data-kind=tdev]")
-        page.wait_for_timeout(300)
         page.check("#slopes")
-        page.wait_for_timeout(900)
-        page.screenshot(path=f"{OUT}/ui-stability.png")
-        page.click("[data-tab=network]")
-        page.wait_for_timeout(900)
-        page.screenshot(path=f"{OUT}/ui-network.png")
+        shot(page, "ui-stability")
+        page.goto(url + "#/analyze/network")
+        shot(page, "ui-network")
+        page.goto(url + "#/comply/audit")
+        page.fill("#au-limit", "10ms")
+        page.press("#au-limit", "Enter")
+        page.dispatch_event("#au-limit", "change")
+        shot(page, "ui-audit", 1400)
+        page.goto(url + "#/lab/chain")
+        page.fill("#ch-hops", "12")
+        page.click("#ch-run")
+        page.wait_for_selector("#ch-table table", timeout=120000)
+        shot(page, "ui-chain")
         # compare the two peers from the peerstats example
+        page.goto(url + "#/analyze/overview")
         page.click(".datasets li:nth-child(1) .nm")
         page.click(".datasets li:nth-child(2) input")
-        page.click("[data-tab=overview]")
-        page.wait_for_timeout(800)
-        page.screenshot(path=f"{OUT}/ui-overview-compare.png")
-        page.click("[data-tab=stability]")
-        page.wait_for_timeout(900)
-        page.screenshot(path=f"{OUT}/ui-stability-compare.png")
+        page.goto(url + "#/analyze/stability")
+        shot(page, "ui-stability-compare")
+        page.goto(url + "#/analyze/overview")
+        shot(page, "ui-overview-compare")
+        page.keyboard.press("Control+k")
+        page.keyboard.type("time")
+        shot(page, "ui-palette", 400)
+        page.keyboard.press("Escape")
         if errors:
             raise SystemExit(f"page errors: {errors}")
     browser.close()

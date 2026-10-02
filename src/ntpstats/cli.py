@@ -99,6 +99,13 @@ def cmd_convert(args):
     from .interop import write_stable32
 
     series = _load_args(args)
+    if args.to == "omnetpp-vec":  # every series in one vector file
+        from .simio import write_omnetpp_vec
+
+        with open(args.output, "w", encoding="utf-8") as fh:
+            fh.write(write_omnetpp_vec(series))
+        print(f"{len(series)} series -> {args.output} (OMNeT++ vector file)", file=sys.stderr)
+        return
     if len(series) > 1 and "{n}" not in args.output:
         raise SystemExit("several series: put {n} in --output (e.g. out-{n}.dat)")
     for i, s in enumerate(series):
@@ -110,6 +117,12 @@ def cmd_convert(args):
                 for k in range(len(s)):
                     vals = [s.t[k], s.offset[k]] + [s.extra[c][k] for c in s.extra]
                     fh.write(",".join(f"{float(v):.15g}" for v in vals) + "\n")
+            rows = len(s)
+        elif args.to == "ns3":
+            from .simio import write_columns
+
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(write_columns(s))
             rows = len(s)
         elif args.to == "parquet":
             try:
@@ -330,6 +343,14 @@ def cmd_noise(args):
                 for a, v in nf.h.items():
                     if v > 0:
                         fh.write(f'"{a}" = {v:.6e}\n')
+        if args.inet:
+            from .simio import inet_oscillator
+
+            osc = inet_oscillator(nf.h, drift=nf.drift, change_interval=args.inet_interval, tau0=nf.tau0)
+            with open(args.inet, "w", encoding="utf-8") as fh:
+                fh.write(f"# INET oscillator for {s.name} (ntpstats {__version__}); include it in omnetpp.ini\n")
+                fh.write(osc["ini"])
+            out[-1]["inet"] = {k: v for k, v in osc.items() if k != "ini"}
         if args.json:
             continue
         print(f"== {s.name}  (tau0 {format_seconds(nf.tau0)}, {nf.meta['points']} points from "
@@ -346,6 +367,9 @@ def cmd_noise(args):
             print(f"  corner at tau ~ {c['tau']:g} s: {c['from']} -> {c['to']}")
         if args.scenario:
             print(f"  simulator scenario written to {args.scenario}")
+        if args.inet:
+            lost = ", ".join(x["noise"] for x in out[-1]["inet"]["lost"]) or "nothing"
+            print(f"  INET RandomDriftOscillator written to {args.inet} (random-walk FM kept; not representable: {lost})")
     if args.json:
         print(json.dumps(out, indent=2, default=float))
     return 0
@@ -1191,7 +1215,8 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("convert", help="write a log as a Stable32 data file (phase or frequency), plain CSV or Parquet")
     _common(s)
     s.add_argument("-o", "--output", required=True, help="output path; {n} is replaced by the series index")
-    s.add_argument("--to", choices=("stable32-phase", "stable32-freq", "csv", "parquet"), default="stable32-phase")
+    s.add_argument("--to", choices=("stable32-phase", "stable32-freq", "csv", "parquet", "omnetpp-vec", "ns3"),
+                   default="stable32-phase")
     s.add_argument("--no-timetags", action="store_true", help="Stable32: values only, no MJD column")
     s.add_argument("--resample", type=float, metavar="TAU0", help="grid spacing (default: median sample interval)")
     s.add_argument("--max-gap", type=float, default=3.0, help="gaps longer than this many tau0 are marked as gaps")
@@ -1207,6 +1232,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--detrend", choices=("none", "linear", "quadratic"), default="linear")
     s.add_argument("--drift", action="store_true", help="also fit a linear frequency drift (so it is not taken for RW FM)")
     s.add_argument("--scenario", metavar="TOML", help="write a [clock] table with these h_alpha for 'simulate'")
+    s.add_argument("--inet", metavar="INI", help="write omnetpp.ini lines for an INET RandomDriftOscillator with this "
+                                                "random-walk FM (other noise types are listed as not representable)")
+    s.add_argument("--inet-interval", type=float, default=1.0, help="changeInterval of the INET oscillator, s")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_noise)
 

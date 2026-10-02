@@ -53,7 +53,7 @@ When the log has delays, phase steps and frequency changes are also marked **pat
 clock (a daemon step, an upstream GNSS problem, spoofing), not the network.
 
 The detectors are tested against known ground truth, including a simulated route change, and
-report no events on stationary noise. The web UI lists the events under the Offset chart.
+report no events on stationary noise. The web UI lists them on *Analyze → Events*; click one to zoom the offset chart to it. *Comply → Audit* runs the audit with a verdict and downloads the evidence report.
 
 ## Timing checks in CI
 

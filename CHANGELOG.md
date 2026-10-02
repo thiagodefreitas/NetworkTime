@@ -14,6 +14,23 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+### Added
+- **Web UI overhaul**, still plain JavaScript with uPlot, no build step, offline.
+  - Five workspaces: *Analyze*, *Compare* (side by side, against a reference, N-cornered hat),
+    *Comply* (time error with TE/TEL and MTIE/TDEV charts; UTC audit with a verdict and an evidence
+    report), *Lab* (simulator, estimator bench, PTP boundary-clock chains) and *Live*.
+  - A command palette (Ctrl K), keyboard shortcuts, a link for every page (`#/comply/audit`), and
+    dataset sparklines, filter and rename.
+  - Expandable charts, one-way delays on the Network page, and stale answers are never drawn.
+  - New API endpoints: `audit`, `trace`, `compare`, `hat`, `estimators`, `bench`, `chain`, and the
+    `audit.html` export.
+  - A Playwright test drives every page in CI.
+- **Simulator interop** (#29): OMNeT++ `.vec` result files are read like logs (INET clock
+  `timeChanged` vectors become time error against simulation time; other vectors on request) and
+  written (`convert --to omnetpp-vec`). ns-3 `time value` text is written with `convert --to ns3`.
+  `ntpstats noise --inet` writes INET `RandomDriftOscillator` settings that reproduce the fitted
+  random-walk FM, and lists what INET's oscillator cannot represent.
+
 ## [2.16.0] - 2026-10-02
 
 Research bench v2, part 1 (#29). The new modules are provisional (not yet in `ntpstats.api`) until

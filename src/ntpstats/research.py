@@ -488,5 +488,10 @@ def _register() -> None:
 
     register_parser(ParserPlugin("ripe-atlas", atlas, det("ripe-atlas"), "RIPE Atlas NTP measurement results (JSON)"))
 
+    from . import simio
+
+    register_parser(ParserPlugin("omnetpp-vec", simio.parse_omnetpp, simio.detect,
+                                 "OMNeT++/INET output vectors (.vec): clock time error, or raw vectors"))
+
 
 _register()
