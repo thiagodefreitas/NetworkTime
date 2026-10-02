@@ -1,0 +1,3 @@
+# python_min comes from conda-forge's global pinning on conda-forge; this file is only for local and CI builds.
+python_min:
+  - "3.9"
