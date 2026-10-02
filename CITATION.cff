@@ -7,7 +7,7 @@ authors:
 license: MIT
 repository-code: "https://github.com/thiagodefreitas/NetworkTime"
 version: 2.16.0
-date-released: 2026-10-01
+date-released: 2026-10-02
 keywords:
   - NTP
   - chrony

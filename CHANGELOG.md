@@ -14,7 +14,7 @@ uploads to PyPI.
 
 ## [Unreleased]
 
-## [2.16.0] - 2026-10-01
+## [2.16.0] - 2026-10-02
 
 Research bench v2, part 1 (#29). The new modules are provisional (not yet in `ntpstats.api`) until
 2.17 adds the simulator exchange formats.
