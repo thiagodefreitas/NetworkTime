@@ -7,8 +7,8 @@ simulated clock whose true offset is known. 2.16 adds two things to it ([#29](ht
 - **PTP chains**: a grandmaster and N boundary clocks with servo models, checked against a
   time-error budget.
 
-Both are *provisional* in 2.16 (not yet part of the [stable API](api/stable.md)), as 2.17 will add
-the OMNeT++/INET and ns-3 exchange formats.
+2.17 adds the exchange with network simulators (OMNeT++/INET, ns-3), two more reference
+algorithms, and a benchmark on a replayed trace that anyone can reproduce from one scenario file.
 
 ## Delay traces
 
@@ -150,3 +150,79 @@ initial_offset = 1e-3
 
 The [chain notebook](notebooks.md) walks through a budget study: how the error grows with the number
 of hops, how to tune the servo for a chain, and what asymmetry and PDV cost.
+
+## More reference algorithms
+
+| Estimator | Idea |
+|---|---|
+| `hull` | Huygens-style (Geng et al., NSDI 2018), for one server. Each exchange bounds the true offset to `θm ± δ/2`; over a sliding window (64 exchanges, causal) the estimate is the straight line with the largest margin between those bounds, which is what Huygens' SVM finds. It assumes equal floor delays, like every two-way method. |
+| `kalman-combine` | Multi-server, in the spirit of ntpd-rs (not its code): one delay-weighted Kalman filter per source; each source contributes `offset ± (3σ + floor/2)`; Marzullo intersection keeps the truechimers; inverse-variance mean of the survivors. |
+
+On the bundled presets `hull` is the most accurate single-server estimator whenever floors are
+symmetric, often by an order of magnitude, because it uses every exchange's bound instead of only
+the lowest-delay ones. With the asymmetric route change of `route-change` it is biased like
+everything else: the error is in the path, and no estimator can see it. `kalman-combine` rejects
+the falseticker and the stepping server of `falseticker`. An SPTP-style client (exchange-level PTP
+in the bench) is not included yet.
+
+## A reproducible benchmark on a replayed trace
+
+[`examples/scenarios/replay-chrony.toml`](https://github.com/thiagodefreitas/NetworkTime/blob/master/examples/scenarios/replay-chrony.toml)
+replays the delays of the bundled chrony `measurements.log` under a simulated oscillator and
+scores every estimator against the true offset:
+
+```bash
+ntpstats bench examples/scenarios/replay-chrony.toml --seeds 1-5 --html bench.html
+```
+
+The result is [`docs/examples/trace-benchmark.html`](https://github.com/thiagodefreitas/NetworkTime/blob/master/docs/examples/trace-benchmark.html)
+(download and open it). To run the same comparison on your own network, point `file` in the
+scenario at your `measurements.log`, `peerstats` or capture. CI runs the scenario on every change.
+
+## Network simulators: OMNeT++/INET and ns-3
+
+ntpstats reads and writes the formats these simulators use, so a study can move between a
+discrete-event simulation and real measurements.
+
+**From a real clock into INET.** Fit the oscillator's noise from a log, and write it as settings
+for INET's `RandomDriftOscillator`:
+
+```bash
+ntpstats noise tracking.log --drift --inet oscillator.ini
+```
+
+INET's oscillator makes the drift rate a random walk, with an increment drawn from
+`uniform(-a, a)` ppm every `changeInterval` T. A random walk of frequency with step variance σ² per
+T has `S_y(f) = σ²/(2π² T f²)`, so `h₋₂ = σ²/(2π² T)` and `a = √(6π² h₋₂ T)`.
+`tests/test_simio.py` simulates exactly INET's update rule with the mapped `a` and checks its
+ADEV against the h₋₂ model, from 100 s to 10⁴ s, within 15 %. Only the random-walk FM and the
+frequency offset carry over. The file lists what the oscillator cannot represent (white and
+flicker PM and FM, linear drift), with each one's ADEV at τ₀ and 1000 s, so the loss is visible.
+
+**From INET back into ntpstats.** INET clocks record `timeChanged:vector`, the clock time at each
+change. ntpstats reads `.vec` files directly and turns each clock into its time error against
+simulation time:
+
+```ini
+# omnetpp.ini (INET gPTP showcase or your own network)
+include oscillator.ini
+**.clock.timeChanged:vector.vector-recording = true
+output-vector-precision = 17     # keep ns resolution at long simulation times
+```
+
+```bash
+ntpstats info results/General-#0.vec --all-peers           # one series per clock
+ntpstats timeerror results/General-#0.vec --all-peers --limits budget.txt
+ntpstats stability results/General-#0.vec --peer switch1 -k tdev,mtie
+```
+
+Other vectors (`pdelay`, `gmRateRatio`, your own statistics) are available with
+`ntpstats.simio.read_omnetpp_vec(lines, vectors="pdelay*")`. The other way, `ntpstats convert
+LOG --to omnetpp-vec -o measured.vec` writes measurements as a vector file, to plot them next to
+simulation results in the OMNeT++ IDE or with `opp_scavetool`. The parser follows the documented
+result file format and is tested on files in that format. CI does not run OMNeT++ itself.
+
+**ns-3.** Captures written by `PcapHelper` are read like any other capture (NTP and PTP), and
+two-column `time value` text from `FileHelper` or `GnuplotHelper` is read with `-f csv`.
+`ntpstats convert LOG --to ns3` writes `time value` text (seconds) for an ns-3 program to read, for
+example to drive a delay model from a real trace (`ntpstats trace … --csv` gives one-way delays).

@@ -79,13 +79,14 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ Streaming reader for multi-GB logs. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32), [#13](https://github.com/thiagodefreitas/NetworkTime/issues/13))
 - ✅ Notebooks executed in CI, and the first gallery entry (NIST SP 1065). ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32), [#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 
-### 2.16: Research bench v2, part 1 (trace-driven and PTP)
+### 2.16: Research bench v2, part 1 (trace-driven and PTP) ✅
 - ✅ Trace replay: per-direction delays from captures and monitor logs drive the simulated path, with the capture host's clock detrended out. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
 - ✅ PTP models: a linuxptp-style PI servo and the `linreg` servo, sync/delay-request rates, and chains of N boundary clocks scored against the time-error budgets. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
 
-### 2.17: Research bench v2, part 2 (simulators and algorithms)
-- OMNeT++/INET and ns-3 interop: export oscillator noise and PDV traces, import their result vectors. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
-- More reference algorithms (ntpd-rs-like selection, Huygens-style convex hull, an SPTP-style client) and a reproducible benchmark example. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+### 2.17: Research bench v2, part 2 (simulators, algorithms, UI) (completes [#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+- ✅ OMNeT++/INET and ns-3 interop: INET oscillator settings from a noise fit, vector files in and out, ns-3 text. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+- ✅ More reference algorithms (Huygens-style convex hull, ntpd-rs-style combination) and a reproducible benchmark on a replayed trace. An SPTP-style client needs exchange-level PTP in the bench and is left for later. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+- ✅ Web UI overhaul: workspaces, command palette, audit, time error, cornered hat, bench and PTP chains in the browser.
 
 ### 3.0: API final
 - The stable API is declared final: the 3.0 changelog lists every change since 2.15 (from `tests/data/api_surface.json`), and names deprecated by then are removed. No other breaking changes are planned; 3.0 waits until there is something to remove.
@@ -131,3 +132,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.14 | In-browser edition ([#31](https://github.com/thiagodefreitas/NetworkTime/issues/31)); plugins ([#37](https://github.com/thiagodefreitas/NetworkTime/issues/37)); pandas/xarray/Parquet ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32)) |
 | 2.15 | Stable API and deprecation policy, streaming reader for large logs, notebooks in CI and the NIST SP 1065 gallery entry ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32), [#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)) |
 | 2.16 | Delay traces and trace replay in the bench; PTP servos and boundary-clock chains against TE budgets ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29), part 1) |
+| 2.17 | OMNeT++/INET and ns-3 interop; Huygens-style and ntpd-rs-style estimators; reproducible trace benchmark; web UI overhaul ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)) |

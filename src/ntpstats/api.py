@@ -49,8 +49,10 @@ from .noisefit import fit_series as fit_noise
 from .parsers import ParseError, all_formats, detect_format, load, load_one
 from .plugins import DetectorPlugin, ParserPlugin
 from .profiles import load_profile
+from .ptpsim import ChainResult, ChainScenario, Link, LinRegServo, PIServo, simulate_chain
 from .report import bench_report, dataset_report
 from .series import TimeSeries
+from .simio import inet_oscillator, read_omnetpp_vec, write_omnetpp_vec
 from .simulate import ClockModel, PathEvent, PathModel, Scenario, ServerSpec, simulate_multi, simulate_ntp
 from .spectrum import Spectrum, series_spectrum
 from .stability import (
@@ -67,6 +69,8 @@ from .stability import (
 from .stream import iter_chunks, load_large
 from .timeerror import TimeErrorResult, time_error
 from .timeerror import check as check_time_error
+from .trace import DelayTrace, TracePath, load_trace
+from .trace import from_series as trace_from_series
 
 __all__ = [
     # data and input
@@ -88,6 +92,10 @@ __all__ = [
     "Estimator", "FunctionEstimator", "register_estimator", "get_estimator", "available_estimators",
     "run_estimator", "kalman_series", "Scenario", "ClockModel", "PathModel", "PathEvent", "ServerSpec",
     "simulate_ntp", "simulate_multi", "load_scenarios", "run_bench", "score",
+    # traces, PTP chains and network simulators (2.16-2.17)
+    "DelayTrace", "TracePath", "load_trace", "trace_from_series",
+    "ChainScenario", "Link", "ChainResult", "simulate_chain", "PIServo", "LinRegServo",
+    "read_omnetpp_vec", "write_omnetpp_vec", "inet_oscillator",
     # reports
     "dataset_report", "bench_report",
     # extension points

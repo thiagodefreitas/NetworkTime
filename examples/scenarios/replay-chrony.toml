@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: MIT
+# Every reference algorithm on the same network: the per-direction delays of a chrony
+# measurements.log (server 192.0.2.10), replayed under a simulated clock whose true offset
+# is known. The bundled log is a sample; point `file` at your own measurements.log, peerstats
+# or capture to score the algorithms on your network.
+#
+#   ntpstats bench examples/scenarios/replay-chrony.toml --seeds 1-5 --html bench.html
+#
+# The trace is replayed in time order; the seed changes the simulated oscillator only.
+name = "replay-chrony"
+duration = 43200
+poll = 64
+
+[clock]
+freq_offset = 5e-6
+white_fm_adev1 = 1e-9
+rw_fm_adev1 = 1e-11
+
+[trace]
+file = "../data/chrony-measurements.log"
+peer = "192.0.2.10"
+mode = "replay"

@@ -96,6 +96,14 @@ change in a minor release (always noted in the changelog).
 | `Scenario`, `ClockModel`, `PathModel`, `PathEvent`, `ServerSpec`, `simulate_ntp`, `simulate_multi` | simulator with ground truth ([simulate](simulate.md)) |
 | `load_scenarios`, `run_bench`, `score` | benchmark runner ([bench](bench.md)) |
 
+## Traces, PTP chains and network simulators
+
+| Name | What it is |
+|---|---|
+| `load_trace`, `trace_from_series`, `DelayTrace`, `TracePath` | per-direction delays of a capture or log, and their replay in the simulator ([trace](trace.md), [Trace replay](../research-bench.md)) |
+| `ChainScenario`, `Link`, `simulate_chain`, `ChainResult`, `PIServo`, `LinRegServo` | PTP grandmaster and boundary-clock chains with servo models ([ptpsim](ptpsim.md)) |
+| `read_omnetpp_vec`, `write_omnetpp_vec`, `inet_oscillator` | OMNeT++/INET vector files and oscillator settings ([simio](simio.md)) |
+
 ## Reports and extension points
 
 | Name | What it is |

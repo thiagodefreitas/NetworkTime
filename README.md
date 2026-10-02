@@ -108,14 +108,17 @@ are as valuable as code. Look for issues labelled
     frequency offset, drift, temperature wander, asymmetric queueing paths, route changes,
     congestion and outages, and multi-server scenarios with falsetickers;
   - reference algorithms: Kalman/RTS, NTP clock filter, chrony-style regression,
-    RADclock-style feed-forward, and RFC 5905 select/cluster/combine;
+    RADclock-style feed-forward, a Huygens-style convex hull, RFC 5905 select/cluster/combine,
+    and an ntpd-rs-style multi-server combination;
   - bring your own estimator via a small API or a package entry point; scenarios can be
     presets or TOML files;
   - reproducible reports as tables, CSV/JSON or self-contained HTML;
   - **real networks**: per-direction delays extracted from a capture or log (`ntpstats trace`),
     replayed under the simulated clock (`ntpstats bench trace:FILE`);
   - **PTP chains**: a grandmaster and N boundary clocks with linuxptp-style servos, checked per hop
-    and end to end against a time-error budget (`ntpstats chain`).
+    and end to end against a time-error budget (`ntpstats chain`);
+  - **network simulators**: OMNeT++/INET vector files in and out (INET clocks become time error),
+    ns-3 text, and INET oscillator settings fitted to a real clock (`ntpstats noise --inet`).
 - **Reports**: `ntpstats report` writes a single offline HTML file with charts, CI tables,
   network analysis, parameters and input hashes (also a *Report* button in the UI).
 - **Measurement clients** (they never set the clock):
@@ -224,11 +227,15 @@ ntpstats bench --list                                        # estimators and pr
 ntpstats bench internet falseticker examples/scenarios/*.toml --seeds 1-10 \
         --html bench.html --csv bench.csv                    # full comparison
 python examples/04_custom_estimator.py                       # plug in your own algorithm
+ntpstats bench trace:capture.pcap                            # replay a real network's delays
+ntpstats bench examples/scenarios/replay-chrony.toml --seeds 1-5 --html bench.html
+ntpstats chain --hops 10 --class B                           # PTP boundary clocks vs a TE budget
 ```
 
 ![Benchmark report](docs/img/benchmark-report.png)
 
 Example reports: [benchmark](docs/examples/benchmark-report.html),
+[benchmark on a replayed trace](docs/examples/trace-benchmark.html),
 [peerstats analysis](docs/examples/peerstats-report.html) (download and open in a browser).
 
 Some findings the bench makes visible:
@@ -238,6 +245,10 @@ Some findings the bench makes visible:
   one-way step, and no amount of filtering can see it.
 - RFC 5905 selection rejects falsetickers only when their error exceeds the root distance
   (≈ delay/2). Smaller ones are indistinguishable from path asymmetry by design.
+- With symmetric floor delays, the Huygens-style `hull` estimator, which uses every exchange's
+  bound θ ± δ/2, is often an order of magnitude more accurate than the clock filter.
+- In a chain of PTP boundary clocks, linuxptp's default PI gains amplify noise hop after hop
+  (gain peaking): 10 hops end near 50 ns, 20 near 600 ns. A narrower loop keeps 20 hops near 25 ns.
 
 Common options: `--format` (override detection), `--peer`, `--all-peers`,
 `--start/--end` (POSIX seconds or ISO 8601 UTC), `--outliers K` (drop > K·MAD after
@@ -281,24 +292,24 @@ decimated data (min/max per bucket), so it stays responsive with large files.
 ## Python API
 
 ```python
-from ntpstats import load_one
-from ntpstats.stability import series_stability
-from ntpstats.analysis import summary, compare
-from ntpstats.simulate import Scenario, simulate_ntp
-from ntpstats.filters import kalman_series
+from ntpstats import api as nt
 
-s = load_one("/var/log/chrony/measurements.log", peer="192.0.2.10")
-print(summary(s)["range_90"])
-for r in series_stability(s, kinds=("oadev", "tdev"), ci=0.95):
+s = nt.load_one("/var/log/chrony/measurements.log", peer="192.0.2.10")
+print(nt.summary(s)["range_90"])
+for r in nt.series_stability(s, kinds=("oadev", "tdev"), ci=0.95):
     print(r.kind, r.taus, r.dev, r.lo, r.hi, r.alpha)
 
-meas, truth = simulate_ntp(Scenario(duration=86400, seed=1))
-print(compare(kalman_series(meas, smooth=True), truth))
+meas, truth = nt.simulate_ntp(nt.Scenario(duration=86400, seed=1))
+print(nt.compare(nt.kalman_series(meas, smooth=True), truth))
+
+chain = nt.simulate_chain(nt.ChainScenario(hops=10))            # PTP boundary clocks
+print(chain.check(cls="B")["passed"], chain.nodes[-1]["max_te"])
 ```
 
 The names in `ntpstats.api` are the [stable API](https://thiagodefreitas.github.io/NetworkTime/api/stable/),
 covered by a deprecation policy. [Notebooks](examples/notebooks/) cover a chrony log to a noise model,
-benchmarking your own algorithm, compliance evidence, and a reproduction of NIST SP 1065. They run in CI.
+benchmarking your own algorithm (also on a real log's delays), compliance evidence, a PTP chain against
+a time-error budget, and a reproduction of NIST SP 1065. They run in CI.
 Logs of several gigabytes are read in blocks (`ntpstats.api.load_large`).
 
 More in [`examples/`](examples/): `01_quickstart.py`, `02_benchmark_filters.py` (a template for
@@ -338,12 +349,14 @@ their logs).
 ## Project layout
 
 ```
-src/ntpstats/     parsers, pcap, stability, edf, masks, analysis, network, filters, simulate,
-                  estimators, bench, report, sntp (v4/v5), nts, sources (chronyc/ntpq),
-                  monitor, cli, plotting
-src/ntpstats/web  stdlib HTTP server + static UI (uPlot vendored)
-tests/            pytest suite (+ frozen reference data)
-examples/         scripts and sample logs
+src/ntpstats/     api (stable surface), parsers, stream, pcap, ptp, research, stability, edf,
+                  masks, timeerror, audit, events, bounds, analysis, network, filters,
+                  spectrum, noisefit, hat, holdover, simulate, estimators, bench, trace,
+                  ptpsim, simio, report, sntp (v4/v5), nts, roughtime, sources, monitor,
+                  metrics, otlp, adapters, plugins, cli, plotting
+src/ntpstats/web  stdlib HTTP server + static UI (plain JS, uPlot vendored), also run by Pyodide
+tests/            pytest suite (+ frozen reference data, API snapshot, browser tests)
+examples/         scripts, notebooks, scenarios, an example plugin and sample logs
 docs/             state of the art, live interop results, example reports, screenshots
 legacy/           the original 2012 GSoC code, untouched
 ```

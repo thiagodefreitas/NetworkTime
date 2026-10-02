@@ -26,6 +26,8 @@ otherwise dominate them.
 | `feedforward` | RADclock-style: rate from low-RTT packets over a long baseline |
 | `rfc5905` | multi-server: clock filter + intersection, cluster and combine (RFC 5905 §11) |
 | `median` | multi-server median of clock-filter outputs |
+| `hull` | Huygens-style max-margin line through the offset bounds θm ± δ/2 of a sliding window ([details](research-bench.md#more-reference-algorithms)) |
+| `kalman-combine` | multi-server, ntpd-rs-style: per-source Kalman filters, intersection, inverse-variance mean |
 
 Add your own by subclassing `ntpstats.estimators.Estimator` and calling `register()`, or
 publish it through the `ntpstats.estimators` entry-point group

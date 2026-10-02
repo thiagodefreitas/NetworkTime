@@ -16,7 +16,7 @@
 |---|---|
 | `info` | summary statistics (percentiles, trend, gaps, auxiliary columns) |
 | `timeerror` | max\|TE\|, cTE, dTE_L/dTE_H, max\|TEL\|, MTIE/TDEV of dTE_L; `--limits`, `--mask` (exit code 3 on failure), `--input-is-te`, `--units` ([PTP & time error](ptp.md)) |
-| `convert` | write a log as a Stable32 phase/frequency file, plain CSV or Parquet (`--to`, `--no-timetags`) |
+| `convert` | write a log as a Stable32 phase/frequency file, plain CSV, Parquet, an OMNeT++ vector file or ns-3 `time value` text (`--to`, `--no-timetags`) |
 | `stability` | ADEV/OADEV/MDEV/TDEV/HDEV/TOTDEV/MTOT/TTOT/HTOT/Theo1/TheoBR/TheoH/MTIE/TIErms with CIs; `--mask FILE` (exit code 3 on failure), `--exact`, `--raw-mtot`, `--csv`, `--json` |
 | `dynamic` | sliding-window stability matrix (time × τ) |
 | `network` | delay floor, queueing, asymmetry indicator, floor packet percentage |
@@ -35,7 +35,7 @@
 | `audit` | UTC traceability evidence: per-sample error bound with stated assumptions, windows, coverage; HTML/JSON with input hashes; exit code 3 on failure ([Assurance](assurance.md)) |
 | `events` | phase steps, spikes, frequency changes, delay-floor (route) changes and leap smears |
 | `prom` | fetch a Prometheus range query (ntpd-rs, chrony_exporter, …) to a JSON file every command reads |
-| `noise` | fit h_α (white/flicker PM, white/flicker/random-walk FM, optional drift) with bootstrap intervals and corner τ; `--scenario` writes a simulator clock ([Metrology](metrology.md)) |
+| `noise` | fit h_α (white/flicker PM, white/flicker/random-walk FM, optional drift) with bootstrap intervals and corner τ; `--scenario` writes a simulator clock, `--inet` an INET oscillator ([Metrology](metrology.md)) |
 | `spectrum` (`psd`) | phase or frequency PSD (Welch or sine multitaper, gap-aware, log bins), `--carrier` for L(f) |
 | `hat` | individual stability of 3+ sources from their differences: Groslambert covariance, three- or N-cornered hat |
 | `holdover` | predicted TIE after loss of reference, time to violate `--limit`s, `--backtest` calibration, `--min-holdover` (exit code 3) |

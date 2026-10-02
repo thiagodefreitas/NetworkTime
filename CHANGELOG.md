@@ -14,7 +14,25 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-10-02
+
+Research bench v2, part 2: completes #29.
+
 ### Added
+- **Reference algorithms**:
+  - `hull`: Huygens-style. The max-margin line through the offset bounds θm ± δ/2 of a sliding
+    window, causal.
+  - `kalman-combine`: multi-server, ntpd-rs-style. Per-source Kalman filters, interval
+    intersection, inverse-variance mean.
+
+  With symmetric floors `hull` is the most accurate single-server estimator on the presets.
+  `kalman-combine` rejects falsetickers and stepping servers.
+- **A reproducible benchmark on a replayed trace**: `examples/scenarios/replay-chrony.toml` scores
+  every estimator on the delays of a real log under a simulated clock
+  (`docs/examples/trace-benchmark.html`). CI runs it.
+- **Stable API**: delay traces, PTP chains and the simulator formats join `ntpstats.api`
+  (`load_trace`, `TracePath`, `ChainScenario`, `simulate_chain`, `read_omnetpp_vec`,
+  `inet_oscillator` and the rest).
 - **Web UI overhaul**, still plain JavaScript with uPlot, no build step, offline.
   - Five workspaces: *Analyze*, *Compare* (side by side, against a reference, N-cornered hat),
     *Comply* (time error with TE/TEL and MTIE/TDEV charts; UTC audit with a verdict and an evidence

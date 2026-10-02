@@ -67,6 +67,7 @@ nav:
       - bench: api/bench.md
       - trace: api/trace.md
       - ptpsim: api/ptpsim.md
+      - simio: api/simio.md
       - sntp: api/sntp.md
       - nts: api/nts.md
       - roughtime: api/roughtime.md

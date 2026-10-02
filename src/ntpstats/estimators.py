@@ -30,9 +30,13 @@ Built-in reference algorithms
                    by a runs test on the residuals
 ``feedforward``    RADclock-style: rate from long-baseline low-RTT packets,
                    offset from a quality-weighted recent window
+``hull``           Huygens-style: the max-margin line through the offset bounds
+                   (offset ± delay/2) of a sliding window
 ``rfc5905``        (multi) clock filter + selection (intersection), cluster and
                    combine algorithms of RFC 5905 s11
 ``median``         (multi) median of the servers' clock-filter outputs
+``kalman-combine`` (multi) ntpd-rs-style: per-source Kalman filters, interval
+                   intersection, inverse-variance combination
 """
 
 from __future__ import annotations
@@ -337,6 +341,120 @@ def median_combine(series_list: Sequence[TimeSeries]) -> TimeSeries:
     return TimeSeries(epochs, np.array(out), name="median combine", meta={"estimator": "median"})
 
 
+# ------------------------------------------------------- Huygens-style convex hull
+_GOLD = (math.sqrt(5) - 1) / 2
+
+
+def _margin_line(t: np.ndarray, upper: np.ndarray, lower: np.ndarray, max_slope: float = 5e-4):
+    """Line ``a + b t`` with the largest margin below ``upper`` and above ``lower``.
+
+    For a slope b the best intercept sits half-way between min(upper - b t)
+    and max(lower - b t); the margin is half their difference, a concave
+    function of b, maximised by golden-section search.
+    """
+    def margin(b):
+        hi, lo = np.min(upper - b * t), np.max(lower - b * t)
+        return (hi - lo) / 2, (hi + lo) / 2
+
+    lo_b, hi_b = -max_slope, max_slope
+    c, d = hi_b - _GOLD * (hi_b - lo_b), lo_b + _GOLD * (hi_b - lo_b)
+    mc, md = margin(c)[0], margin(d)[0]
+    for _ in range(48):
+        if mc >= md:
+            hi_b, d, md = d, c, mc
+            c = hi_b - _GOLD * (hi_b - lo_b)
+            mc = margin(c)[0]
+        else:
+            lo_b, c, mc = c, d, md
+            d = lo_b + _GOLD * (hi_b - lo_b)
+            md = margin(d)[0]
+    b = (lo_b + hi_b) / 2
+    m, a = margin(b)
+    return a, b, m
+
+
+def convex_hull(series: TimeSeries, samples: int = 64, window: Optional[float] = None) -> TimeSeries:
+    """Huygens-style estimator (Geng et al., NSDI 2018), for one server.
+
+    Every exchange bounds the true offset: ``θm − δ/2 ≤ θ ≤ θm + δ/2`` (the
+    error of a measurement is at most half its round trip). Over a sliding
+    window of the last ``samples`` exchanges (or ``window`` seconds), the
+    clock offset is taken as the straight line with the largest margin
+    between those upper and lower bounds; the margin is equal on both sides
+    because equal floor delays are assumed, as in the paper's SVM. The
+    estimate at each exchange uses only that exchange and earlier ones.
+    """
+    s = series.sorted()
+    d = s.extra.get("delay")
+    if d is None:
+        raise ValueError("the convex-hull estimator needs a round-trip delay column")
+    up, lo = s.offset + d / 2, s.offset - d / 2
+    ok = np.isfinite(up) & np.isfinite(lo)
+    out = np.full(len(s), np.nan)
+    idx = np.flatnonzero(ok)
+    for j, k in enumerate(idx):
+        if window is not None:
+            first = np.searchsorted(s.t[idx], s.t[k] - window)
+            sel = idx[first: j + 1]
+        else:
+            sel = idx[max(0, j + 1 - samples): j + 1]
+        if sel.size < 2:
+            out[k] = s.offset[k]
+            continue
+        tt = s.t[sel] - s.t[k]  # the estimate at the newest exchange is the intercept
+        a, _, _ = _margin_line(tt, up[sel], lo[sel])
+        out[k] = a
+    return _like(s, s.t[ok], out[ok], "hull")
+
+
+# ------------------------------------------------------- ntpd-rs-style combination
+def kalman_combine(series_list: Sequence[TimeSeries], nmin: int = 1, k_sigma: float = 3.0) -> TimeSeries:
+    """Multi-server combination in the spirit of ntpd-rs (not its code).
+
+    Each source gets its own delay-weighted Kalman filter (offset and
+    frequency with an uncertainty). At each epoch every source contributes
+    the interval ``offset ± (k·σ + floor_delay/2)``: the filter's uncertainty
+    plus the asymmetry no measurement can rule out. The largest set of
+    intervals with a common point is kept (Marzullo intersection, as RFC
+    5905), and the survivors are averaged with inverse-variance weights.
+    """
+    from .filters import kalman
+
+    filt = []
+    for s in series_list:
+        s = s.sorted()
+        if len(s) < 4:
+            continue
+        kr = kalman(s, delay_weighting=True)
+        dmin = float(np.nanmin(s.extra["delay"])) if "delay" in s.extra else 0.0
+        filt.append((kr.t, kr.phase, kr.freq, kr.phase_sd, dmin))
+    if not filt:
+        raise ValueError("no source with enough samples")
+    epochs = np.unique(np.concatenate([f[0] for f in filt]))
+    stale = 4 * max(float(np.median(np.diff(f[0]))) for f in filt)
+    out_t, out_x = [], []
+    for te in epochs:
+        cands = []
+        for t, ph, fr, sd, dmin in filt:
+            i = np.searchsorted(t, te, side="right") - 1
+            if i < 0 or te - t[i] > stale:
+                continue
+            off = ph[i] + fr[i] * (te - t[i])
+            sig = max(float(sd[i]), 1e-12)
+            cands.append((off, k_sigma * sig + dmin / 2, sig))
+        if not cands:
+            continue
+        chimers = _intersect(cands, nmin)
+        if not chimers:
+            continue
+        w = np.array([1 / c[2] ** 2 for c in chimers])
+        out_t.append(te)
+        out_x.append(float(np.sum(w * np.array([c[0] for c in chimers])) / w.sum()))
+    return TimeSeries(np.array(out_t), np.array(out_x), name="kalman combine",
+                      source_format=series_list[0].source_format,
+                      meta={"estimator": "kalman-combine", "servers": len(series_list)})
+
+
 # ------------------------------------------------------- registration
 def _builtin():
     from .filters import kalman_series
@@ -349,8 +467,12 @@ def _builtin():
     register(FunctionEstimator("mindelay", min_delay_filter, description="RFC 5905 clock filter (min delay of 8)"))
     register(FunctionEstimator("regression", regression, description="chrony-style weighted regression + runs test"))
     register(FunctionEstimator("feedforward", feedforward, description="RADclock-style feed-forward"))
+    register(FunctionEstimator("hull", convex_hull,
+                               description="Huygens-style: max-margin line through the offset bounds of a window"))
     register(FunctionEstimator("rfc5905", rfc5905_combine, multi=True, description="RFC 5905 select/cluster/combine"))
     register(FunctionEstimator("median", median_combine, multi=True, description="median of clock-filter outputs"))
+    register(FunctionEstimator("kalman-combine", kalman_combine, multi=True,
+                               description="ntpd-rs-style: per-source Kalman, intersection, inverse-variance mean"))
 
 
 _builtin()

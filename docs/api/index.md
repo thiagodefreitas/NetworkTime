@@ -31,6 +31,7 @@ A [`TimeSeries`](series.md) has `t` (POSIX seconds), `offset` (seconds, referenc
 | [`ntpstats.simulate`](simulate.md) | clocks, paths, scenarios with ground truth |
 | [`ntpstats.bench`](bench.md) | benchmark runner |
 | [`ntpstats.trace`](trace.md), [`ntpstats.ptpsim`](ptpsim.md) | delay traces and replay; PTP servos and boundary-clock chains |
+| [`ntpstats.simio`](simio.md) | OMNeT++/INET and ns-3 exchange formats |
 | [`ntpstats.sntp`](sntp.md), [`ntpstats.nts`](nts.md) | measurement clients (NTPv4, RFC 9769 interleaved, NTPv5, NTS, NTS pools) |
 | [`ntpstats.roughtime`](roughtime.md) | Roughtime client, chained measurements, malfeasance reports |
 | [`ntpstats.spectrum`](spectrum.md), [`ntpstats.noisefit`](noisefit.md) | PSDs, L(f); power-law noise fit h_α |

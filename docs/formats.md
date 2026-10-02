@@ -25,6 +25,7 @@ Formats are detected automatically; `-f/--format` overrides detection.
 | `circular-t` | BIPM Circular T section 1 (issues may be concatenated) | UTC − UTC(k) per laboratory | uncertainties in `meta` |
 | `ripe-atlas` | RIPE Atlas NTP results (API JSON) | offset (negated: Atlas logs local − server) | rtt, stratum, root delay/dispersion |
 | `ntppool` | NTP Pool monitor score log CSV | offset per monitor | rtt, score, step |
+| `omnetpp-vec` | OMNeT++/INET output vector files (`.vec`, versions 2 and 3) | INET clocks (`timeChanged`): clock time − simulation time, negated; files written by ntpstats: their offset | other vectors of the module; any vector with `simio.read_omnetpp_vec(vectors=...)` |
 | `gsoc2012` | the 2012 prototype's `estimators.log` | offset | — |
 
 `ntpstats convert` writes any of these as a Stable32 file or plain CSV (see

@@ -28,6 +28,7 @@ jobs:
           ntpstats info examples/data/loopstats.2012
           ntpstats stability examples/data/peerstats.example --peer 192.0.2.10
           ntpstats simulate --preset lan --duration 3600 --benchmark
+          ntpstats bench examples/scenarios/replay-chrony.toml --seeds 1 --duration 7200 --warmup 600
 
   action:
     # The repository's own GitHub Action (action.yml), installed from this checkout
