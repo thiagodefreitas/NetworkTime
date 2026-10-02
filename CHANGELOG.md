@@ -14,6 +14,36 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-02
+
+The stable API is final. **No breaking changes**: code written for 2.15 or later runs unchanged.
+
+### Changed
+- `ntpstats.api` is final for the whole 3.x series. Stable names are only added or deprecated
+  within 3.x, and a deprecated name keeps working, with a warning, until the next major
+  release. The command line and the files ntpstats writes follow the same rule
+  (*Stable API* docs page, CONTRIBUTING).
+- Package metadata: "Production/Stable", supported Python versions (3.9 to 3.13), typed, and
+  links to the documentation and changelog. Security fixes go to the latest 3.x minor release
+  (SECURITY.md).
+
+### Stable API changes since 2.15.0
+Generated with `python docs/api_changes.py v2.15.0`.
+
+- **Added**: `ChainResult` (class, from `ntpstats.ptpsim`); `ChainScenario` (class, from `ntpstats.ptpsim`); `DelayTrace` (class, from `ntpstats.trace`); `LinRegServo` (class, from `ntpstats.ptpsim`); `Link` (class, from `ntpstats.ptpsim`); `PIServo` (class, from `ntpstats.ptpsim`); `TracePath` (class, from `ntpstats.trace`); `inet_oscillator` (function, from `ntpstats.simio`); `load_trace` (function, from `ntpstats.trace`); `read_omnetpp_vec` (function, from `ntpstats.simio`); `simulate_chain` (function, from `ntpstats.ptpsim`); `trace_from_series` (function, from `ntpstats.trace`); `write_omnetpp_vec` (function, from `ntpstats.simio`).
+- **Changed**: `Scenario`: new init `trace=`; new fields `trace`; `ServerSpec`: new init `trace=`; new fields `trace`.
+- **Removed**: nothing. Code written against the stable API of an earlier release keeps working.
+
+### Added
+- `docs/api_changes.py`: lists the stable-API changes between a tag and the working tree, from
+  the frozen surface, for release notes.
+- A draft software paper for the Journal of Open Source Software (`paper/`), and a workflow that
+  builds its PDF (#38).
+
+### Documentation
+- New docs home page organised by task; the README introduction, the tools landscape, the
+  roadmap ("After 3.0") and the wiki describe the toolkit as it is now.
+
 ## [2.17.0] - 2026-10-02
 
 Research bench v2, part 2: completes #29.

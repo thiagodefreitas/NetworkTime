@@ -1,22 +1,31 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ntpstats"
 dynamic = ["version"]
-description = "NTP / network-time offset, delay and frequency-stability analysis (ADEV, MDEV, TDEV, HDEV, MTIE) with a lightweight web UI"
+description = "Validate, evaluate and study network time: NTP, NTS, PTP and GNSS logs and captures, frequency stability with confidence intervals, time error, UTC audit, simulation and a lightweight web UI"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{name = "Thiago de Freitas"}]
-keywords = ["ntp", "chrony", "ntpsec", "allan deviation", "tdev", "mtie", "time synchronization", "clock"]
+keywords = ["ntp", "nts", "ptp", "chrony", "ntpsec", "linuxptp", "allan deviation", "tdev", "mtie", "time error", "time synchronization", "clock", "gnss", "roughtime"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Telecommunications Industry",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Typing :: Typed",
     "Topic :: Scientific/Engineering",
     "Topic :: System :: Networking :: Time Synchronization",
 ]
@@ -32,6 +41,8 @@ docs = ["mkdocs>=1.5,<2", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
 
 [project.urls]
 Homepage = "https://github.com/thiagodefreitas/NetworkTime"
+Documentation = "https://thiagodefreitas.github.io/NetworkTime/"
+Changelog = "https://github.com/thiagodefreitas/NetworkTime/blob/master/CHANGELOG.md"
 Issues = "https://github.com/thiagodefreitas/NetworkTime/issues"
 
 [project.scripts]

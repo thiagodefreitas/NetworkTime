@@ -15,7 +15,8 @@ unless you prefer otherwise.
 
 ## Supported versions
 
-Only the latest minor release gets security fixes.
+Security fixes go to the latest minor release of the current major series (3.x). Upgrading from
+2.15 or later to 3.0 needs no code changes, so 2.x is not maintained separately.
 
 ## Scope notes
 

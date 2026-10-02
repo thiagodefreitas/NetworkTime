@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Example ntpstats plugin: a toy CSV dialect, a detector, a mask and a profile"
 requires-python = ">=3.9"
 license = {text = "MIT"}
-dependencies = ["ntpstats>=2.14"]
+dependencies = ["ntpstats>=2.14,<4"]
 
 [project.entry-points."ntpstats.parsers"]
 toycsv = "ntpstats_toy_csv:PARSER"

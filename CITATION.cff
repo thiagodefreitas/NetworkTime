@@ -1,15 +1,18 @@
 cff-version: 1.2.0
 message: "If you use this software in research, please cite it as below."
-title: "ntpstats: NTP clock-offset and time-stability analysis toolkit"
+title: "ntpstats: validating, evaluating and studying network time synchronisation"
 authors:
   - family-names: "de Freitas"
     given-names: "Thiago"
 license: MIT
 repository-code: "https://github.com/thiagodefreitas/NetworkTime"
-version: 2.17.0
+version: 3.0.0
 date-released: 2026-10-02
 keywords:
   - NTP
+  - NTS
+  - PTP
+  - time error
   - chrony
   - Allan deviation
   - time transfer

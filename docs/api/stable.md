@@ -1,8 +1,9 @@
 # Stable API
 
 `ntpstats.api` is the public surface you can build on: scripts, notebooks, papers and other
-packages. Everything listed on this page keeps working across minor releases. If a name or a
-parameter has to change, it first goes through a deprecation period (below).
+packages. Since **3.0** it is final: everything listed on this page keeps working for the whole
+3.x series, and code written against it in 2.15 or later runs unchanged on 3.0. If a name or a
+parameter ever has to change, it goes through a deprecation period first (below).
 
 ```python
 from ntpstats import api as nt
@@ -19,10 +20,12 @@ pages in this reference document the details.
 
 ## What "stable" means
 
-- A name listed here is not removed or renamed, its parameters keep their names and order, and
-  optional parameters stay optional, unless at least **one full minor release** of
-  `NtpstatsDeprecationWarning` came first. The warning says when the name goes away and what to use
-  instead; the removal is listed under *Removed* in the [changelog](https://github.com/thiagodefreitas/NetworkTime/blob/master/CHANGELOG.md).
+- Within 3.x a name listed here is not removed or renamed, its parameters keep their names and
+  order, and optional parameters stay optional. A name that has to go is first deprecated: it
+  keeps working with an `NtpstatsDeprecationWarning` for at least **one full minor release** and
+  is removed only in the next **major** release (4.0). The warning says what to use instead; the
+  removal is listed under *Removed* in the [changelog](https://github.com/thiagodefreitas/NetworkTime/blob/master/CHANGELOG.md).
+- The command line and the file formats ntpstats writes follow the same rule.
 - New optional parameters, new names, new result fields and new methods can arrive in any minor
   release.
 - Numbers can change when a bug is fixed or an estimator is made more accurate; such changes are

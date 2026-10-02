@@ -49,7 +49,7 @@ Guidelines:
   `ntpstats.api.__all__` and `docs/api/stable.md`, then regenerate the snapshot with
   `NTPSTATS_UPDATE_API=1 pytest tests/test_api.py`.
 - **Removing or renaming** a stable name or parameter needs one full minor release of warnings
-  first. Use `ntpstats.deprecation` (`@deprecated`, `@renamed_parameter`, `moved` for a module
+  first, and the removal itself waits for the next major release. Use `ntpstats.deprecation` (`@deprecated`, `@renamed_parameter`, `moved` for a module
   `__getattr__`), name the release that removes it (at least two minor releases later), and list
   it under *Deprecated* in the changelog. The removal itself goes under *Removed*.
 - The test suite turns `NtpstatsDeprecationWarning` into an error, so the code base never uses
@@ -57,9 +57,11 @@ Guidelines:
 
 ### Major releases
 
-A major release (the next is 3.0) also removes the names whose deprecation period has ended, and
-its changelog lists every change to the stable API since the previous major release. Generate that
-list with `git diff v2.15.0 -- tests/data/api_surface.json`.
+Since 3.0 the stable API is final for the whole major series: within 3.x, stable names are only
+added or deprecated, never removed. A major release (the next is 4.0) removes the names whose
+deprecation period has ended, and its changelog lists every change to the stable API since the
+previous major release. Generate that list from the frozen surface:
+`python docs/api_changes.py v3.0.0`.
 
 ## Versioning and releases
 

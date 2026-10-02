@@ -7,7 +7,7 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 [GitHub issues](https://github.com/thiagodefreitas/NetworkTime/issues), labelled `industry`,
 `research`, `community`, `good first issue` and `help wanted`.
 
-*Reviewed 1 October 2026.*
+*Reviewed 2 October 2026.*
 
 ## Who it is for, and what they need
 
@@ -88,8 +88,16 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ More reference algorithms (Huygens-style convex hull, ntpd-rs-style combination) and a reproducible benchmark on a replayed trace. An SPTP-style client needs exchange-level PTP in the bench and is left for later. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
 - ✅ Web UI overhaul: workspaces, command palette, audit, time error, cornered hat, bench and PTP chains in the browser.
 
-### 3.0: API final
-- The stable API is declared final: the 3.0 changelog lists every change since 2.15 (from `tests/data/api_surface.json`), and names deprecated by then are removed. No other breaking changes are planned; 3.0 waits until there is something to remove.
+### 3.0: API final ✅
+- ✅ The stable API (`ntpstats.api`) is final for the whole 3.x series; the 3.0 changelog lists every change since 2.15, generated from the frozen surface (`docs/api_changes.py`). Nothing was deprecated, so nothing is removed: code written for 2.15 or later runs unchanged. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
+- ✅ Production/stable package metadata, a supported-versions policy, and a JOSS paper draft (`paper/`). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
+
+### After 3.0
+New features arrive in 3.x minor releases, compatibly. Open items, most of them waiting for data
+from users:
+- An SPTP-style client and exchange-level PTP in the bench (follow-up of [#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)).
+- Comparison with Stable32 output files and long-term logs against an independent reference ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); TimeLab `.tim` files ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)); vendor instrument profiles ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); OCP Time Card, Timebeat and chrony 4.9 logs ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). Sample files welcome.
+- Community and citability ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)): JOSS submission, Zenodo DOIs, Discussions, a conda-forge package and more gallery entries.
 
 ### Continuous: community and citability
 JOSS paper, Zenodo DOIs, Discussions, contributor on-ramp, conda-forge and distribution packages,
@@ -133,3 +141,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.15 | Stable API and deprecation policy, streaming reader for large logs, notebooks in CI and the NIST SP 1065 gallery entry ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32), [#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)) |
 | 2.16 | Delay traces and trace replay in the bench; PTP servos and boundary-clock chains against TE budgets ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29), part 1) |
 | 2.17 | OMNeT++/INET and ns-3 interop; Huygens-style and ntpd-rs-style estimators; reproducible trace benchmark; web UI overhaul ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)) |
+| 3.0 | Stable API final for 3.x (no breaking changes), production/stable metadata and support policy, JOSS paper draft, documentation refresh |

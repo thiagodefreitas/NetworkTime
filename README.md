@@ -1,18 +1,27 @@
 # ntpstats — NetworkTime analysis toolkit
 
-**Validate, evaluate and study network time synchronisation.** `ntpstats` reads the logs written by
-today's NTP implementations (**ntpd 4.2.8, NTPsec, chrony**), measures servers directly with a
-privacy-preserving SNTP client, and computes the clock-offset, network-delay and
-frequency-stability statistics used in timing research and in telecom standards (ADEV, MDEV,
-TDEV, Hadamard, MTIE, floor packet percentage) with confidence intervals and noise
-identification. A built-in simulator with **ground truth** turns it into a test bench for
-synchronisation algorithms.
+**Validate, evaluate and study network time synchronisation.** `ntpstats` reads what time
+systems already produce: logs of **ntpd, NTPsec, chrony and linuxptp**, packet captures of
+**NTP and PTP**, GNSS time-transfer and laboratory files, and the results of network simulators.
+From them it computes the statistics used in timing research and telecom standards, each with a
+stated uncertainty:
+- frequency stability (ADEV … TheoH, MTIE) with confidence intervals and noise identification;
+- time error (max|TE|, cTE, dTE) with limits and masks;
+- an audited error bound to UTC.
+
+It measures servers itself with NTPv4, NTS, NTPv5 and Roughtime clients. A simulator with
+**ground truth** turns it into a test bench for synchronisation algorithms, on modelled or
+replayed networks and on PTP boundary-clock chains. Use it as a command-line tool, a Python
+library with a [stable API](https://thiagodefreitas.github.io/NetworkTime/api/stable/), a
+local web UI, or [in your browser](https://thiagodefreitas.github.io/NetworkTime/browser/)
+without installing anything.
 
 📖 **Documentation:** [thiagodefreitas.github.io/NetworkTime](https://thiagodefreitas.github.io/NetworkTime/)
 · [Wiki](https://github.com/thiagodefreitas/NetworkTime/wiki) · `pip install ntpstats`
 
 It started as a Google Summer of Code 2012 project for the NTP Project (kept unchanged in
-[`legacy/`](legacy/)); version 2 is a complete rewrite. See
+[`legacy/`](legacy/)). Version 2 was a complete rewrite, and since **3.0** the Python API is final
+for the whole 3.x series. See
 [docs/STATE_OF_THE_ART.md](docs/STATE_OF_THE_ART.md) for what changed in NTP since 2012 and what
 was wrong with the original code, [docs/INTEROP.md](docs/INTEROP.md) for live results against
 public NTP/NTS/NTPv5/Roughtime servers (recorded monthly in the open dataset [`data/interop/`](data/interop/)), [CHANGELOG.md](CHANGELOG.md) for releases and
