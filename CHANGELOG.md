@@ -14,6 +14,40 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-03
+
+PTP exchanges in the research bench, and NTP over PTP in captures. No breaking changes.
+
+### Added
+- **PTP exchanges in the bench** (completes [#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)):
+  a scenario with `protocol = "ptp"` simulates the E2E delay mechanism, with a Sync every `poll`
+  seconds and a Delay_Req every `delay_interval` seconds, each with its own one-way delay and
+  timestamp noise. `transparent` is the fraction of queueing delay that transparent clocks correct.
+  The series carries the one-way `ms`/`sm` measurements and the slave's offset, so every estimator
+  runs on it. New presets `ptp-lan` (switches without PTP support) and `ptp-tc` (transparent
+  clocks), also on the *Simulate* page of the web UI.
+- Two PTP client models as estimators: `ptp4l` (moving-median path delay, the linuxptp PI servo or
+  linreg, in closed loop) and `sptp` (SPTP-style: complete exchanges, path-delay outlier discard,
+  PI servo). `ntpstats simulate --preset ptp-lan --benchmark` scores them with the others.
+- **NTP over PTP** (RFC 10030, chrony 4.9): NTP messages in the NTP TLV of PTP event messages are
+  read from pcap/pcapng files as NTP exchanges. The transparent-clock corrections (PTP correction
+  field of the response, Network Correction extension field for the request) are applied as the
+  RFC specifies, and refused when it forbids them. Uncorrected values and both corrections are
+  kept as columns. Example: `examples/data/ntp-over-ptp.pcap`.
+
+### Fixed
+- `ntpstats trace` on captures shorter than about one detrend window (15 minutes by default):
+  the clock's offset is now removed with at least four windows when there are enough exchanges,
+  so its drift no longer appears as delay variation.
+- Web UI overview: the *Events* card listed "none detected" under a non-zero count.
+- `ntpstats simulate --benchmark` on PTP presets does not score the first 300 s, while the servos
+  lock.
+
+### Stable API changes since 3.0.0
+- **Changed**: `PathModel`: new method `floor`; `Scenario`: new optional fields `protocol`,
+  `delay_interval`, `transparent`.
+- **Removed**: nothing. Code written against the stable API of an earlier release keeps working.
+
 ## [3.0.0] - 2026-10-02
 
 The stable API is final. **No breaking changes**: code written for 2.15 or later runs unchanged.

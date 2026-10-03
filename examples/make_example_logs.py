@@ -12,6 +12,7 @@ documentation of ntpd 4.2.8 (``monopt.html``) and chrony 4.x
 """
 
 import os
+import sys
 import time
 
 import numpy as np
@@ -120,8 +121,6 @@ def main():
             raw = rng.normal(0, 150e-9) + 2e-7 * np.sin(i / 600)
             fh.write(f"{chrony_ts(t0 + i)}.000000 PPS0    {i % 16:2d} N 1 {raw: .6e} {-raw + rng.normal(0, 5e-9): .6e}  1.000e-06\n")
     # --- packet capture of SNTP exchanges (client side), reusing the simulated peer
-    import sys
-
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, "tests"))
     from capture_util import ether, ntp_request, ntp_response, pcap_bytes
 
@@ -137,8 +136,36 @@ def main():
         frames.append((c4, ether("198.51.100.7", "192.0.2.99", 123, 40000 + i % 20000, ntp_response(cookie, t2, t3))))
     with open(os.path.join(OUT, "ntp-capture.pcap"), "wb") as fh:
         fh.write(pcap_bytes(frames, nano=True))
+    ntp_over_ptp_capture()
     print(f"wrote example logs to {OUT}")
 
 
+def ntp_over_ptp_capture():
+    """NTP over PTP (RFC 10030) seen at a client: 600 exchanges, 1 s apart, through two transparent clocks.
+
+    The clock offset drifts slowly (2 ppb); each direction has 2 us of cable and port delay plus a residence time in
+    the transparent clocks (0-60 us, load-dependent, queueing worse towards the client) that they report in the
+    PTP correction field, with a few ns of error. Deterministic (seed 10030).
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, "tests"))
+    from capture_util import ntp_over_ptp_frames, pcap_bytes
+
+    rng = np.random.default_rng(10030)
+    n = 600
+    k = np.arange(n)
+    theta = 4.2e-6 + 2e-9 * k + np.cumsum(rng.normal(0, 0.5e-9, n))  # 2 ppb frequency offset and a little wander
+    res_rq = rng.exponential(8e-6, n) * (rng.random(n) < 0.4)
+    res_rs = rng.exponential(20e-6, n) * (rng.random(n) < 0.6)
+    d_rq, d_rs = 2e-6 + res_rq, 2e-6 + res_rs
+    cf_rq = res_rq + rng.normal(0, 4e-9, n).clip(-res_rq)
+    cf_rs = res_rs + rng.normal(0, 4e-9, n).clip(-res_rs)
+    frames = ntp_over_ptp_frames(theta, d_rq, d_rs, cf_rq, cf_rs, t0=0.0, epoch=1_790_000_000)
+    with open(os.path.join(OUT, "ntp-over-ptp.pcap"), "wb") as fh:
+        fh.write(pcap_bytes(frames, nano=True, epoch=1_790_000_000))
+
+
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["ntp-over-ptp"]:
+        ntp_over_ptp_capture()
+    else:
+        main()

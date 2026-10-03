@@ -825,10 +825,20 @@ def cmd_simulate(args):
             "RTS smoother + delay weighting": kalman_series(meas, smooth=True),
             "min-delay filter (8)": min_delay_filter(meas),
         }
-        print(f"Scenario '{args.preset}': {len(meas)} exchanges, poll {sc.poll:g} s, seed {args.seed}")
+        if sc.protocol == "ptp":
+            from .estimators import ptp4l, sptp
+
+            rows["ptp4l (moving median, PI)"] = ptp4l(meas)
+            rows["SPTP-style client (PI)"] = sptp(meas)
+        what = "Syncs" if sc.protocol == "ptp" else "exchanges"
+        print(f"Scenario '{args.preset}': {len(meas)} {what}, {'Sync interval' if sc.protocol == 'ptp' else 'poll'} "
+              f"{sc.poll:g} s, seed {args.seed}")
+        warm = min(300.0, sc.duration / 4) if sc.protocol == "ptp" else 0.0
+        if warm:
+            print(f"   (the first {warm:g} s, while the servos lock, are not scored)")
         print(f"   {'estimator':32} {'rms':>10} {'bias':>10} {'p95 |err|':>10} {'max |err|':>10}")
         for name, s in rows.items():
-            c = compare(s, truth)
+            c = compare(s.between(s.t[0] + warm, s.t[-1]) if warm else s, truth)
             print(f"   {name:32} {format_seconds(c['rms']):>10} {format_seconds(c['bias']):>10} "
                   f"{format_seconds(c['p95_abs']):>10} {format_seconds(c['max_abs']):>10}")
 
@@ -1388,8 +1398,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-o", "--output")
     s.set_defaults(func=cmd_filter)
 
-    s = sub.add_parser("simulate", help="simulate NTP exchanges with ground truth; benchmark filters")
-    s.add_argument("--preset", choices=("lan", "internet", "congested", "route-change", "falseticker"), default="internet")
+    s = sub.add_parser("simulate", help="simulate NTP or PTP exchanges with ground truth; benchmark filters")
+    s.add_argument("--preset", choices=("lan", "internet", "congested", "route-change", "falseticker", "ptp-lan", "ptp-tc"),
+                   default="internet", help="ptp-* presets simulate PTP Sync/Delay_Req exchanges")
     s.add_argument("--scenario", metavar="TOML", help="scenario file (e.g. a [clock] with h_alpha from 'ntpstats noise')")
     s.add_argument("--duration", type=float, help="seconds")
     s.add_argument("--poll", type=float, help="seconds between exchanges")

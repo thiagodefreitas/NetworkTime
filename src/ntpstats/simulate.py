@@ -1,10 +1,20 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
-"""Synthetic clocks and NTP exchanges with known ground truth.
+"""Synthetic clocks and NTP or PTP exchanges with known ground truth.
 
 Use these to validate estimators and synchronisation algorithms: every
 simulated measurement comes with the true offset, so filters can be scored
 objectively (see :func:`ntpstats.analysis.compare`).
+
+With ``protocol="ptp"`` a scenario produces exchange-level PTP (E2E delay
+mechanism) instead of NTP exchanges: a Sync every ``poll`` seconds and a
+Delay_Req every ``delay_interval`` seconds, each with its own one-way delay
+and timestamp noise. The series has the one-way ``ms`` (t2 - t1) of every
+Sync and the ``sm`` (t4 - t3) of every Delay_Req, plus the offset a slave
+computes with the latest mean path delay, so both NTP-style estimators and
+PTP clients (``ptp4l``, ``sptp`` in :mod:`ntpstats.estimators`) can be scored
+on the same exchanges. ``transparent`` is the fraction of queueing delay that
+transparent clocks on the path correct (1 = full on-path support).
 
 Power-law noise is generated with the Kasdin & Walter (1992) fractional
 integration method, the approach commonly used by frequency-stability software.
@@ -156,6 +166,15 @@ class PathModel:
                     d = np.where(on, self.base + ev.base_delta + q2, d)
         return d
 
+    def floor(self, n: int, rel: Optional[np.ndarray] = None) -> np.ndarray:
+        """The queue-free delay (propagation, with route changes) at each sample."""
+        d = np.full(n, float(self.base))
+        if self.events and rel is not None:
+            for ev in self.events:
+                if ev.base_delta:
+                    d = np.where((rel >= ev.start) & (rel < ev.end), d + ev.base_delta, d)
+        return d
+
     def loss_mask(self, rel: np.ndarray, rng) -> np.ndarray:
         """True where a packet on this path is lost because of an event."""
         lost = np.zeros(rel.size, dtype=bool)
@@ -200,32 +219,78 @@ class Scenario:
     name: str = "scenario"
     #: a :class:`ntpstats.trace.TracePath`: replay real delays instead of ``forward``/``backward``
     trace: Optional[Any] = None
+    #: ``"ntp"`` (client/server exchanges) or ``"ptp"`` (Sync every ``poll`` s, Delay_Req every ``delay_interval`` s)
+    protocol: str = "ntp"
+    #: PTP only: seconds between Delay_Req messages (default: ``poll``)
+    delay_interval: Optional[float] = None
+    #: fraction of queueing delay corrected by transparent clocks (PTP correction field), 0 to 1
+    transparent: float = 0.0
 
 
-def _measure(t, rel, theta, spec: ServerSpec, loss: float, rng, label: str):
+PROTOCOLS = ("ntp", "ptp")
+
+
+def _measure(t, rel, theta, spec: ServerSpec, loss: float, rng, label: str, protocol: str = "ntp",
+             delay_every: int = 1, transparent: float = 0.0):
+    if protocol not in PROTOCOLS:
+        raise ValueError(f"unknown protocol {protocol!r}; choose from {', '.join(PROTOCOLS)}")
     lost_trace = None
     if spec.trace is not None:
         df, db = spec.trace.delays(rel, rng)
         lost_trace = ~(np.isfinite(df) & np.isfinite(db))
         df, db = np.nan_to_num(df), np.nan_to_num(db)
+        floor_f = np.full(t.size, np.min(df[~lost_trace]) if (~lost_trace).any() else 0.0)
+        floor_b = np.full(t.size, np.min(db[~lost_trace]) if (~lost_trace).any() else 0.0)
     else:
         df = spec.forward.sample(t.size, rng, rel)
         db = spec.backward.sample(t.size, rng, rel)
-    noise = rng.normal(0.0, spec.noise, t.size)
+        floor_f, floor_b = spec.forward.floor(t.size, rel), spec.backward.floor(t.size, rel)
+    if transparent:
+        df = df - transparent * np.maximum(df - floor_f, 0.0)
+        db = db - transparent * np.maximum(db - floor_b, 0.0)
     server_err = np.full(t.size, spec.bias)
     if spec.step_at is not None:
         server_err = server_err + np.where(rel >= spec.step_at, spec.step, 0.0)
-    measured = theta + server_err + (df - db) / 2 + noise
-    delay = df + db
     keep = rng.random(t.size) >= loss
     if lost_trace is not None:
         keep &= ~lost_trace
     elif spec.forward.events or spec.backward.events:
         keep &= ~(spec.forward.loss_mask(rel, rng) | spec.backward.loss_mask(rel, rng))
+    meta = {"peer": spec.name, "falseticker": bool(spec.bias or spec.step), "protocol": protocol}
+    if protocol == "ptp":
+        return _measure_ptp(t, theta + server_err, theta, df, db, keep, spec.noise, max(1, int(delay_every)),
+                            rng, label, meta)
+    noise = rng.normal(0.0, spec.noise, t.size)
+    measured = theta + server_err + (df - db) / 2 + noise
+    delay = df + db
     return TimeSeries(
         t[keep], measured[keep], name=label, source_format="simulated",
         extra={"delay": delay[keep], "true_offset": theta[keep]},
-        meta={"peer": spec.name, "falseticker": bool(spec.bias or spec.step)},
+        meta=meta,
+    )
+
+
+def _measure_ptp(t, theta_seen, theta, df, db, keep, noise, every, rng, label, meta):
+    """E2E PTP: Sync one-way ``ms = t2 - t1`` at every sample, Delay_Req ``sm = t4 - t3`` every ``every``-th.
+
+    Offsets follow the ntpd convention (reference - local): ``ms = d_ms - theta``, ``sm = d_sm + theta``;
+    the slave's offset is ``mean_path_delay - ms`` with the mean path delay of the latest Delay_Req.
+    """
+    n = t.size
+    ms = df - theta_seen + rng.normal(0.0, noise, n)
+    sm = db + theta_seen + rng.normal(0.0, noise, n)
+    req = keep & (np.arange(n) % every == 0)
+    sm = np.where(req, sm, np.nan)
+    mpd = np.where(req, (ms + sm) / 2, np.nan)
+    last = np.maximum.accumulate(np.where(req, np.arange(n), -1))  # index of the latest Delay_Req
+    ok = keep & (last >= 0)
+    mpd_now = mpd[np.maximum(last, 0)]
+    offset = mpd_now - ms
+    meta = dict(meta, delay_every=every)
+    return TimeSeries(
+        t[ok], offset[ok], name=label, source_format="simulated",
+        extra={"delay": 2 * mpd_now[ok], "ms": ms[ok], "sm": sm[ok], "true_offset": theta[ok]},
+        meta=meta,
     )
 
 
@@ -249,10 +314,17 @@ def simulate_ntp(sc: Optional[Scenario] = None, name: str = "simulated"):
     x_local = sc.clock.phase(t, rng)  # local - true
     theta = -x_local  # true offset, server - local
     spec = ServerSpec(name=name, forward=sc.forward, backward=sc.backward, noise=sc.server_noise, trace=sc.trace)
-    meas = _measure(t, rel, theta, spec, sc.loss, rng, name)
+    meas = _measure(t, rel, theta, spec, sc.loss, rng, name, **_protocol_options(sc))
     meas.meta["scenario"] = repr(sc)
     truth = TimeSeries(meas.t, meas.extra["true_offset"], name=f"{name} (truth)", source_format="simulated")
     return meas, truth
+
+
+def _protocol_options(sc: Scenario) -> Dict[str, Any]:
+    every = 1
+    if sc.protocol == "ptp" and sc.delay_interval:
+        every = max(1, int(round(sc.delay_interval / sc.poll)))
+    return {"protocol": sc.protocol, "delay_every": every, "transparent": float(sc.transparent)}
 
 
 def simulate_multi(sc: Scenario, name: str = "simulated"):
@@ -271,7 +343,7 @@ def simulate_multi(sc: Scenario, name: str = "simulated"):
     for i, spec in enumerate(servers):
         t = np.arange(0.0, sc.duration, sc.poll) + 1.7e9 + (spec.stagger or i * min(1.0, sc.poll / (2 * len(servers))))
         theta = np.interp(t, grid, theta_grid)
-        out.append(_measure(t, t - grid[0], theta, spec, sc.loss, rng, f"{name} [{spec.name}]"))
+        out.append(_measure(t, t - grid[0], theta, spec, sc.loss, rng, f"{name} [{spec.name}]", **_protocol_options(sc)))
     truth = TimeSeries(grid, theta_grid, name=f"{name} (truth)", source_format="simulated")
     return out, truth
 
@@ -306,6 +378,22 @@ PRESETS: Dict[str, Scenario] = {
     # Four servers: one falseticker (+40 ms) and one that steps by +100 ms at 12 h.
     # Both exceed the root distance (~10 ms) so RFC 5905 selection can reject
     # them; errors smaller than the root distance are undetectable by design.
+    # PTP over a LAN of switches without PTP support (hardware time stamps, 1 Sync and 1 Delay_Req per second),
+    # and the same network with transparent clocks that correct 95 % of the queueing delay.
+    "ptp-lan": Scenario(
+        duration=4 * 3600, poll=1.0, protocol="ptp",
+        clock=ClockModel(freq_offset=8e-6, white_fm_adev1=1e-10, rw_fm_adev1=1e-13, white_pm=0.0),
+        forward=PathModel(base=4e-6, queue_mean=3e-6, load=0.4),
+        backward=PathModel(base=4e-6, queue_mean=6e-6, load=0.5),
+        server_noise=8e-9,
+    ),
+    "ptp-tc": Scenario(
+        duration=4 * 3600, poll=1.0, protocol="ptp", transparent=0.95,
+        clock=ClockModel(freq_offset=8e-6, white_fm_adev1=1e-10, rw_fm_adev1=1e-13, white_pm=0.0),
+        forward=PathModel(base=4e-6, queue_mean=3e-6, load=0.4),
+        backward=PathModel(base=4e-6, queue_mean=6e-6, load=0.5),
+        server_noise=8e-9,
+    ),
     "falseticker": Scenario(
         clock=ClockModel(flicker_fm_adev=3e-11),
         servers=[
@@ -344,6 +432,10 @@ def scenario_from_dict(d: dict, base_dir: str = ".") -> Scenario:
     file = "capture.pcap"  # relative to the scenario file
     mode = "bootstrap"     # or "replay"
     ```
+
+    PTP exchanges instead of NTP: ``protocol = "ptp"``, ``poll`` is the Sync
+    interval, ``delay_interval`` the Delay_Req interval and ``transparent``
+    the fraction of queueing delay corrected by transparent clocks.
     """
     d = dict(d)
     if "preset" in d:
@@ -361,7 +453,7 @@ def scenario_from_dict(d: dict, base_dir: str = ".") -> Scenario:
         return PathModel(**p, events=evs)
 
     kw = {}
-    for k in ("duration", "poll", "server_noise", "loss", "seed", "name"):
+    for k in ("duration", "poll", "server_noise", "loss", "seed", "name", "protocol", "delay_interval", "transparent"):
         if k in d:
             kw[k] = d[k]
     if "clock" in d:

@@ -43,7 +43,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from .pcap import link, packets, udp_payload
+from .pcap import link, ntp_over_ptp, packets, udp_payload
 from .series import TimeSeries
 
 EVENT_PORT, GENERAL_PORT = 319, 320
@@ -137,6 +137,8 @@ def messages(data: bytes) -> List[Message]:
             u = udp_payload(frame, lk)
             if u is None or u[3] not in (EVENT_PORT, GENERAL_PORT):
                 continue
+            if u[3] == EVENT_PORT and ntp_over_ptp(u[4]) is not None:
+                continue  # NTP over PTP (RFC 10030): an NTP exchange, analysed by ntpstats.pcap
             m = decode(u[4], ts, "udp6" if lk.ethertype == 0x86DD else "udp4", u[0])
         if m is not None:
             out.append(m)

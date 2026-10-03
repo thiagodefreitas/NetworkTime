@@ -4,7 +4,7 @@
 
 ntpstats reads what time systems already produce:
 - logs of ntpd, NTPsec, chrony and linuxptp;
-- packet captures of NTP and PTP;
+- packet captures of NTP, NTP over PTP (RFC 10030) and PTP;
 - GNSS time-transfer and laboratory files;
 - network-simulator results.
 
@@ -39,7 +39,7 @@ ntpstats stability tracking.log -k oadev,tdev --ci 0.95
 | [Formats](formats.md) | every supported input, sign conventions, how to enable the logs |
 | [Statistics](statistics.md) | ADEV … TheoH, MTIE, EDF and confidence intervals, masks, dynamic views |
 | [Network & estimators](network.md) | delay floor, wedge, FPP, filters and estimators |
-| [PTP captures & time error](ptp.md) | PTP from captures, max\|TE\|, cTE, dTE, limits and masks |
+| [PTP captures & time error](ptp.md) | PTP and NTP over PTP from captures, max\|TE\|, cTE, dTE, limits and masks |
 | [Sources, instruments & bounds](sources.md) | live daemons, instrument profiles, clock-error bound validation |
 | [Metrology](metrology.md) | power-law noise model, spectra, cornered hat, holdover |
 | [Research data](research-data.md) | CGGTTS, RINEX clock, Circular T, RIPE Atlas, NTP Pool, the interop dataset |
@@ -56,7 +56,7 @@ ntpstats stability tracking.log -k oadev,tdev --ci 0.95
 
 | Page | What it covers |
 |---|---|
-| [Trace replay & PTP chains](research-bench.md) | real network delays in the bench, boundary-clock chains, OMNeT++/INET and ns-3, reference algorithms |
+| [Trace replay & PTP chains](research-bench.md) | real network delays in the bench, PTP exchanges and transparent clocks, boundary-clock chains, OMNeT++/INET and ns-3, reference algorithms |
 | [Dataframes & Parquet](dataframes.md) | pandas, xarray, Parquet/Arrow |
 | [Writing a plugin](plugins.md) | add formats, estimators, detectors, masks and profiles from your own package |
 | [Stable32, TimeLab, allantools](migrating.md) | moving data and code over, and checking the numbers agree |

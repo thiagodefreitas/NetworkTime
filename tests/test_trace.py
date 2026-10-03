@@ -160,3 +160,18 @@ def test_cli_trace_and_bench(tmp_path, capsys):
     assert json.loads(capsys.readouterr().out)["exchanges"] > 100
     assert main(["bench", f"trace:{out}", "-e", "raw,mindelay", "--seeds", "1", "--warmup", "0"]) == 0
     assert "mindelay" in capsys.readouterr().out
+
+
+def test_short_trace_still_removes_a_drifting_offset():
+    # 10 minutes, shorter than one default detrend window: the drift must not leak into the delays
+    import numpy as np
+
+    from ntpstats.series import TimeSeries
+    from ntpstats.trace import from_series
+
+    t = 1.79e9 + np.arange(600.0)
+    theta = 4e-6 + 2e-9 * (t - t[0])
+    s = TimeSeries(t, theta, extra={"delay": np.full(600, 4e-6)})
+    for mode in ("floor", "linear"):
+        tr = from_series(s, detrend=mode)
+        assert np.ptp(tr.to_ref) < 1e-9 and np.ptp(tr.from_ref) < 1e-9

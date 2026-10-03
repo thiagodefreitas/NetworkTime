@@ -37,6 +37,35 @@ Capture at the slave with hardware timestamps (`tcpdump -j adapter_unsynced
 --time-stamp-precision nano -w cap.pcapng`, NIC permitting), and the capture clock is the
 slave's PHC. Timestamps are kept as integer nanoseconds throughout.
 
+## NTP over PTP (RFC 10030)
+
+[RFC 10030](https://www.rfc-editor.org/rfc/rfc10030) (chrony 4.9, `server ... ptpport 319`) carries
+NTP client/server messages in an organization-specific TLV (OUI 00-00-5E, subtype 1) of unicast
+PTP event messages on UDP port 319. NICs that time-stamp only PTP then time-stamp NTP, and one-step
+E2E transparent clocks add their residence time to the correction field.
+
+`ntpstats` recognises these packets in pcap/pcapng files and analyses them as NTP exchanges
+(not as PTP flows). The correction of the response is in its PTP header; the correction of the
+request comes back from the server in the Network Correction extension field (0x010A). When both
+are present they are applied as RFC 10030 section 3 specifies:
+
+```text
+offset_c = offset + (nc_rs − nc_rq) / 2
+delay_c  = delay − (nc_rs + nc_rq − dur_rs − dur_rq) × (1 − 100 ppm)
+```
+
+`nc_rs` is the response's correction plus its receive duration (frame length at 1 Gb/s), and the
+request's duration is taken equal to the response's (the RFC allows this). Corrections that are
+negative, or that make the delay negative, are not applied, as the RFC requires. The series keeps
+`offset_uncorrected`, `delay_uncorrected`, `nc_request` and `nc_response`, and
+`meta["corrected"]` counts the corrected exchanges:
+
+```bash
+ntpstats info examples/data/ntp-over-ptp.pcap      # synthetic: two transparent clocks, 600 exchanges
+```
+
+In that example the corrections bring the offset error from 10.8 µs to 2.5 ns rms.
+
 ## Time-error metrics
 
 `ntpstats timeerror` computes the metrics used to qualify PTP clocks and packet networks, with

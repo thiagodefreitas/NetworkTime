@@ -7,7 +7,7 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 [GitHub issues](https://github.com/thiagodefreitas/NetworkTime/issues), labelled `industry`,
 `research`, `community`, `good first issue` and `help wanted`.
 
-*Reviewed 2 October 2026.*
+*Reviewed 3 October 2026.*
 
 ## Who it is for, and what they need
 
@@ -85,7 +85,7 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 
 ### 2.17: Research bench v2, part 2 (simulators, algorithms, UI) (completes [#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
 - ✅ OMNeT++/INET and ns-3 interop: INET oscillator settings from a noise fit, vector files in and out, ns-3 text. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
-- ✅ More reference algorithms (Huygens-style convex hull, ntpd-rs-style combination) and a reproducible benchmark on a replayed trace. An SPTP-style client needs exchange-level PTP in the bench and is left for later. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+- ✅ More reference algorithms (Huygens-style convex hull, ntpd-rs-style combination) and a reproducible benchmark on a replayed trace. The SPTP-style client followed in 3.1, with exchange-level PTP in the bench. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
 - ✅ Web UI overhaul: workspaces, command palette, audit, time error, cornered hat, bench and PTP chains in the browser.
 
 ### 3.0: API final ✅
@@ -95,10 +95,13 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ [GitHub Discussions](https://github.com/thiagodefreitas/NetworkTime/discussions) for questions, results and ideas. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 - ✅ conda-forge recipe (`packaging/conda-forge/`), built and tested in CI and submitted to conda-forge ([staged-recipes#35041](https://github.com/conda-forge/staged-recipes/pull/35041)). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 
-### After 3.0
+### 3.1: PTP exchanges and NTP over PTP ✅
+- ✅ PTP exchanges in the bench: Sync and Delay_Req at their own rates, transparent clocks, `ptp-lan`/`ptp-tc` presets, and ptp4l-style and SPTP-style client models scored like every other estimator. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
+- ✅ NTP over PTP (RFC 10030, chrony 4.9) in captures, with the transparent-clock corrections applied as the RFC specifies. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+
+### After 3.1
 New features arrive in 3.x minor releases, compatibly. Open items, most of them waiting for data
 from users:
-- An SPTP-style client and exchange-level PTP in the bench (follow-up of [#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)).
 - Comparison with Stable32 output files and long-term logs against an independent reference ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); TimeLab `.tim` files ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)); vendor instrument profiles ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); OCP Time Card, Timebeat and chrony 4.9 logs ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). Sample files welcome.
 - Community and citability ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)): conda-forge review and feedstock, JOSS submission (the paper follows the current JOSS structure; about April 2027, once development spans the required period and evidence of use is gathered) and more gallery entries.
 
@@ -145,3 +148,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.16 | Delay traces and trace replay in the bench; PTP servos and boundary-clock chains against TE budgets ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29), part 1) |
 | 2.17 | OMNeT++/INET and ns-3 interop; Huygens-style and ntpd-rs-style estimators; reproducible trace benchmark; web UI overhaul ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)) |
 | 3.0 | Stable API final for 3.x (no breaking changes), production/stable metadata and support policy, JOSS paper draft, documentation refresh |
+| 3.1 | PTP exchanges, transparent clocks and ptp4l/SPTP-style clients in the bench ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)); NTP over PTP (RFC 10030) in captures ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |

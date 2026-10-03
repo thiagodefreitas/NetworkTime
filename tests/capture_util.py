@@ -59,12 +59,13 @@ def exchanges(true_offset=0.003, n=5, t0=1.8e9, fwd=0.010, back=0.014, version=4
     return frames
 
 
-def pcap_bytes(frames, nano=False):
+def pcap_bytes(frames, nano=False, epoch=0):
+    """``epoch`` (integer seconds) is added to every timestamp, so float times can stay small and exact."""
     magic = 0xA1B23C4D if nano else 0xA1B2C3D4
     out = struct.pack("<IHHiIII", magic, 2, 4, 0, 0, 65535, 1)
     for ts, fr in frames:
         frac = round((ts % 1) * (1e9 if nano else 1e6))
-        out += struct.pack("<IIII", int(ts), frac, len(fr), len(fr)) + fr
+        out += struct.pack("<IIII", epoch + int(ts), frac, len(fr), len(fr)) + fr
     return out
 
 
@@ -82,3 +83,50 @@ def pcapng_bytes(frames):
         ns = round(ts * 1e9)
         out += block(6, struct.pack("<IIIII", 0, ns >> 32, ns & 0xFFFFFFFF, len(fr), len(fr)) + fr)
     return out
+
+
+# --- NTP over PTP (RFC 10030)
+def network_correction_ef(correction_s):
+    """NTPv4 Network Correction extension field (0x010A, 28 octets) carrying ``correction_s``."""
+    raw = int(round(correction_s * (1 << 32)))
+    return struct.pack("!HHQ", 0x010A, 28, raw) + bytes(16)
+
+
+def ntp_message(mode, org=0, rx=0, tx=0, stratum=0, ef=None):
+    p = bytearray(48)
+    p[0] = (4 << 3) | mode
+    p[1] = stratum
+    struct.pack_into("!QQQ", p, 24, org, rx, tx)
+    return bytes(p) + (b"" if ef is None else ef)
+
+
+def ptp_with_ntp(ntp, correction_s=0.0, version=1, mtype=1, domain=123):
+    """A unicast PTP event message (Delay_Req by default) carrying ``ntp`` in the RFC 10030 NTP TLV."""
+    tlv_type = 0x8000 if version == 1 else 0x0003
+    tlv = struct.pack("!HH", tlv_type, 8 + len(ntp)) + b"\x00\x00\x5e\x00\x00\x01" + b"\x00\x00" + ntp
+    length = 44 + len(tlv)
+    hdr = struct.pack("!BBHBBHq4s10sHBb", mtype, (version << 4) | 2, length, domain, 0, 0x0400,
+                      int(round(correction_s * 1e9 * 65536)), b"\0" * 4, b"\x01" * 10, 7, 1, 0x7F)
+    return hdr + bytes(10) + tlv  # originTimestamp, then the TLV
+
+
+def ntp_over_ptp_frames(offsets, d_rq, d_rs, cf_rq, cf_rs, t0=1.0e6, interval=1.0, link_speed=1e9,
+                        client="192.0.2.99", server="192.0.2.10", epoch=0):
+    """Client-side frames of NTP-over-PTP exchanges; per exchange the true offset, the one-way delays and the
+    transparent-clock corrections of request and response (seconds). Times are ``epoch`` (integer s, pass the
+    same to :func:`pcap_bytes`) plus small floats, so nanoseconds survive."""
+    frames = []
+    for i, (theta, a, b, ca, cb) in enumerate(zip(offsets, d_rq, d_rs, cf_rq, cf_rs)):
+        c1 = t0 + interval * i
+        nonce = 0x1122334400000000 + i
+        req = ptp_with_ntp(ntp_message(3, tx=nonce, ef=network_correction_ef(0.0)))
+        dur = (len(req) + 8 + 20 + 18) * 8 / link_speed
+        t2 = c1 + a + theta
+        t3 = t2 + 5e-6
+        c4 = t3 - theta + b
+        resp = ptp_with_ntp(ntp_message(4, org=nonce, rx=ntp64(t2) + (epoch << 32), tx=ntp64(t3) + (epoch << 32),
+                                        stratum=1,
+                                        ef=network_correction_ef(ca + dur)), correction_s=cb)
+        frames.append((c1, ether(client, server, 319, 319, req)))
+        frames.append((c4, ether(server, client, 319, 319, resp)))
+    return frames

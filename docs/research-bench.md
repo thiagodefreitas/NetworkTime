@@ -10,6 +10,10 @@ simulated clock whose true offset is known. 2.16 adds two things to it ([#29](ht
 2.17 adds the exchange with network simulators (OMNeT++/INET, ns-3), two more reference
 algorithms, and a benchmark on a replayed trace that anyone can reproduce from one scenario file.
 
+3.1 adds **PTP exchanges** to the bench: Sync and Delay_Req messages at their own rates, transparent
+clocks, and two PTP client models (`ptp4l`, `sptp`) scored on the same exchanges as every other
+estimator.
+
 ## Delay traces
 
 ```bash
@@ -162,8 +166,80 @@ On the bundled presets `hull` is the most accurate single-server estimator whene
 symmetric, often by an order of magnitude, because it uses every exchange's bound instead of only
 the lowest-delay ones. With the asymmetric route change of `route-change` it is biased like
 everything else: the error is in the path, and no estimator can see it. `kalman-combine` rejects
-the falseticker and the stepping server of `falseticker`. An SPTP-style client (exchange-level PTP
-in the bench) is not included yet.
+the falseticker and the stepping server of `falseticker`.
+
+## PTP exchanges in the bench
+
+A scenario with `protocol = "ptp"` simulates the E2E delay mechanism of IEEE 1588 instead of NTP
+exchanges: a Sync every `poll` seconds, a Delay_Req every `delay_interval` seconds, each with its
+own one-way delay and timestamp noise (`server_noise`, per one-way measurement). `transparent` is
+the fraction of queueing delay that transparent clocks on the path put in the correction field
+(0 = switches without PTP support, 1 = full on-path support).
+
+```toml
+name = "ptp-office"
+protocol = "ptp"
+poll = 0.125            # 8 Sync/s
+delay_interval = 1      # 1 Delay_Req/s
+transparent = 0.0
+duration = 7200
+server_noise = 8e-9     # hardware timestamps
+[forward]               # master -> slave
+base = 4e-6
+queue_mean = 3e-6
+load = 0.4
+[backward]              # slave -> master
+base = 4e-6
+queue_mean = 6e-6
+load = 0.5
+```
+
+The series has the one-way `ms` (t2 − t1) of every Sync, the `sm` (t4 − t3) of every Delay_Req,
+and the offset a slave computes with the latest mean path delay, so NTP-style estimators run on
+it unchanged. Two presets come with it: `ptp-lan` (1 Sync and 1 Delay_Req per second, hardware
+time stamps, switches without PTP support, more queueing towards the master) and `ptp-tc` (the same
+network with transparent clocks that correct 95 % of the queueing).
+
+| Estimator | Model |
+|---|---|
+| `ptp4l` | A linuxptp-style slave: offset `mean_path_delay − (t2 − t1)` at every Sync, with the mean path delay the moving median of the last 10 Delay_Req exchanges (ptp4l's default `delay_filter`), fed to the PI servo with linuxptp's default gains (or `servo="linreg"`). The servo steers a clock in closed loop; its correction is the estimate. |
+| `sptp` | An SPTP-style client, after Meta's Simple PTP: client-driven exchanges that give all four timestamps at once. Only complete exchanges are used; the path delay is the median of the last 32, exchanges whose path delay exceeds it by more than 3 MAD are discarded as queueing outliers, and the rest go to the PI servo. A model of the approach, not of a particular release. |
+
+Both also run on NTP series (each exchange is then complete). They are models, written from the
+published algorithms, not the daemons' code. 4 h runs, 3 seeds, the first 30 minutes excluded:
+
+| Estimator | `ptp-lan` rms | `ptp-tc` rms |
+|---|---|---|
+| raw (slave offset with the latest path delay) | 2.98 µs | 149 ns |
+| `ptp4l` | 2.59 µs | 129 ns |
+| `sptp` | 2.27 µs | 114 ns |
+| `kalman-dw` | 344 ns | 22.5 ns |
+| `mindelay` | 187 ns | 11.2 ns |
+| `hull` | 7.0 ns | 7.0 ns |
+
+With linuxptp's default gains at one Sync per second the servo follows the packet delay variation:
+on a network without PTP support it is barely better than the raw offsets, and transparent clocks
+improve it 20 times. Estimators that use the delay of every exchange get far closer from the same
+packets, which is the argument behind delay-filtering PTP clients and NTP over PTP (below).
+Run it yourself:
+
+```bash
+ntpstats simulate --preset ptp-lan --benchmark
+ntpstats bench ptp-lan ptp-tc --seeds 1-3 --html ptp-bench.html
+```
+
+## NTP over PTP (RFC 10030)
+
+RFC 10030 carries NTP messages in a TLV of unicast PTP event messages, so that NICs which time-stamp
+only PTP can time-stamp NTP, and transparent clocks can correct its queueing. chrony 4.9 implements
+the final specification. Captures of it are read like any NTP capture; the corrections are applied
+as the RFC specifies (see [PTP captures](ptp.md#ntp-over-ptp-rfc-10030)), and
+`examples/data/ntp-over-ptp.pcap` is a synthetic example:
+
+```bash
+ntpstats info examples/data/ntp-over-ptp.pcap
+ntpstats trace examples/data/ntp-over-ptp.pcap --csv tc.csv   # its corrected delays, for the bench
+```
 
 ## A reproducible benchmark on a replayed trace
 

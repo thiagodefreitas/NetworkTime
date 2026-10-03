@@ -32,6 +32,10 @@ Built-in reference algorithms
                    offset from a quality-weighted recent window
 ``hull``           Huygens-style: the max-margin line through the offset bounds
                    (offset ± delay/2) of a sliding window
+``ptp4l``          linuxptp-style slave: moving-median mean path delay and the PI
+                   (or linreg) servo, in closed loop
+``sptp``           SPTP-style client: complete exchanges, path-delay outlier
+                   discard, PI servo
 ``rfc5905``        (multi) clock filter + selection (intersection), cluster and
                    combine algorithms of RFC 5905 s11
 ``median``         (multi) median of the servers' clock-filter outputs
@@ -42,7 +46,8 @@ Built-in reference algorithms
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Dict, Optional, Sequence, Union
+from collections import deque
+from typing import Any, Callable, Deque, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -455,6 +460,111 @@ def kalman_combine(series_list: Sequence[TimeSeries], nmin: int = 1, k_sigma: fl
                       meta={"estimator": "kalman-combine", "servers": len(series_list)})
 
 
+# ------------------------------------------------------- PTP clients
+def _one_way(series: TimeSeries) -> Tuple[np.ndarray, np.ndarray]:
+    """Per sample: the reference-to-local one-way measurement ``u`` (t2 - t1, with the offset in it) and the
+    half round trip of a complete exchange (NaN where the sample has none).
+
+    Simulated PTP series carry ``ms``/``sm``; for NTP-style series (offset, delay) every sample is a complete
+    exchange and ``u = delay/2 - offset``.
+    """
+    ex = series.extra
+    if "ms" in ex and "sm" in ex:
+        ms, sm = np.asarray(ex["ms"], float), np.asarray(ex["sm"], float)
+        return ms, (ms + sm) / 2
+    delay = np.asarray(ex.get("delay", np.zeros(len(series))), float)
+    return delay / 2 - series.offset, delay / 2
+
+
+def _servo_track(t: np.ndarray, measured: np.ndarray, servo: str, servo_options: Optional[dict]) -> np.ndarray:
+    """Run a PTP servo in closed loop on a free-running clock and return its correction at every sample.
+
+    The steered clock reads ``local + c``; the servo sees the offset ``c - measured`` (local - reference) and
+    sets ``dc/dt``. Steering does not change the measurement noise, so this is the closed loop exactly.
+    The correction is the servo's estimate of the offset (reference - local) of the free-running clock.
+    """
+    from .ptpsim import make_servo
+
+    if t.size == 0:
+        return np.empty(0)
+    interval = float(np.median(np.diff(t))) if t.size > 1 else 1.0
+    sv = make_servo(servo, **(servo_options or {}))
+    sv.reset(interval)
+    out = np.empty(t.size)
+    c, freq = 0.0, 0.0
+    for k in range(t.size):
+        if k:
+            c += freq * (t[k] - t[k - 1])
+        o = c - measured[k]
+        freq, step = sv.sample(o, float(t[k]))
+        if step:
+            c -= o
+        out[k] = c
+    return out
+
+
+def ptp4l(series: TimeSeries, delay_filter: int = 10, servo: str = "pi",
+          servo_options: Optional[dict] = None) -> TimeSeries:
+    """A linuxptp-style slave: E2E delay mechanism with a moving-median delay filter and a servo.
+
+    Every Sync gives an offset ``mean_path_delay - (t2 - t1)``, where the mean path delay is the median of
+    the last ``delay_filter`` Delay_Req exchanges (ptp4l's ``delay_filter moving_median``, length 10); the
+    servo (``pi`` with linuxptp's default gains, or ``linreg``) steers a clock with it, and the steered
+    clock's correction is the estimate. On NTP-style series every sample is an exchange.
+    """
+    s = series.sorted()
+    u, half = _one_way(s)
+    window: Deque[float] = deque(maxlen=max(1, int(delay_filter)))
+    meas = np.full(len(s), np.nan)
+    for k in range(len(s)):
+        if np.isfinite(half[k]):
+            window.append(float(half[k]))
+        if window:
+            meas[k] = float(np.median(window)) - u[k]
+    ok = np.isfinite(meas)
+    t = s.t[ok]
+    est = _servo_track(t, meas[ok], servo, servo_options)
+    return TimeSeries(t, est, name=f"{s.name} (ptp4l {servo})", source_format=s.source_format,
+                      meta={"estimator": "ptp4l", "servo": servo, "delay_filter": int(delay_filter)})
+
+
+def sptp(series: TimeSeries, delay_filter: int = 32, discard: float = 3.0, servo: str = "pi",
+         servo_options: Optional[dict] = None) -> TimeSeries:
+    """An SPTP-style client (after Meta's Simple PTP): client-driven unicast exchanges, each giving all four
+    timestamps at once.
+
+    Only complete exchanges are used. The mean path delay is the median of the last ``delay_filter``
+    exchanges; an exchange whose path delay exceeds that median by more than ``discard`` times the
+    window's median absolute deviation is discarded (queueing outliers); the others give an offset
+    ``mean_path_delay - (t2 - t1)`` that a servo (``pi`` by default) tracks. A model of the approach, not of
+    a particular release.
+    """
+    s = series.sorted()
+    u, half = _one_way(s)
+    window: Deque[float] = deque(maxlen=max(1, int(delay_filter)))
+    keep = np.zeros(len(s), dtype=bool)
+    meas = np.full(len(s), np.nan)
+    for k in range(len(s)):
+        h = half[k]
+        if not np.isfinite(h):
+            continue
+        if len(window) >= 4:
+            w = np.asarray(window)
+            med = float(np.median(w))
+            mad = float(np.median(np.abs(w - med))) * 1.4826
+            if discard and h - med > discard * max(mad, 1e-12):
+                window.append(float(h))  # the filter keeps learning the delay distribution
+                continue
+        window.append(float(h))
+        meas[k] = float(np.median(window)) - u[k]
+        keep[k] = True
+    t = s.t[keep]
+    est = _servo_track(t, meas[keep], servo, servo_options)
+    return TimeSeries(t, est, name=f"{s.name} (sptp {servo})", source_format=s.source_format,
+                      meta={"estimator": "sptp", "servo": servo, "delay_filter": int(delay_filter),
+                            "discarded": int(np.isfinite(half).sum() - keep.sum())})
+
+
 # ------------------------------------------------------- registration
 def _builtin():
     from .filters import kalman_series
@@ -469,6 +579,10 @@ def _builtin():
     register(FunctionEstimator("feedforward", feedforward, description="RADclock-style feed-forward"))
     register(FunctionEstimator("hull", convex_hull,
                                description="Huygens-style: max-margin line through the offset bounds of a window"))
+    register(FunctionEstimator("ptp4l", ptp4l,
+                               description="linuxptp-style slave: moving-median path delay + PI servo"))
+    register(FunctionEstimator("sptp", sptp,
+                               description="SPTP-style client: complete exchanges, delay-outlier discard + PI servo"))
     register(FunctionEstimator("rfc5905", rfc5905_combine, multi=True, description="RFC 5905 select/cluster/combine"))
     register(FunctionEstimator("median", median_combine, multi=True, description="median of clock-filter outputs"))
     register(FunctionEstimator("kalman-combine", kalman_combine, multi=True,

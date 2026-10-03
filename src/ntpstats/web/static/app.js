@@ -384,7 +384,7 @@ async function renderOverview(fresh) {
     card("Frequency trend", fmtPpm(s.offset_slope_ppm), `robust ${fmtPpm(s.offset_slope_robust_ppm)}`),
     card("Detrended RMS", fmtSec(s.residual_rms), `${s.outliers_5mad ?? 0} outliers > 5 MAD`),
     card("Regular sampling", `${Math.round((s.regularity ?? 1) * 100)} %`, `${s.gaps ?? 0} gaps, longest ${fmtDur(s.longest_gap_s)}`),
-    card("Events", ev.__error ? "–" : String(ev.events.length), ev.__error ? "" : Object.entries(ev.summary?.by_kind || {}).map(([k, n]) => `${n} ${k.replace(/_/g, " ")}`).join(", ") || "none detected"),
+    card("Events", ev.__error ? "–" : String(ev.events.length), ev.__error ? "" : Object.entries(ev.summary || {}).map(([k, n]) => `${n} ${k.replace(/_/g, " ")}`).join(", ") || "none detected"),
   ].join("");
   $("#ov-offset-panel").hidden = false;
   makeChart("ov", $("#chart-ov"), {

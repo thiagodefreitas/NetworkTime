@@ -55,8 +55,8 @@ are as valuable as code. Look for issues labelled
   - **PTP**: linuxptp `ptp4l`, `phc2sys`, `ts2phc` output from stdout, syslog or journald
     (monotonic stamps are mapped to UTC when the journal prefix is present);
   - **packet captures** (pcap/pcapng, including nanosecond and hardware timestamps): NTP
-    exchanges and **PTP flows** (one-/two-step, E2E/P2P, UDP or Ethernet) are measured from the
-    capture host's clock;
+    exchanges, NTP over PTP (RFC 10030, with transparent-clock corrections) and **PTP flows**
+    (one-/two-step, E2E/P2P, UDP or Ethernet) are measured from the capture host's clock;
   - **live**: chrony, ntpd/NTPsec, linuxptp (`pmc`) and facebook/time `ptpcheck`; Windows
     `w32tm /stripchart`; Prometheus range queries (ntpd-rs, chrony_exporter);
   - **instrument exports** via small TOML profiles (time-interval counters, PTP testers);
@@ -120,7 +120,7 @@ are as valuable as code. Look for issues labelled
     congestion and outages, and multi-server scenarios with falsetickers;
   - reference algorithms: Kalman/RTS, NTP clock filter, chrony-style regression,
     RADclock-style feed-forward, a Huygens-style convex hull, RFC 5905 select/cluster/combine,
-    and an ntpd-rs-style multi-server combination;
+    an ntpd-rs-style multi-server combination, and ptp4l-style and SPTP-style PTP clients;
   - bring your own estimator via a small API or a package entry point; scenarios can be
     presets or TOML files;
   - reproducible reports as tables, CSV/JSON or self-contained HTML;
@@ -128,6 +128,8 @@ are as valuable as code. Look for issues labelled
     replayed under the simulated clock (`ntpstats bench trace:FILE`);
   - **PTP chains**: a grandmaster and N boundary clocks with linuxptp-style servos, checked per hop
     and end to end against a time-error budget (`ntpstats chain`);
+  - **PTP exchanges**: Sync and Delay_Req at their own rates, with or without transparent
+    clocks (`ptp-lan`, `ptp-tc` presets), scored like NTP;
   - **network simulators**: OMNeT++/INET vector files in and out (INET clocks become time error),
     ns-3 text, and INET oscillator settings fitted to a real clock (`ntpstats noise --inet`).
 - **Reports**: `ntpstats report` writes a single offline HTML file with charts, CI tables,
@@ -259,6 +261,9 @@ Some findings the bench makes visible:
   (≈ delay/2). Smaller ones are indistinguishable from path asymmetry by design.
 - With symmetric floor delays, the Huygens-style `hull` estimator, which uses every exchange's
   bound θ ± δ/2, is often an order of magnitude more accurate than the clock filter.
+- Through switches without PTP support, a ptp4l-style slave with default gains follows the
+  packet delay variation (µs); transparent clocks cut it about 20×, and delay-filtering
+  estimators get to tens of ns from the same packets.
 - In a chain of PTP boundary clocks, linuxptp's default PI gains amplify noise hop after hop
   (gain peaking): 10 hops end near 50 ns, 20 near 600 ns. A narrower loop keeps 20 hops near 25 ns.
 

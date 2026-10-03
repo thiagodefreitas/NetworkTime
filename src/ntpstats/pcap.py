@@ -17,6 +17,22 @@ data-minimisation). With hardware timestamps in the capture (pcapng
 ``if_tsresol`` nanosecond resolution, ``tcpdump -j adapter_unsynced``) this
 measures the path without software timestamping noise.
 
+**NTP over PTP** (RFC 10030, chrony 4.9): NTP messages carried in an
+organization-specific TLV of a unicast PTP event message on UDP port 319 are
+matched the same way. The PTP correction field of the response and the
+Network Correction extension field (0x010A) the server returns for the
+request give the transparent-clock corrections; when both are present they
+are applied as RFC 10030 section 3 specifies::
+
+    offset_c = offset + (nc_rs - nc_rq) / 2
+    delay_c  = delay - (nc_rs + nc_rq - dur_rs - dur_rq) * (1 - 100 ppm)
+
+where ``nc_rs`` is the response's correction plus its receive duration (frame
+length over ``link_speed``, 1 Gb/s by default) and ``dur_rq`` is taken equal to
+``dur_rs``. Corrections that are negative or give a negative delay are not
+applied (the RFC forbids using them). The uncorrected values and both
+corrections are kept as extra columns.
+
 **PTP** (IEEE 1588) messages are handled by :mod:`ntpstats.ptp`.
 
 Capture timestamps are kept as integer nanoseconds: a float of POSIX seconds
@@ -221,14 +237,75 @@ def _ntp_ns(raw: int, ref_ns: int, era: Optional[int] = None) -> int:
     return sec * NS + frac_ns
 
 
-def ntp_exchanges(data: bytes, port: int = 123) -> Dict[Tuple[str, str], list]:
+PTP_EVENT_PORT = 319
+#: RFC 10030: organizationId 00-00-5E (IANA), organizationSubType 1
+_NTP_TLV_ORG = b"\x00\x00\x5e\x00\x00\x01"
+_NTP_TLV_TYPES = (0x8000, 0x0003)  # ORGANIZATION_EXTENSION_DO_NOT_PROPAGATE (v2.1), ORGANIZATION_EXTENSION (v2)
+_PTP_BODY = {0: 44, 1: 44, 2: 54, 3: 54}  # event messages: Sync, Delay_Req, Pdelay_Req, Pdelay_Resp
+NETWORK_CORRECTION_EF = 0x010A
+FREQ_TC = 100e-6
+
+
+def ntp_over_ptp(payload: bytes) -> Optional[Tuple[bytes, float, int]]:
+    """``(ntp_message, ptp_correction_s, domain)`` if ``payload`` is a PTP event message with an RFC 10030 NTP TLV."""
+    if len(payload) < 44 or payload[1] & 0x0F != 2:
+        return None
+    off = _PTP_BODY.get(payload[0] & 0x0F)
+    if off is None:
+        return None
+    end = min(struct.unpack_from("!H", payload, 2)[0], len(payload))
+    while off + 4 <= end:
+        ttype, tlen = struct.unpack_from("!HH", payload, off)
+        if ttype in _NTP_TLV_TYPES and tlen >= 8 + 48 and payload[off + 4: off + 10] == _NTP_TLV_ORG:
+            ntp = payload[off + 12: off + 4 + tlen]
+            correction = struct.unpack_from("!q", payload, 8)[0] / 65536.0 / NS
+            return ntp, correction, payload[4]
+        off += 4 + tlen
+    return None
+
+
+def _network_correction(ntp: bytes) -> Optional[float]:
+    """The Network Correction extension field (RFC 10030 section 3) of an NTPv4 message, in seconds."""
+    off = 48
+    while off + 16 <= len(ntp):
+        ftype, flen = struct.unpack_from("!HH", ntp, off)
+        if flen < 16 or flen % 4 or off + flen > len(ntp):
+            break
+        if ftype == NETWORK_CORRECTION_EF and flen >= 12:
+            return struct.unpack_from("!Q", ntp, off + 4)[0] / (1 << 32)
+        off += flen
+    return None
+
+
+def _row(c4, offset, delay, stratum, vn, interleaved, over_ptp=0.0, nc_rq=float("nan"), nc_rs=float("nan"),
+         offset_raw=float("nan"), delay_raw=float("nan")):
+    return (c4, offset, delay, stratum, vn, interleaved, over_ptp, nc_rq, nc_rs, offset_raw, delay_raw)
+
+
+def _corrected(offset: float, delay: float, nc_rq: Optional[float], cf_rs: float, wire_len: int,
+               link_speed: float) -> Tuple[float, float, float, float]:
+    """RFC 10030 corrections; returns (offset, delay, nc_rq, nc_rs), the inputs unchanged if not applicable."""
+    dur = wire_len * 8 / link_speed
+    nc_rs = cf_rs + dur
+    if nc_rq is None:
+        return offset, delay, float("nan"), nc_rs
+    delay_c = delay - (nc_rs + nc_rq - 2 * dur) * (1 - FREQ_TC)
+    if nc_rq < 0 or nc_rs < 0 or delay_c < 0:
+        return offset, delay, nc_rq, nc_rs
+    return offset + (nc_rs - nc_rq) / 2, delay_c, nc_rq, nc_rs
+
+
+def ntp_exchanges(data: bytes, port: int = 123, link_speed: float = 1e9) -> Dict[Tuple[str, str], list]:
     """Matched client/server exchanges per (client, server) pair.
 
-    Rows are ``(time, offset, delay, stratum, version, interleaved)``. With
-    RFC 9769 interleaved mode, a response whose origin equals the request's
-    *receive* timestamp carries the precise transmit time of the previous
-    response; that exchange's row is then recomputed with it and marked
-    ``interleaved = 1``.
+    Rows are ``(time, offset, delay, stratum, version, interleaved, over_ptp,
+    nc_request, nc_response, offset_uncorrected, delay_uncorrected)``; the
+    last four are NaN for plain UDP. With RFC 9769 interleaved mode, a
+    response whose origin equals the request's *receive* timestamp carries
+    the precise transmit time of the previous response; that exchange's row
+    is then recomputed with it and marked ``interleaved = 1``. NTP over PTP
+    (RFC 10030) is recognised on the PTP event port; ``link_speed`` (bit/s)
+    gives the receive duration used in its corrections.
     """
     pending: Dict[Tuple[str, str, bytes], Tuple[int, int]] = {}
     pending_i: Dict[Tuple[str, str, bytes], Tuple[bytes, int, bytes]] = {}  # request rx -> (server rx, c1, tx)
@@ -239,7 +316,17 @@ def ntp_exchanges(data: bytes, port: int = 123) -> Dict[Tuple[str, str], list]:
         if d is None:
             continue
         src, dst, sport, dport, ntp = d
-        if port not in (sport, dport) or len(ntp) < 48:
+        cf, over_ptp, wire = 0.0, 0.0, 0
+        if PTP_EVENT_PORT in (sport, dport):
+            inner = ntp_over_ptp(ntp)
+            if inner is None:
+                continue
+            wire = len(ntp) + 8 + (40 if ":" in src else 20) + 18  # PTP + UDP + IP + Ethernet header and FCS
+            ntp, cf, _domain = inner
+            over_ptp = 1.0
+        elif port not in (sport, dport):
+            continue
+        if len(ntp) < 48:
             continue
         vn, mode = (ntp[0] >> 3) & 7, ntp[0] & 7
         if mode == 3:
@@ -265,8 +352,8 @@ def ntp_exchanges(data: bytes, port: int = 123) -> Dict[Tuple[str, str], list]:
                 if prev is not None:  # the transmit timestamp is the precise one of the previous response
                     c1, t2, c4, row = prev
                     t3 = _ntp_ns(struct.unpack_from("!Q", ntp, 40)[0], c1, era)
-                    new = (c4 / 1e9, ((t2 - c1) + (t3 - c4)) / 2e9, ((c4 - c1) - (t3 - t2)) / 1e9,
-                           float(stratum), float(vn), 1.0)
+                    new = _row(c4 / 1e9, ((t2 - c1) + (t3 - c4)) / 2e9, ((c4 - c1) - (t3 - t2)) / 1e9,
+                               float(stratum), float(vn), 1.0, over_ptp)
                     if row < 0:
                         rows.append(new)
                     else:
@@ -282,7 +369,11 @@ def ntp_exchanges(data: bytes, port: int = 123) -> Dict[Tuple[str, str], list]:
             offset = ((t2 - c1) + (t3 - c4)) / 2e9
             delay = ((c4 - c1) - (t3 - t2)) / 1e9
             rows = out.setdefault((dst, src), [])
-            rows.append((c4 / 1e9, offset, delay, float(stratum), float(vn), 0.0))
+            if over_ptp:
+                oc, dc, nc_rq, nc_rs = _corrected(offset, delay, _network_correction(ntp), cf, wire, link_speed)
+                rows.append(_row(c4 / 1e9, oc, dc, float(stratum), float(vn), 0.0, 1.0, nc_rq, nc_rs, offset, delay))
+            else:
+                rows.append(_row(c4 / 1e9, offset, delay, float(stratum), float(vn), 0.0))
             if vn == 4:
                 done[(dst, src, ntp[32:40])] = (c1, t2, c4, len(rows) - 1)
     for rows in out.values():
@@ -297,10 +388,16 @@ def parse_capture(data: bytes, name: str = "capture") -> List[TimeSeries]:
     series = []
     for (client, server), rows in ntp_exchanges(data).items():
         a = np.array(rows)
+        extra = {"delay": a[:, 2], "stratum": a[:, 3], "version": a[:, 4], "interleaved": a[:, 5]}
+        meta: Dict[str, object] = {"peer": server, "client": client, "protocol": "ntp",
+                                   "note": "offset of server relative to the capture host clock"}
+        if a[:, 6].any():
+            extra.update(over_ptp=a[:, 6], nc_request=a[:, 7], nc_response=a[:, 8],
+                         offset_uncorrected=a[:, 9], delay_uncorrected=a[:, 10])
+            meta.update(transport="ntp-over-ptp (RFC 10030)",
+                        corrected=int(np.isfinite(a[:, 7]).sum()))
         s = TimeSeries(a[:, 0], a[:, 1], name=f"{name} [{client} -> {server}]", source_format="pcap",
-                       extra={"delay": a[:, 2], "stratum": a[:, 3], "version": a[:, 4], "interleaved": a[:, 5]},
-                       meta={"peer": server, "client": client, "protocol": "ntp",
-                             "note": "offset of server relative to the capture host clock"})
+                       extra=extra, meta=meta)
         series.append(s.sorted())
     series += parse_ptp(data, name)
     if not series:

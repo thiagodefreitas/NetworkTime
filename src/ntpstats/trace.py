@@ -162,7 +162,8 @@ def from_series(series: TimeSeries, detrend: str = "floor", window: Optional[flo
         idx = np.flatnonzero(ok)
         # equal windows of about `win` seconds (no short window at the end, whose minimum may not be symmetric)
         span = t[idx[-1]] - t[idx[0]]
-        nwin = max(1, int(round(span / win)))
+        # at least 4 windows of 16+ exchanges when the trace allows, so a short capture still gets a slope
+        nwin = max(1, int(round(span / win)), min(4, idx.size // 16))
         width = span / nwin
         anchors = []
         for j in range(nwin):
