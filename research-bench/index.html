@@ -1,0 +1,3429 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Benchmark clock synchronisation algorithms with ground truth: trace replay of real network delays, PTP exchanges and transparent clocks, ptp4l- and SPTP-style clients, boundary-clock chains, OMNeT++/INET and ns-3 interop.">
+      
+      
+        <meta name="author" content="Thiago de Freitas">
+      
+      
+        <link rel="canonical" href="https://thiagodefreitas.github.io/NetworkTime/research-bench/">
+      
+      
+        <link rel="prev" href="../network/">
+      
+      
+        <link rel="next" href="../ptp/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trace replay & PTP chains - ntpstats</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  
+  <meta name="google-site-verification" content="p-CdpbstYVG9dpOIv2UsIZuSb6aqIRSpn1iDtuf5CyQ" />
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trace-replay-and-ptp-chains" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ntpstats" class="md-header__button md-logo" aria-label="ntpstats" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ntpstats
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trace replay & PTP chains
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/thiagodefreitas/NetworkTime" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    thiagodefreitas/NetworkTime
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../cli/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  CLI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../browser/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  In your browser
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../formats/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Formats
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../statistics/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Statistics
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../network/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Network & estimators
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Trace replay & PTP chains
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../ptp/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  PTP captures & time error
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../sources/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Sources, instruments & bounds
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../assurance/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Audit, events & CI checks
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../monitoring/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring (Prometheus/Grafana)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../protocols/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Protocols (Roughtime, NTS pools, RFC 9769)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../metrology/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Metrology (noise model, hat, holdover)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../research-data/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Research data (CGGTTS, Circular T, Atlas)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../dataframes/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Dataframes & Parquet
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../plugins/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Writing a plugin
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../notebooks/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Notebooks & gallery
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../validation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Validation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../migrating/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Stable32, TimeLab, allantools
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/" class="md-tabs__link">
+          
+  
+  
+  API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../INTEROP/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Live interop
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../STATE_OF_THE_ART/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  State of the art
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../LANDSCAPE/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Tools landscape
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ntpstats" class="md-nav__button md-logo" aria-label="ntpstats" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ntpstats
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/thiagodefreitas/NetworkTime" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    thiagodefreitas/NetworkTime
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../browser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    In your browser
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../statistics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Statistics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network & estimators
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trace replay & PTP chains
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trace replay & PTP chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#delay-traces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delay traces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ptp-boundary-clock-chains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PTP boundary-clock chains
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PTP boundary-clock chains">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#servo-tuning-for-chains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Servo tuning for chains
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#more-reference-algorithms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        More reference algorithms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ptp-exchanges-in-the-bench" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PTP exchanges in the bench
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clock-disciplines-ntpd-and-the-nist-algorithms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clock disciplines: ntpd and the NIST algorithms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ntp-over-ptp-rfc-10030" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NTP over PTP (RFC 10030)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-reproducible-benchmark-on-a-replayed-trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A reproducible benchmark on a replayed trace
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#network-simulators-omnetinet-and-ns-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network simulators: OMNeT++/INET and ns-3
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ptp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PTP captures & time error
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources, instruments & bounds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assurance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit, events & CI checks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring (Prometheus/Grafana)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../protocols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocols (Roughtime, NTS pools, RFC 9769)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrology (noise model, hat, holdover)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../research-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research data (CGGTTS, Circular T, Atlas)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dataframes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataframes & Parquet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notebooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notebooks & gallery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../migrating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stable32, TimeLab, allantools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <label class="md-nav__link" for="__nav_21" id="__nav_21_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/stable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stable API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/series/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    series
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/parsers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    parsers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    stability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/edf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    edf
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/filters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    filters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/estimators/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    estimators
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/disciplines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    disciplines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/simulate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    simulate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/bench/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/trace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    trace
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/ptpsim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ptpsim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/simio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    simio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/sntp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sntp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/nts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/roughtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    roughtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/spectrum/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spectrum
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/noisefit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    noisefit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/hat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/holdover/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    holdover
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/polladvice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    polladvice
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/research/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    research
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/masks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    masks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/ptp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ptp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/ubx/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ubx
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/gnsslab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    gnsslab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/timeerror/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    timeerror
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/bounds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bounds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/audit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    interop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/otlp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    otlp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    adapters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/compat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    compat.allantools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../INTEROP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live interop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../STATE_OF_THE_ART/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State of the art
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../LANDSCAPE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#delay-traces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delay traces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ptp-boundary-clock-chains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PTP boundary-clock chains
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PTP boundary-clock chains">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#servo-tuning-for-chains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Servo tuning for chains
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#more-reference-algorithms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        More reference algorithms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ptp-exchanges-in-the-bench" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PTP exchanges in the bench
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clock-disciplines-ntpd-and-the-nist-algorithms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clock disciplines: ntpd and the NIST algorithms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ntp-over-ptp-rfc-10030" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NTP over PTP (RFC 10030)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-reproducible-benchmark-on-a-replayed-trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A reproducible benchmark on a replayed trace
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#network-simulators-omnetinet-and-ns-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network simulators: OMNeT++/INET and ns-3
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trace-replay-and-ptp-chains">Trace replay and PTP chains<a class="headerlink" href="#trace-replay-and-ptp-chains" title="Permanent link">&para;</a></h1>
+<p>The <a href="../network/#research-bench">research bench</a> scores synchronisation algorithms against a
+simulated clock whose true offset is known. 2.16 adds two things to it (<a href="https://github.com/thiagodefreitas/NetworkTime/issues/29">#29</a>):</p>
+<ul>
+<li><strong>real networks</strong>: the delays of a capture or a log, replayed under the simulated clock;</li>
+<li><strong>PTP chains</strong>: a grandmaster and N boundary clocks with servo models, checked against a
+  time-error budget.</li>
+</ul>
+<p>2.17 adds the exchange with network simulators (OMNeT++/INET, ns-3), two more reference
+algorithms, and a benchmark on a replayed trace that anyone can reproduce from one scenario file.</p>
+<p>3.1 adds <strong>PTP exchanges</strong> to the bench: Sync and Delay_Req messages at their own rates, transparent
+clocks, and two PTP client models (<code>ptp4l</code>, <code>sptp</code>) scored on the same exchanges as every other
+estimator.</p>
+<h2 id="delay-traces">Delay traces<a class="headerlink" href="#delay-traces" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ntpstats<span class="w"> </span>trace<span class="w"> </span>capture.pcap<span class="w">                      </span><span class="c1"># per-direction floors, percentiles and PDV</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>ntpstats<span class="w"> </span>trace<span class="w"> </span>/var/log/chrony/measurements.log<span class="w"> </span>--peer<span class="w"> </span><span class="m">192</span>.0.2.10<span class="w"> </span>--csv<span class="w"> </span>office.csv
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>ntpstats<span class="w"> </span>bench<span class="w"> </span>trace:office.csv<span class="w"> </span>internet<span class="w"> </span>--seeds<span class="w"> </span><span class="m">1</span>-5<span class="w">   </span><span class="c1"># replay next to a modelled network</span>
+</code></pre></div>
+<p>Any two-way exchange gives the offset θm (reference − local) and the round trip δ, so the raw
+one-way delays are δ/2 + θm (to the reference) and δ/2 − θm (from it). They still contain the true
+offset between the two clocks, which wanders, so it is removed first (<code>--detrend</code>):</p>
+<table>
+<thead>
+<tr>
+<th><code>--detrend</code></th>
+<th>assumption</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>floor</code> (default)</td>
+<td>in each window (default 16 exchanges or 900 s), the exchange with the smallest round trip is symmetric; the offset is interpolated between windows</td>
+</tr>
+<tr>
+<td><code>linear</code></td>
+<td>a constant frequency offset between the ends (one Theil–Sen line)</td>
+</tr>
+<tr>
+<td><code>none</code></td>
+<td>the two ends were already synchronised (for example a PTP- or GNSS-disciplined capture host)</td>
+</tr>
+</tbody>
+</table>
+<p>The absolute asymmetry of a path cannot be measured with two-way timestamps. The trace assumes
+equal floors unless <code>--asymmetry</code> gives a known difference; the queueing (PDV), loss and the
+correlation between directions are kept as measured. The extraction is checked on synthetic
+paths with known delays (median error below 20 µs against 1–2 ms of queueing), and a delay trace
+extracted from a simulated network and replayed gives the same estimator scores as the model it
+came from (<code>tests/test_trace.py</code>).</p>
+<p>Inputs: NTP and PTP captures, chrony <code>measurements.log</code>, ntpd <code>peerstats</code> and <code>rawstats</code>, simulator
+output, and the trace CSV written by <code>--csv</code> (<code>unix_time,offset,delay,to_ref,from_ref</code>).</p>
+<p>In a scenario file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"office-uplink"</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">poll</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">172800</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">[clock]</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">freq_offset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">8e-6</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">[trace]</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"office.csv"</span><span class="w">      </span><span class="c1"># or a capture/log; relative to this file</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"bootstrap"</span><span class="w">       </span><span class="c1"># "replay" plays it in order (looping); "bootstrap" draws random blocks</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3600</span><span class="w">             </span><span class="c1"># bootstrap block length, s (default 64 exchanges)</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">scale</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="w">              </span><span class="c1"># multiply the queueing part: 2.0 = "twice as loaded"</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">detrend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"floor"</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">asymmetry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span>
+</code></pre></div>
+<p><code>replay</code> is the faithful choice for one run; <code>bootstrap</code> gives every seed a different but
+statistically similar network (moving-block bootstrap: short-term correlation and both directions
+stay together). Servers in multi-server scenarios can each have their own <code>trace</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">ntpstats.trace</span><span class="w"> </span><span class="kn">import</span> <span class="n">TracePath</span><span class="p">,</span> <span class="n">load_trace</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">ntpstats.simulate</span><span class="w"> </span><span class="kn">import</span> <span class="n">Scenario</span><span class="p">,</span> <span class="n">simulate_ntp</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">trace</span> <span class="o">=</span> <span class="n">load_trace</span><span class="p">(</span><span class="s2">"capture.pcap"</span><span class="p">)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">trace</span><span class="o">.</span><span class="n">stats</span><span class="p">())</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">meas</span><span class="p">,</span> <span class="n">truth</span> <span class="o">=</span> <span class="n">simulate_ntp</span><span class="p">(</span><span class="n">Scenario</span><span class="p">(</span><span class="n">poll</span><span class="o">=</span><span class="n">trace</span><span class="o">.</span><span class="n">interval</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="n">trace</span><span class="o">.</span><span class="n">duration</span><span class="p">,</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>                                    <span class="n">trace</span><span class="o">=</span><span class="n">TracePath</span><span class="p">(</span><span class="n">trace</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"replay"</span><span class="p">)))</span>
+</code></pre></div>
+<h2 id="ptp-boundary-clock-chains">PTP boundary-clock chains<a class="headerlink" href="#ptp-boundary-clock-chains" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>ntpstats<span class="w"> </span>chain<span class="w"> </span>--hops<span class="w"> </span><span class="m">10</span><span class="w"> </span>--class<span class="w"> </span>B<span class="w">                     </span><span class="c1"># G.8275.1-like: 16 Sync/s, HW stamps, PI servo</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>ntpstats<span class="w"> </span>chain<span class="w"> </span>--hops<span class="w"> </span><span class="m">20</span><span class="w"> </span>--asymmetry-spread<span class="w"> </span>10ns<span class="w"> </span>--budget<span class="w"> </span><span class="m">1</span>.1us
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>ntpstats<span class="w"> </span>chain<span class="w"> </span>--hops<span class="w"> </span><span class="m">5</span><span class="w"> </span>--servo<span class="w"> </span>linreg<span class="w"> </span>--pdv<span class="w"> </span>2us<span class="w">       </span><span class="c1"># links through switches without PTP support</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>ntpstats<span class="w"> </span>chain<span class="w"> </span>--hops<span class="w"> </span><span class="m">3</span><span class="w"> </span>--trace<span class="w"> </span>ptp-capture.pcapng<span class="w">     </span><span class="c1"># replay captured delays on every link</span>
+</code></pre></div>
+<p>Each boundary clock has its own oscillator (frequency offset drawn within ±2 ppm, white and
+random-walk FM, powered up 1 ms off) and runs the E2E delay mechanism with a moving-median delay
+filter of 10 (linuxptp's default) and one of two servos:</p>
+<table>
+<thead>
+<tr>
+<th>servo</th>
+<th>model</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pi</code> (default)</td>
+<td>linuxptp's PI servo: frequency estimate and step on the second sample, then <code>kp·offset + Σ ki·offset</code>, with linuxptp's hardware-time-stamping gains <code>kp = min(0.7·Ts^-0.3, 0.7/Ts)</code>, <code>ki = min(0.3·Ts^0.4, 0.3/Ts)</code></td>
+</tr>
+<tr>
+<td><code>linreg</code></td>
+<td>adaptive-window linear regression (after linuxptp's linreg): a line through the recent free-running phase predicts the next sync; window 4–64 samples, chosen by smallest prediction variance</td>
+</tr>
+</tbody>
+</table>
+<p>Links have a delay, an asymmetry (master→slave minus slave→master), timestamp noise (default 4 ns
+rms per timestamp) and optional PDV, modelled or replayed from a trace.</p>
+<p>The output is the time error of every node relative to the grandmaster, with the
+<a href="../ptp/">time-error metrics</a> after a warm-up: max|TE|, |cTE|, the MTIE of dTE_L (0.1 Hz low-pass)
+up to 1000 s and dTE_H peak-to-peak. It is given for the accumulated TE at each node and for the TE
+each hop adds (node <em>i</em> − node <em>i</em>−1). Each hop is checked against per-hop limits, and the end of
+the chain against a budget. Exit code 3 on failure, as for <code>timeerror</code>.</p>
+<ul>
+<li><code>--class A|B|C</code>: T-BC noise-generation limits as commonly quoted from ITU-T G.8273.2,
+  Table 7-1 (max|TE| 100/70/30 ns, |cTE| 50/20/10 ns, dTE_L MTIE 40/40/10 ns, dTE_H 70/70 ns for A/B).
+  Check them against the edition you certify to, or pass your own with <code>--limits</code>.</li>
+<li><code>--budget</code> (default 1.1 µs): the end-to-end max|TE|, the G.8271.1 network limit for 1.5 µs
+  applications.</li>
+</ul>
+<p>Checked behaviour (<code>tests/test_ptpsim.py</code>):
+- a constant asymmetry <em>a</em> adds exactly <em>a</em>/2 of cTE per hop;
+- both servos step, then track out a frequency offset to below 1 ns;
+- noise accumulates along the chain;
+- PDV between boundary clocks costs accuracy.</p>
+<ul>
+<li>with linuxptp's default gains, dynamic TE grows much faster than the number of hops (gain
+  peaking), and a narrower loop avoids it (<code>test_gain_peaking_accumulates_and_a_narrow_loop_avoids_it</code>).</li>
+</ul>
+<h3 id="servo-tuning-for-chains">Servo tuning for chains<a class="headerlink" href="#servo-tuning-for-chains" title="Permanent link">&para;</a></h3>
+<p>linuxptp's default PI gains suit a single slave: at 16 Sync/s the loop bandwidth is a few tenths
+of a hertz, with some gain peaking. Cascaded, the peaks multiply. In the default 1 h simulation, 10
+hops end at about 60 ns of max|TE| but 20 hops at about 700 ns. A narrower, well-damped loop of
+about 0.05 Hz keeps 20 hops below 10 ns once locked (three seeds; see the
+<a href="https://github.com/thiagodefreitas/NetworkTime/tree/master/research/preprint-2026">2026 preprint</a>). This is the range the G.8273.2 T-BC
+requirements set for clocks meant to be chained.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>ntpstats<span class="w"> </span>chain<span class="w"> </span>--hops<span class="w"> </span><span class="m">20</span><span class="w"> </span>--kp<span class="w"> </span><span class="m">0</span>.3<span class="w"> </span>--ki<span class="w"> </span><span class="m">3</span>.5e-4<span class="w"> </span>--duration<span class="w"> </span>1h<span class="w">     </span><span class="c1"># kp in 1/s, ki per sample</span>
+</code></pre></div>
+<p>Narrow loops lock slowly. By default the warm-up excluded from the metrics follows the servo: an
+estimate of the chain's settling time from the loop's slowest pole, at least 300 s and at most half
+the run. The command says so when the run is too short to lock.</p>
+<p>These are models: they show how servo, rates, asymmetry and noise interact along a chain. A
+particular product's servo and filters differ.</p>
+<p>A scenario file for <code>--scenario</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[chain]</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">hops</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">8</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">servo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"pi"</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3600</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">sync_rate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">asymmetry_spread</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">5e-9</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">[chain.link]</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">timestamp_noise</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">4e-9</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">pdv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">queue_mean</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">1e-6</span><span class="p">,</span><span class="w"> </span><span class="n">load</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">0.3</span><span class="p">}</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="k">[chain.oscillator]</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">white_fm_adev1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-11</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">rw_fm_adev1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-13</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="n">initial_offset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-3</span>
+</code></pre></div>
+<p>The <a href="../notebooks/">chain notebook</a> walks through a budget study: how the error grows with the number
+of hops, how to tune the servo for a chain, and what asymmetry and PDV cost.</p>
+<h2 id="more-reference-algorithms">More reference algorithms<a class="headerlink" href="#more-reference-algorithms" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Estimator</th>
+<th>Idea</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hull</code></td>
+<td>Huygens-style (Geng et al., NSDI 2018), for one server. Each exchange bounds the true offset to <code>θm ± δ/2</code>; over a sliding window (64 exchanges, causal) the estimate is the straight line with the largest margin between those bounds, which is what Huygens' SVM finds. It assumes equal floor delays, like every two-way method.</td>
+</tr>
+<tr>
+<td><code>kalman-combine</code></td>
+<td>Multi-server, in the spirit of ntpd-rs (not its code): one delay-weighted Kalman filter per source; each source contributes <code>offset ± (3σ + floor/2)</code>; Marzullo intersection keeps the truechimers; inverse-variance mean of the survivors.</td>
+</tr>
+</tbody>
+</table>
+<p>On the bundled presets <code>hull</code> is the most accurate single-server estimator whenever floors are
+symmetric, often by an order of magnitude, because it uses every exchange's bound instead of only
+the lowest-delay ones. With the asymmetric route change of <code>route-change</code> it is biased like
+everything else: the error is in the path, and no estimator can see it. <code>kalman-combine</code> rejects
+the falseticker and the stepping server of <code>falseticker</code>.</p>
+<h2 id="ptp-exchanges-in-the-bench">PTP exchanges in the bench<a class="headerlink" href="#ptp-exchanges-in-the-bench" title="Permanent link">&para;</a></h2>
+<p>A scenario with <code>protocol = "ptp"</code> simulates the E2E delay mechanism of IEEE 1588 instead of NTP
+exchanges: a Sync every <code>poll</code> seconds, a Delay_Req every <code>delay_interval</code> seconds, each with its
+own one-way delay and timestamp noise (<code>server_noise</code>, per one-way measurement). <code>transparent</code> is
+the fraction of queueing delay that transparent clocks on the path put in the correction field
+(0 = switches without PTP support, 1 = full on-path support).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ptp-office"</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">protocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ptp"</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">poll</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.125</span><span class="w">            </span><span class="c1"># 8 Sync/s</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">delay_interval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w">      </span><span class="c1"># 1 Delay_Req/s</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">transparent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7200</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">server_noise</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">8e-9</span><span class="w">     </span><span class="c1"># hardware timestamps</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">[forward]</span><span class="w">               </span><span class="c1"># master -&gt; slave</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">4e-6</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="n">queue_mean</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">3e-6</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="n">load</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.4</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="k">[backward]</span><span class="w">              </span><span class="c1"># slave -&gt; master</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="n">base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">4e-6</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="n">queue_mean</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">6e-6</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="n">load</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span>
+</code></pre></div>
+<p>The series has the one-way <code>ms</code> (t2 − t1) of every Sync, the <code>sm</code> (t4 − t3) of every Delay_Req,
+and the offset a slave computes with the latest mean path delay, so NTP-style estimators run on
+it unchanged. Two presets come with it: <code>ptp-lan</code> (1 Sync and 1 Delay_Req per second, hardware
+time stamps, switches without PTP support, more queueing towards the master) and <code>ptp-tc</code> (the same
+network with transparent clocks that correct 95 % of the queueing).</p>
+<table>
+<thead>
+<tr>
+<th>Estimator</th>
+<th>Model</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ptp4l</code></td>
+<td>A linuxptp-style slave: offset <code>mean_path_delay − (t2 − t1)</code> at every Sync, with the mean path delay the moving median of the last 10 Delay_Req exchanges (ptp4l's default <code>delay_filter</code>), fed to the PI servo with linuxptp's default gains (or <code>servo="linreg"</code>). The servo steers a clock in closed loop; its correction is the estimate.</td>
+</tr>
+<tr>
+<td><code>sptp</code></td>
+<td>An SPTP-style client, after Meta's Simple PTP: client-driven exchanges that give all four timestamps at once. Only complete exchanges are used; the path delay is the median of the last 32, exchanges whose path delay exceeds it by more than 3 MAD are discarded as queueing outliers, and the rest go to the PI servo. A model of the approach, not of a particular release.</td>
+</tr>
+</tbody>
+</table>
+<p>Both also run on NTP series (each exchange is then complete). They are models, written from the
+published algorithms, not the daemons' code. 4 h runs, 3 seeds, the first 30 minutes excluded:</p>
+<table>
+<thead>
+<tr>
+<th>Estimator</th>
+<th><code>ptp-lan</code> rms</th>
+<th><code>ptp-tc</code> rms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>raw (slave offset with the latest path delay)</td>
+<td>2.98 µs</td>
+<td>149 ns</td>
+</tr>
+<tr>
+<td><code>ptp4l</code></td>
+<td>2.59 µs</td>
+<td>129 ns</td>
+</tr>
+<tr>
+<td><code>sptp</code></td>
+<td>2.27 µs</td>
+<td>114 ns</td>
+</tr>
+<tr>
+<td><code>kalman-dw</code></td>
+<td>344 ns</td>
+<td>22.5 ns</td>
+</tr>
+<tr>
+<td><code>mindelay</code></td>
+<td>187 ns</td>
+<td>11.2 ns</td>
+</tr>
+<tr>
+<td><code>hull</code></td>
+<td>7.0 ns</td>
+<td>7.0 ns</td>
+</tr>
+</tbody>
+</table>
+<p>With linuxptp's default gains at one Sync per second the servo follows the packet delay variation:
+on a network without PTP support it is barely better than the raw offsets, and transparent clocks
+improve it 20 times. Estimators that use the delay of every exchange get far closer from the same
+packets, which is the argument behind delay-filtering PTP clients and NTP over PTP (below).
+Run it yourself:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>ntpstats<span class="w"> </span>simulate<span class="w"> </span>--preset<span class="w"> </span>ptp-lan<span class="w"> </span>--benchmark
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>ntpstats<span class="w"> </span>bench<span class="w"> </span>ptp-lan<span class="w"> </span>ptp-tc<span class="w"> </span>--seeds<span class="w"> </span><span class="m">1</span>-3<span class="w"> </span>--html<span class="w"> </span>ptp-bench.html
+</code></pre></div>
+<h2 id="clock-disciplines-ntpd-and-the-nist-algorithms">Clock disciplines: ntpd and the NIST algorithms<a class="headerlink" href="#clock-disciplines-ntpd-and-the-nist-algorithms" title="Permanent link">&para;</a></h2>
+<p>3.6 adds the clock-discipline loops themselves, steered in closed loop on the scenario's
+free-running clock like the PTP servos above (<a href="https://github.com/thiagodefreitas/NetworkTime/issues/40">#40</a>):</p>
+<table>
+<thead>
+<tr>
+<th>Estimator</th>
+<th>Model</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ntpd</code></td>
+<td>ntpd 4.2.8's daemon discipline (<code>ntpd/ntp_loopfilter.c</code>, no kernel PLL): the clock filter (minimum delay of the last eight samples, only samples newer than the last update), the NSET/FREQ/SYNC/SPIK state machine (step 128 ms, stepout 300 s, frequency measured directly at the first stepout), the hybrid PLL/FLL frequency update (PLL gain 16, FLL 0.25 above the Allan intercept of 2048 s) and the phase slewed once per second</td>
+</tr>
+<tr>
+<td><code>ntpd-rfc</code></td>
+<td>the same with the constants and gain formulas of the RFC 5905 appendix (A.5.5.6, A.5.6.1): PLL 65536, FLL 1/(18 − poll), Allan intercept 1500 s, stepout 900 s</td>
+</tr>
+<tr>
+<td><code>lockclock</code></td>
+<td>J. Levine's NIST frequency-lock loop, from J. Res. NIST 125:125008 (2020), section 6: a five-point majority vote per cycle, time-adjustment mode until the residual is within 3σ, then a frequency estimate y = δx/T averaged as ȳ = (y + kȳ)/(k + 1) plus a phase correction over the next cycle, and the frequency-innovation outlier rule of section 7. Network configuration of the paper: cycles of about 1000 s, k = 1</td>
+</tr>
+<tr>
+<td><code>levine-kalman</code></td>
+<td>LOCKCLOCK with the scalar Kalman time estimate of J. Levine, PTTI 2011 (Eq. 5): the correction is the fraction σ_o²/(σ_o² + σ_t²) of the residual</td>
+</tr>
+</tbody>
+</table>
+<p>The time constant (poll exponent) is fixed at the scenario's measurement interval, as with
+<code>minpoll = maxpoll</code>. Not modelled: ntpd's popcorn spike suppressor and the 500 ppm limit on the
+phase slew, LOCKCLOCK's automatic re-evaluation of its parameters. In time-adjustment mode the
+paper adjusts every second; with the bench's longer intervals the model also estimates the
+frequency from successive residuals, or a large frequency offset would never leave that mode.
+Levine measured σ_o² against a reference of negligible noise; the model estimates it online from
+the cycle residuals. These are models written from the published code and papers.</p>
+<p>Five seeds, the first 30 minutes excluded (RMS error):</p>
+<table>
+<thead>
+<tr>
+<th>Estimator</th>
+<th><code>lan</code></th>
+<th><code>internet</code></th>
+<th><code>congested</code></th>
+<th><code>route-change</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>raw</td>
+<td>26.1 µs</td>
+<td>1.61 ms</td>
+<td>8.9 ms</td>
+<td>2.16 ms</td>
+</tr>
+<tr>
+<td><code>ntpd</code></td>
+<td>11.4 µs</td>
+<td>712 µs</td>
+<td>2.93 ms</td>
+<td>1.69 ms</td>
+</tr>
+<tr>
+<td><code>ntpd-rfc</code></td>
+<td>12.1 ms</td>
+<td>36.4 ms</td>
+<td>49.1 ms</td>
+<td>58.7 ms</td>
+</tr>
+<tr>
+<td><code>lockclock</code></td>
+<td>218 µs</td>
+<td>711 µs</td>
+<td>4.6 ms</td>
+<td>1.63 ms</td>
+</tr>
+<tr>
+<td><code>levine-kalman</code></td>
+<td>218 µs</td>
+<td>654 µs</td>
+<td>5.5 ms</td>
+<td>1.46 ms</td>
+</tr>
+<tr>
+<td><code>regression</code> (chrony-style)</td>
+<td>3.99 µs</td>
+<td>54.4 µs</td>
+<td>575 µs</td>
+<td>1.33 ms</td>
+</tr>
+</tbody>
+</table>
+<p>What the numbers show:
+- <strong>The RFC appendix's constants do not discipline a clock.</strong> The appendix slews the phase by
+  offset/(PLL·min(2^poll, 1500 s)) per second with PLL = 65536: a time constant of about 48 days
+  at poll 6, against 17 minutes with ntpd's PLL gain of 16. A 10 ms phase step of the reference is
+  still 9.9 ms off after 10 hours with the appendix's constants and below 1 ms after 35 minutes
+  with ntpd's (<a href="https://github.com/thiagodefreitas/NetworkTime/tree/master/research/thesis-2012">research/thesis-2012</a>, R6).
+  Implementations follow ntpd, not the printed constants.
+- <strong>ntpd's loop is a type II loop</strong>: it removes a frequency offset completely (tested), but slowly
+  at the shortest time constants; its RMS depends on the start (no drift file), hence the large
+  spread between seeds.
+- <strong>LOCKCLOCK</strong> is built for long cycles in the white-frequency-noise domain of the local clock.
+  On the LAN preset (16 s polling, a 12 ppm clock) its first cycles dominate the RMS; its error
+  afterwards is that of the clock between 1024 s cycles.
+- <strong>The Kalman variant</strong> improves on LOCKCLOCK on the internet and route-change presets and not on
+  the congested one. Levine reported a factor of two on noisy telephone links with σ_o calibrated
+  separately; with σ_o estimated from the data, the gain is modest and not uniform.
+- The chrony-style <code>regression</code> and the Huygens-style <code>hull</code>, which use the delay of every exchange,
+  remain more accurate than any of the closed loops on all four presets.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>ntpstats<span class="w"> </span>bench<span class="w"> </span>lan<span class="w"> </span>internet<span class="w"> </span>congested<span class="w"> </span>route-change<span class="w"> </span>--seeds<span class="w"> </span><span class="m">1</span>-5<span class="w"> </span>-e<span class="w"> </span>raw,ntpd,ntpd-rfc,lockclock,levine-kalman,regression
+</code></pre></div>
+<h2 id="ntp-over-ptp-rfc-10030">NTP over PTP (RFC 10030)<a class="headerlink" href="#ntp-over-ptp-rfc-10030" title="Permanent link">&para;</a></h2>
+<p>RFC 10030 carries NTP messages in a TLV of unicast PTP event messages, so that NICs which time-stamp
+only PTP can time-stamp NTP, and transparent clocks can correct its queueing. chrony 4.9 implements
+the final specification. Captures of it are read like any NTP capture; the corrections are applied
+as the RFC specifies (see <a href="../ptp/#ntp-over-ptp-rfc-10030">PTP captures</a>), and
+<code>examples/data/ntp-over-ptp.pcap</code> is a synthetic example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ntpstats<span class="w"> </span>info<span class="w"> </span>examples/data/ntp-over-ptp.pcap
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>ntpstats<span class="w"> </span>trace<span class="w"> </span>examples/data/ntp-over-ptp.pcap<span class="w"> </span>--csv<span class="w"> </span>tc.csv<span class="w">   </span><span class="c1"># its corrected delays, for the bench</span>
+</code></pre></div>
+<h2 id="a-reproducible-benchmark-on-a-replayed-trace">A reproducible benchmark on a replayed trace<a class="headerlink" href="#a-reproducible-benchmark-on-a-replayed-trace" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/thiagodefreitas/NetworkTime/blob/master/examples/scenarios/replay-chrony.toml"><code>examples/scenarios/replay-chrony.toml</code></a>
+replays the delays of the bundled chrony <code>measurements.log</code> under a simulated oscillator and
+scores every estimator against the true offset:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ntpstats<span class="w"> </span>bench<span class="w"> </span>examples/scenarios/replay-chrony.toml<span class="w"> </span>--seeds<span class="w"> </span><span class="m">1</span>-5<span class="w"> </span>--html<span class="w"> </span>bench.html
+</code></pre></div>
+<p>The result is <a href="https://github.com/thiagodefreitas/NetworkTime/blob/master/docs/examples/trace-benchmark.html"><code>docs/examples/trace-benchmark.html</code></a>
+(download and open it). To run the same comparison on your own network, point <code>file</code> in the
+scenario at your <code>measurements.log</code>, <code>peerstats</code> or capture. CI runs the scenario on every change.</p>
+<h2 id="network-simulators-omnetinet-and-ns-3">Network simulators: OMNeT++/INET and ns-3<a class="headerlink" href="#network-simulators-omnetinet-and-ns-3" title="Permanent link">&para;</a></h2>
+<p>ntpstats reads and writes the formats these simulators use, so a study can move between a
+discrete-event simulation and real measurements.</p>
+<p><strong>From a real clock into INET.</strong> Fit the oscillator's noise from a log, and write it as settings
+for INET's <code>RandomDriftOscillator</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>ntpstats<span class="w"> </span>noise<span class="w"> </span>tracking.log<span class="w"> </span>--drift<span class="w"> </span>--inet<span class="w"> </span>oscillator.ini
+</code></pre></div>
+<p>INET's oscillator makes the drift rate a random walk, with an increment drawn from
+<code>uniform(-a, a)</code> ppm every <code>changeInterval</code> T. A random walk of frequency with step variance σ² per
+T has <code>S_y(f) = σ²/(2π² T f²)</code>, so <code>h₋₂ = σ²/(2π² T)</code> and <code>a = √(6π² h₋₂ T)</code>.
+<code>tests/test_simio.py</code> simulates exactly INET's update rule with the mapped <code>a</code> and checks its
+ADEV against the h₋₂ model, from 100 s to 10⁴ s, within 15 %. Only the random-walk FM and the
+frequency offset carry over. The file lists what the oscillator cannot represent (white and
+flicker PM and FM, linear drift), with each one's ADEV at τ₀ and 1000 s, so the loss is visible.</p>
+<p><strong>From INET back into ntpstats.</strong> INET clocks record <code>timeChanged:vector</code>, the clock time at each
+change. ntpstats reads <code>.vec</code> files directly and turns each clock into its time error against
+simulation time:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># omnetpp.ini (INET gPTP showcase or your own network)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="na">include oscillator.ini</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="na">**.clock.timeChanged</span><span class="o">:</span><span class="s">vector.vector-recording = true</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="na">output-vector-precision</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">17</span><span class="w">     </span><span class="c1"># keep ns resolution at long simulation times</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>ntpstats<span class="w"> </span>info<span class="w"> </span>results/General-#0.vec<span class="w"> </span>--all-peers<span class="w">           </span><span class="c1"># one series per clock</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>ntpstats<span class="w"> </span>timeerror<span class="w"> </span>results/General-#0.vec<span class="w"> </span>--all-peers<span class="w"> </span>--limits<span class="w"> </span>budget.txt
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>ntpstats<span class="w"> </span>stability<span class="w"> </span>results/General-#0.vec<span class="w"> </span>--peer<span class="w"> </span>switch1<span class="w"> </span>-k<span class="w"> </span>tdev,mtie
+</code></pre></div>
+<p>Other vectors (<code>pdelay</code>, <code>gmRateRatio</code>, your own statistics) are available with
+<code>ntpstats.simio.read_omnetpp_vec(lines, vectors="pdelay*")</code>. The other way, <code>ntpstats convert
+LOG --to omnetpp-vec -o measured.vec</code> writes measurements as a vector file, to plot them next to
+simulation results in the OMNeT++ IDE or with <code>opp_scavetool</code>. The parser follows the documented
+result file format and is tested on files in that format. CI does not run OMNeT++ itself.</p>
+<p><strong>ns-3.</strong> Captures written by <code>PcapHelper</code> are read like any other capture (NTP and PTP), and
+two-column <code>time value</code> text from <code>FileHelper</code> or <code>GnuplotHelper</code> is read with <code>-f csv</code>.
+<code>ntpstats convert LOG --to ns3</code> writes <code>time value</code> text (seconds) for an ns-3 program to read, for
+example to drive a delay model from a real trace (<code>ntpstats trace … --csv</code> gives one-way delays).</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © 2012–2026 Thiago de Freitas · MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
