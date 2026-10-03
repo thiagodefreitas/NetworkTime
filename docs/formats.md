@@ -16,6 +16,8 @@ Formats are detected automatically; `-f/--format` overrides detection.
 | `chrony-statistics` | chrony `statistics.log` | estimated offset (negated) | std dev, skew |
 | `chrony-refclocks` | chrony `refclocks.log` (GNSS/PPS) | cooked offset | raw error, dispersion, PPS flag |
 | `linuxptp` | `ptp4l`, `phc2sys`, `ts2phc` (stdout, syslog, journald) | master/phc offset (negated, ns → s) | path delay, frequency, servo state |
+| `gpsd` | gpsd JSON (`gpspipe -w`): PPS and TOFF messages per device ([Research data](research-data.md)) | GNSS time − system clock's time stamp | precision, qErr |
+| `ticc` | TAPR TICC output (Timestamp, Period, 3-Corner-Hat, Time Interval modes) | phase of each channel against its period; chA − chB | — |
 | `ubx` | u-blox receiver log (binary UBX, mixed with NMEA is fine): NAV-CLOCK, NAV-TIMEUTC, TIM-TP ([Research data](research-data.md)) | receiver clock bias as reported; time-pulse qErr | clock drift, time and frequency accuracy |
 | `pcap` | pcap/pcapng captures of NTP (v3/v4/v5, also over PTP per RFC 10030), PTP (v2/v2.1, UDP or Ethernet) and CSPTP (client-server PTP); see [PTP](ptp.md) | NTP: from server T2/T3 and capture times; PTP: master vs capture clock | delay, stratum, version; PTP: path/link delay, one-way delays, correction |
 | `csv` | generic `unix_time,offset[,…]`, `ntpstats monitor` output | offset column | any other columns |

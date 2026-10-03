@@ -17,6 +17,9 @@
   here; ``meanPathDelay`` ns; ``gmPresent``).
 * **facebook/time**: ``ptpcheck stats`` JSON (``ptp.offset_ns``, local -
   master as reported by ptp4l, negated here; ``ptp.mean_path_delay_ns``).
+* **gpsd**: the PPS (or, without PPS, TOFF) messages of a running gpsd
+  (``host:port``, default ``localhost:2947``): GNSS time minus the system
+  clock's time stamp of the edge, with ``precision`` and ``qErr``.
 * **ntpd-rs**: ``ntp-ctl -f prometheus status``, or the metrics exporter's
   HTTP endpoint (give its URL as the command). ntpd-rs 1.x exports per-source
   ``ntp_source_offset_seconds`` (source - local, the ntpd convention),
@@ -268,6 +271,13 @@ def sample_ntpdrs(cmd: Sequence[str] = ("ntp-ctl", "-f", "prometheus", "status")
     return d
 
 
+def sample_gpsd(cmd: Sequence[str] = ("localhost:2947",)) -> Dict[str, object]:
+    """One PPS offset (GNSS - system clock) from gpsd; ``cmd`` is ``["host:port"]``."""
+    from .gnsslab import sample_gpsd as _sample
+
+    return _sample(cmd)
+
+
 def prometheus_query_range(url: str, query: str, start: float, end: float, step="60",
                            timeout: float = 30.0) -> dict:
     """Run a Prometheus ``/api/v1/query_range`` request and return the JSON document."""
@@ -291,13 +301,14 @@ def prometheus_query_range(url: str, query: str, start: float, end: float, step=
 
 #: daemon -> sampler function name (resolved at call time so it can be patched/replaced)
 SAMPLERS: Dict[str, str] = {"chrony": "sample_chrony", "ntpd": "sample_ntpq", "ptp4l": "sample_pmc",
-                            "ptpcheck": "sample_ptpcheck", "ntpd-rs": "sample_ntpdrs"}
+                            "ptpcheck": "sample_ptpcheck", "ntpd-rs": "sample_ntpdrs", "gpsd": "sample_gpsd"}
 NUMERIC_EXTRAS = {
     "chrony": ("last_offset", "rms_offset", "frequency_ppm", "skew_ppm", "root_delay", "root_dispersion", "stratum"),
     "ntpd": ("frequency_ppm", "sys_jitter", "clk_jitter", "clk_wander_ppm", "rootdelay", "rootdisp", "stratum"),
     "ptp4l": ("mean_path_delay", "master_offset", "steps_removed", "gm_present"),
     "ptpcheck": ("mean_path_delay", "steps_removed", "gm_present"),
     "ntpd-rs": ("sources", "min_uncertainty", "delay", "root_delay", "root_dispersion", "stratum"),
+    "gpsd": ("precision", "qerr"),
 }
 
 

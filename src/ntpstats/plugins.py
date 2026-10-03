@@ -134,7 +134,7 @@ def discover(kind: str, refresh: bool = False) -> Discovery:
 
 def parsers() -> Dict[str, ParserPlugin]:
     """Built-in parser plugins plus installed ones (installed ones cannot shadow a built-in format)."""
-    from . import research  # noqa: F401  (registers the built-in research formats)
+    from . import gnsslab, research  # noqa: F401  (register the built-in research and GNSS-lab formats)
     from .parsers import FORMATS
 
     out = dict(_BUILTIN_PARSERS)

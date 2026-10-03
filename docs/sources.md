@@ -22,6 +22,18 @@ Recorded columns:
 Both tools report local − master, so the offsets are negated into the ntpstats convention
 (reference − local). The web UI's *Live* workspace offers the same sources.
 
+## gpsd
+
+```bash
+ntpstats watch gpsd -i 1 -o gpsd-pps.csv                         # localhost:2947
+ntpstats watch gpsd --command-override timeserver.lan:2947       # another host
+```
+
+Each sample is the offset of the latest PPS edge (GNSS time minus the system clock's time stamp),
+or of the serial time (TOFF) when the receiver has no PPS, with gpsd's `precision` and the
+receiver's `qErr` when reported. See [Research data](research-data.md) for recorded `gpspipe -w`
+logs.
+
 ## ntpd-rs
 
 ```bash

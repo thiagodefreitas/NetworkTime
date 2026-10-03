@@ -558,7 +558,7 @@ def _monitor_error(server, exc):
         del STORE.monitor_log[:-50]
 
 
-LOCAL_SOURCES = ("chrony", "ntpd", "ntpd-rs", "ptp4l", "ptpcheck")
+LOCAL_SOURCES = ("chrony", "ntpd", "ntpd-rs", "ptp4l", "ptpcheck", "gpsd")
 
 
 def api_monitor_start(body):

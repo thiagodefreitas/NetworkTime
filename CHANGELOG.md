@@ -14,6 +14,22 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-10-03
+
+GNSS/PPS timing on Linux hosts and in the lab. No breaking changes.
+
+### Added
+- **gpsd** (format `gpsd`, `gpspipe -w` logs): PPS and TOFF series per device, GNSS time minus the
+  system clock's time stamp, with `precision` and the receiver's `qErr` (gpsd_json(5)).
+  `ntpstats watch gpsd` samples a running gpsd (`host:port`), also from the web UI's *Live*
+  workspace. `ntpstats sawtooth` uses the `qErr` of a gpsd PPS log when no UBX log is given. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+- **TAPR TICC** (format `ticc`): Timestamp, Period, 3-Corner-Hat and Time Interval output; per-channel
+  phase against the nominal period, `chA - chB` of paired events, `WRAP` seconds unwrapped, seconds and
+  fractions kept apart so picoseconds survive (format from the TICC firmware and manual).
+
+### Stable API changes since 3.4.0
+- None. Code written against the stable API of an earlier release keeps working.
+
 ## [3.4.0] - 2026-10-03
 
 GNSS timing receivers and time-stamping sources. No breaking changes.

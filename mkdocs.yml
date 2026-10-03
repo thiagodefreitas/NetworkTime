@@ -81,6 +81,7 @@ nav:
       - report: api/report.md
       - ptp: api/ptp.md
       - ubx: api/ubx.md
+      - gnsslab: api/gnsslab.md
       - timeerror: api/timeerror.md
       - sources: api/sources.md
       - bounds: api/bounds.md

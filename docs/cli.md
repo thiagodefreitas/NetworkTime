@@ -26,13 +26,13 @@
 | `report` | self-contained HTML report; `--time-error` adds time-error cards and a TE/TEL chart |
 | `simulate` | simulate NTP exchanges with ground truth; `--benchmark` |
 | `bench` | estimators × scenarios × seeds against ground truth; `--html`, `--csv`, `--list`; `trace:FILE` replays a capture or log |
-| `sawtooth` | remove the GNSS PPS quantization sawtooth from a time-interval-counter log with a u-blox receiver's `qErr` (UBX-TIM-TP); prints TDEV before and after ([Research data](research-data.md)) |
+| `sawtooth` | remove the GNSS PPS quantization sawtooth from a time-interval-counter log with a u-blox receiver's `qErr` (UBX-TIM-TP), or from a gpsd PPS log with its own `qErr`; prints TDEV before and after ([Research data](research-data.md)) |
 | `trace` | per-direction delays of a capture or log (floors, PDV, loss), `--csv` to replay it ([Trace replay](research-bench.md)) |
 | `chain` | simulate a PTP grandmaster and N boundary clocks; time error per hop and at the end against a class and budget; exit code 3 on failure |
 | `query` | one-shot measurement: NTPv4, `--nts`, `--pool N` (NTS pool), `--interleaved` (RFC 9769), `--ntpv5`, `--probe-v5`, `-4/-6` ([Protocols](protocols.md)) |
 | `roughtime` | signed coarse time from several Roughtime servers, chained nonces, causal check; `--report` writes a malfeasance report, `--verify-report`, `--check-local`; exit code 3 on malfeasance |
 | `monitor` | periodic SNTP/NTS/NTPv5 measurements to CSV (polite polling); `--metrics-port` serves OpenMetrics, `--otlp` pushes to OpenTelemetry ([Monitoring](monitoring.md)) |
-| `watch` | sample the local chrony (`chronyc -c tracking`), ntpd (`ntpq -c rv`), ntpd-rs (`ntp-ctl`), ptp4l (`pmc`) or `ptpcheck`; `--metrics-port` as for `monitor` |
+| `watch` | sample the local chrony (`chronyc -c tracking`), ntpd (`ntpq -c rv`), ntpd-rs (`ntp-ctl`), ptp4l (`pmc`), `ptpcheck` or gpsd (PPS); `--metrics-port` as for `monitor` |
 | `audit` | UTC traceability evidence: per-sample error bound with stated assumptions, windows, coverage; HTML/JSON with input hashes; exit code 3 on failure ([Assurance](assurance.md)) |
 | `events` | phase steps, spikes, frequency changes, delay-floor (route) changes and leap smears |
 | `prom` | fetch a Prometheus range query (ntpd-rs, chrony_exporter, …) to a JSON file every command reads |

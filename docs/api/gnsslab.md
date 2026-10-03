@@ -1,0 +1,3 @@
+# gnsslab
+
+::: ntpstats.gnsslab

@@ -61,6 +61,8 @@ FORMATS = (
     "linuxptp",
     "pcap",
     "ubx",
+    "gpsd",
+    "ticc",
     "csv",
     "stable32-phase",
     "stable32-freq",
@@ -165,7 +167,7 @@ def detect_format(lines: Sequence[str]) -> str:
     head = "\n".join(lines[:50])
     if '"resultType"' in head and '"matrix"' in head:
         return "prometheus"
-    from . import plugins, research  # noqa: F401  (research registers its formats as parser plugins)
+    from . import gnsslab, plugins, research  # noqa: F401  (research and gnsslab register their formats)
 
     found = plugins.detect_plugin(lines, 0.9)  # installed plugins that are sure win
     if found:
@@ -797,7 +799,7 @@ _PARSERS: Dict[str, Callable[..., List[TimeSeries]]] = {
 
 
 def _plugin_parsers():
-    from . import plugins, research  # noqa: F401
+    from . import gnsslab, plugins, research  # noqa: F401
 
     return plugins.parsers()
 

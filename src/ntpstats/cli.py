@@ -537,9 +537,15 @@ def cmd_sawtooth(args):
     from .ubx import apply_qerr
 
     pps = load_one(args.pps, fmt=args.format, peer=args.peer)
-    qe = [s for s in load(args.ubx, fmt="ubx") if s.meta.get("message") == "UBX-TIM-TP"]
-    if not qe:
-        raise ValueError(f"{args.ubx}: no UBX-TIM-TP messages (enable TIM-TP output on the receiver)")
+    if args.ubx:
+        qe = [s for s in load(args.ubx, fmt="ubx") if s.meta.get("message") == "UBX-TIM-TP"]
+        if not qe:
+            raise ValueError(f"{args.ubx}: no UBX-TIM-TP messages (enable TIM-TP output on the receiver)")
+    elif "qerr" in pps.extra:  # e.g. gpsd PPS messages carry the receiver's qErr
+        ok = np.isfinite(pps.extra["qerr"])
+        qe = [TimeSeries(pps.t[ok], pps.extra["qerr"][ok], name="qErr")]
+    else:
+        raise ValueError("give the receiver's UBX log (the PPS file has no qErr column)")
     sign = args.sign if args.sign == "auto" else int(args.sign)
     out = apply_qerr(pps, qe[0], sign=sign, max_dt=args.max_dt)
     m = out.meta
@@ -1057,6 +1063,9 @@ def cmd_watch(args):
             reg.observe_watch(args.daemon, d)
         if "frequency_ppm" in d:
             tail = f"freq {d['frequency_ppm']:+.3f} ppm"
+        elif d.get("source") in ("PPS", "TOFF"):
+            tail = f"{d['source']} {d['device']}" + ("" if d.get("qerr") != d.get("qerr") else
+                                                     f", qErr {format_seconds(d['qerr'])}")
         elif "min_uncertainty" in d:
             tail = f"{int(d['sources'])} sources, best ±{format_seconds(d['min_uncertainty'])}"
         else:
@@ -1354,7 +1363,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("sawtooth", help="remove the GNSS PPS quantization sawtooth with the receiver's qErr (u-blox TIM-TP)")
     s.add_argument("pps", help="time-interval-counter measurements of the receiver's PPS (any supported format)")
-    s.add_argument("ubx", help="u-blox UBX log of the same period with UBX-TIM-TP messages")
+    s.add_argument("ubx", nargs="?", help="u-blox UBX log of the same period with UBX-TIM-TP messages "
+                                           "(not needed when the PPS file has a qErr column, e.g. gpsd PPS)")
     s.add_argument("-f", "--format", default="auto", type=_fmt, help="format of the PPS file")
     s.add_argument("--peer", help="select a series of the PPS file")
     s.add_argument("--sign", choices=("auto", "+1", "-1"), default="auto",
@@ -1530,9 +1540,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_monitor)
 
     s = sub.add_parser("watch", help="log the local chrony, ntpd/NTPsec, ntpd-rs, ptp4l or ptpcheck (no log files needed)")
-    s.add_argument("daemon", choices=("chrony", "ntpd", "ntpd-rs", "ptp4l", "ptpcheck"),
+    s.add_argument("daemon", choices=("chrony", "ntpd", "ntpd-rs", "ptp4l", "ptpcheck", "gpsd"),
                    help="chrony (chronyc), ntpd/NTPsec (ntpq), ntpd-rs (ntp-ctl, or --command-override URL of "
-                        "its metrics exporter), ptp4l (linuxptp pmc) or ptpcheck (facebook/time)")
+                        "its metrics exporter), ptp4l (linuxptp pmc), ptpcheck (facebook/time) or gpsd (PPS; "
+                        "--command-override host:port)")
     s.add_argument("-o", "--output", default="ntpstats-watch.csv")
     s.add_argument("-i", "--interval", type=float, default=16.0)
     s.add_argument("-n", "--count", type=int, help="stop after N samples")

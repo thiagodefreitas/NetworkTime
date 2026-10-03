@@ -71,6 +71,37 @@ removes the sawtooth (the smaller sample-to-sample variance), and reports it. Fi
 `--sign +1` or `--sign -1` once it is known for a receiver and counter. The [sawtooth
 notebook](notebooks.md) walks through the example.
 
+## gpsd: the PPS as the host sees it
+
+Most Linux GNSS time servers run gpsd, which feeds chrony or ntpd. Its JSON stream reports every PPS
+edge twice: as GNSS time (`real_sec`, `real_nsec`) and as the system clock time-stamped it
+(`clock_sec`, `clock_nsec`). Recorded with `gpspipe -w`, or sampled live:
+
+```bash
+gpspipe -w > gpspipe.json                       # leave it running, then
+ntpstats stability gpspipe.json --peer PPS -k tdev,mtie
+ntpstats watch gpsd -i 1 -o gpsd-pps.csv        # live, from localhost:2947 (--command-override host:port)
+ntpstats sawtooth gpspipe.json --peer PPS       # receivers that report qErr: no UBX log needed
+```
+
+Each device gives a `PPS` series (GNSS minus the system clock's time stamp of the edge, the
+ntpstats sign convention) and a `TOFF` series (the same for the serial message, with its much
+larger latency), with `precision` and, when the receiver reports it, `qerr`.
+
+## TAPR TICC
+
+The TAPR TICC timestamping counter prints `1.897999794440 chA` lines (Timestamp, Period and
+3-Corner-Hat modes) or bare numbers (Time Interval mode). Each channel becomes the phase of its input
+against an ideal grid of its period (its time interval error, measured by the TICC's reference);
+with two channels, `chA - chB` of the events paired within half a period is added. The seconds
+printed with the `WRAP` setting are unwrapped, and seconds and fractions are kept apart so that the
+picoseconds survive. Times are counter seconds since the TICC started.
+
+```bash
+ntpstats stability ticc-log.txt --peer "chA - chB" -k adev,tdev
+ntpstats info interval-log.txt -f ticc          # Time Interval mode: bare numbers need -f ticc
+```
+
 ## Clock products (IGS)
 
 ```bash

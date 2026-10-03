@@ -60,9 +60,9 @@ are as valuable as code. Look for issues labelled
     measured from the capture host's clock;
   - **live**: chrony, ntpd/NTPsec, ntpd-rs (`ntp-ctl`), linuxptp (`pmc`) and facebook/time
     `ptpcheck`; Windows `w32tm /stripchart`; Prometheus range queries (ntpd-rs, chrony_exporter);
-  - **GNSS receivers**: u-blox UBX logs (clock bias and drift, accuracy estimates, time-pulse
-    `qErr`), and `ntpstats sawtooth` to remove the PPS quantization sawtooth from a
-    time-interval-counter measurement;
+  - **GNSS receivers and PPS**: u-blox UBX logs (clock bias and drift, accuracy estimates,
+    time-pulse `qErr`), gpsd PPS/TOFF (recorded or live), TAPR TICC counter output, and
+    `ntpstats sawtooth` to remove the PPS quantization sawtooth;
   - **instrument exports** via small TOML profiles (time-interval counters, PTP testers);
   - **research and laboratory data**: CGGTTS GNSS time transfer (with common view), IGS RINEX
     clock files, BIPM Circular T (UTC − UTC(k)), RIPE Atlas NTP results and NTP Pool monitor logs;
@@ -150,7 +150,7 @@ are as valuable as code. Look for issues labelled
     is provable (malfeasance reports), and an authenticated bound on the local clock's error;
   - a polite `monitor` (RATE back-off, jitter), and `watch`, which samples the local
     **chrony** (`chronyc -c tracking`), **ntpd/NTPsec** (`ntpq -c rv`), **ntpd-rs**
-    (`ntp-ctl`), **ptp4l** (`pmc`) or **ptpcheck** without log files.
+    (`ntp-ctl`), **ptp4l** (`pmc`), **ptpcheck** or **gpsd** (PPS) without log files.
 - **Lightweight UI**: `ntpstats ui` starts a local web app. It runs on the Python standard
   library HTTP server with one static page and [uPlot](https://github.com/leeoniya/uPlot) (≈50 kB,
   bundled, MIT), so there is no Qt, Electron, Node or CDN, and it works offline.

@@ -113,7 +113,11 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ chrony's time-stamping sources (daemon, kernel, hardware) per measurement.
 - ✅ Gallery notebook on the PPS sawtooth. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 
-### After 3.4
+### 3.5: GNSS/PPS on Linux and in the lab ✅
+- ✅ gpsd PPS/TOFF, recorded and live, with qErr for the sawtooth correction. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+- ✅ TAPR TICC output, all modes.
+
+### After 3.5
 New features arrive in 3.x minor releases, compatibly. Open items, most of them waiting for data
 from users:
 - Comparison with Stable32 output files and long-term logs against an independent reference ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); TimeLab `.tim` files ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)); vendor instrument profiles ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); OCP Time Card, Timebeat and chrony 4.9 logs ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). Sample files welcome.
@@ -166,3 +170,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 3.2 | ntpd-rs live source, CSPTP in captures, chrony 4.9 documentation checks ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
 | 3.3 | Quality release: UI at phone width and with degenerate data, clean CLI errors, dTE_H at slow sampling, gallery notebook, docs for search ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)) |
 | 3.4 | u-blox UBX receiver logs and PPS sawtooth correction ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)); chrony time-stamping sources; sawtooth notebook ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)) |
+| 3.5 | gpsd PPS/TOFF (recorded and live), TAPR TICC ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
