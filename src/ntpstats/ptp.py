@@ -31,6 +31,22 @@ on the PTP timescale (TAI): the UTC offset comes from Announce messages
 (``currentUtcOffset``) or, without Announce, is inferred when the one-way
 times are 30-45 s. Messages carrying an AUTHENTICATION TLV (IEEE 1588-2019
 annex P, used by NTS4PTP) are flagged; they are not verified.
+
+**CSPTP** (client-server PTP, sdoId 0x300, as implemented in ntpd-rs 2.0 and
+statime; experimental): the client sends a unicast Sync with a CSPTP request
+TLV (0xFF00) at ``c1``; the server answers with a Sync carrying a response
+TLV (0xFF01) with the request's receive time ``t2`` and the request's
+accumulated correction, and the transmit time ``t3`` in the Sync (one-step)
+or a Follow_Up (two-step); the client receives it at ``c4``. Every exchange
+gives all four timestamps, so per (client, server)::
+
+    forward  = t2 - c1 - cf_request
+    backward = c4 - t3 - cf_response
+    offset (server - capture host) = (forward - backward) / 2      delay = forward + backward
+
+with the corrections of transparent clocks removed as statime does. A CSPTP
+status TLV (0xF002), when present, gives the grandmaster and steps removed.
+CSPTP messages are analysed only here, not as master/slave flows.
 """
 
 from __future__ import annotations
@@ -72,6 +88,8 @@ class Message:
     transport: str  # "l2", "udp4", "udp6"
     src: str  # MAC or IP address
     auth: bool
+    sdo: int = 0  # sdoId: majorSdoId (transportSpecific) << 8 | minorSdoId
+    dst: str = ""  # destination IP address (UDP transports)
 
     @property
     def two_step(self) -> bool:
@@ -102,7 +120,7 @@ def _auth(raw: bytes, mtype: int, length: int) -> bool:
     return False
 
 
-def decode(payload: bytes, ts: int, transport: str, src: str) -> Optional[Message]:
+def decode(payload: bytes, ts: int, transport: str, src: str, dst: str = "") -> Optional[Message]:
     """Decode a PTPv2 common header (34 octets) plus the raw message."""
     if len(payload) < 34:
         return None
@@ -121,6 +139,7 @@ def decode(payload: bytes, ts: int, transport: str, src: str) -> Optional[Messag
         correction=struct.unpack_from("!q", payload, 8)[0] / 65536.0,
         port=_port_id(payload[20:30]), seq=struct.unpack_from("!H", payload, 30)[0],
         raw=raw, transport=transport, src=src, auth=_auth(raw, mtype, length),
+        sdo=((payload[0] >> 4) << 8) | payload[5], dst=dst,
     )
 
 
@@ -139,7 +158,7 @@ def messages(data: bytes) -> List[Message]:
                 continue
             if u[3] == EVENT_PORT and ntp_over_ptp(u[4]) is not None:
                 continue  # NTP over PTP (RFC 10030): an NTP exchange, analysed by ntpstats.pcap
-            m = decode(u[4], ts, "udp6" if lk.ethertype == 0x86DD else "udp4", u[0])
+            m = decode(u[4], ts, "udp6" if lk.ethertype == 0x86DD else "udp4", u[0], u[1])
         if m is not None:
             out.append(m)
     out.sort(key=lambda m: m.ts)
@@ -257,11 +276,95 @@ def _series(name, t, offset, extra, meta) -> TimeSeries:
                       extra={k: np.asarray(v, float) for k, v in extra.items()}, meta=meta).sorted()
 
 
+CSPTP_SDO = 0x300
+CSPTP_REQUEST, CSPTP_RESPONSE, CSPTP_STATUS = 0xFF00, 0xFF01, 0xF002
+
+
+def _tlvs(m: Message) -> Dict[int, bytes]:
+    off = _BODY.get(m.mtype, 34)
+    out: Dict[int, bytes] = {}
+    while off + 4 <= len(m.raw):
+        t, n = struct.unpack_from("!HH", m.raw, off)
+        out.setdefault(t, m.raw[off + 4: off + 4 + n])
+        off += 4 + n
+    return out
+
+
+def _ptp_ts(b: bytes) -> int:
+    hi, lo, ns = struct.unpack_from("!HII", b, 0)
+    return ((hi << 32) | lo) * NS + ns
+
+
+def _csptp(msgs: List[Message], name: str) -> List[TimeSeries]:
+    """Client-server PTP exchanges per (client, server)."""
+    requests: Dict[Tuple[str, str, int, int], Message] = {}
+    waiting: Dict[Tuple[str, str, int, int], tuple] = {}  # two-step responses waiting for their Follow_Up
+    rows: Dict[Tuple[str, str], list] = defaultdict(list)
+    status: Dict[Tuple[str, str], dict] = {}
+
+    def done(key, c1, c4, t2, cf_rq, t3, cf_rs, timescale):
+        fwd = (t2 - c1) - cf_rq
+        bwd = (c4 - t3) - cf_rs
+        rows[key].append((c4, fwd, bwd, cf_rq, cf_rs, timescale))
+
+    for m in msgs:
+        if m.sdo != CSPTP_SDO:
+            continue
+        if m.mtype == SYNC:
+            tl = _tlvs(m)
+            if CSPTP_REQUEST in tl:
+                requests[(m.src, m.dst, m.domain, m.seq)] = m
+            elif CSPTP_RESPONSE in tl and len(tl[CSPTP_RESPONSE]) >= 18:
+                req = requests.pop((m.dst, m.src, m.domain, m.seq), None)
+                if req is None:
+                    continue
+                rsp = tl[CSPTP_RESPONSE]
+                t2 = _ptp_ts(rsp[:10])
+                cf_rq = struct.unpack_from("!q", rsp, 10)[0] / 65536.0 - req.correction
+                key = (m.dst, m.src)
+                if CSPTP_STATUS in tl and len(tl[CSPTP_STATUS]) >= 18:
+                    st = tl[CSPTP_STATUS]
+                    status[key] = {"grandmaster": _port_id(st[10:18] + b"\0\0").rsplit("/", 1)[0],
+                                   "steps_removed": struct.unpack_from("!H", st, 6)[0],
+                                   "grandmaster_priority1": st[0], "grandmaster_priority2": st[5]}
+                timescale = bool(m.flags & 0x0008)
+                if m.two_step:
+                    waiting[(m.src, m.dst, m.domain, m.seq)] = (key, req.ts, m.ts, t2, cf_rq, m.correction, timescale)
+                else:
+                    done(key, req.ts, m.ts, t2, cf_rq, m.timestamp(), m.correction, timescale)
+        elif m.mtype == FOLLOW_UP:
+            w = waiting.pop((m.src, m.dst, m.domain, m.seq), None)
+            if w is not None:
+                key, c1, c4, t2, cf_rq, cf_sync, timescale = w
+                done(key, c1, c4, t2, cf_rq, m.timestamp(), cf_sync + m.correction, timescale)
+    out = []
+    for (client, server), rr in rows.items():
+        a = np.array([r[:5] for r in rr], dtype=float)
+        c4 = np.array([r[0] for r in rr], dtype=np.int64)
+        fwd, bwd = a[:, 1], a[:, 2]
+        # PTP timescale (TAI) against a UTC capture clock: the offset is about +37 s
+        raw = float(np.median((fwd - bwd) / 2)) / NS
+        utc_off = int(round(raw)) if any(r[5] for r in rr) and 30.0 < raw < 45.0 else 0
+        fwd = fwd - utc_off * NS
+        bwd = bwd + utc_off * NS
+        meta = {"protocol": "csptp", "peer": server, "server": server, "client": client,
+                "utc_offset_s": utc_off, "utc_offset_source": "inferred from exchange timing" if utc_off else "none",
+                "note": "offset of the server relative to the capture host clock", **status.get((client, server), {})}
+        out.append(_series(f"{name} [CSPTP {client} -> {server}]", c4 / 1e9, (fwd - bwd) / 2 / 1e9,
+                           {"delay": (fwd + bwd) / 1e9, "forward": fwd / 1e9, "backward": bwd / 1e9,
+                            "correction_request": a[:, 3] / 1e9, "correction_response": a[:, 4] / 1e9}, meta))
+    return out
+
+
 def parse_ptp(data: bytes, name: str = "capture") -> List[TimeSeries]:
-    """One :class:`TimeSeries` per PTP master/slave flow in a capture (possibly none)."""
-    msgs = messages(data)
-    if not msgs:
+    """One :class:`TimeSeries` per PTP master/slave flow, and per CSPTP client/server pair, in a capture."""
+    allm = messages(data)
+    if not allm:
         return []
+    csptp = _csptp(allm, name)
+    msgs = [m for m in allm if m.sdo != CSPTP_SDO]
+    if not msgs:
+        return csptp
     utc = _utc_offsets(msgs)
     syncs = _syncs(msgs)
     e2e = _e2e(msgs)
@@ -336,7 +439,7 @@ def parse_ptp(data: bytes, name: str = "capture") -> List[TimeSeries]:
                  "sequence": np.array([s.seq for s in ss]), "authenticated": np.array([s.auth for s in ss])},
                 dict(base, delay_mechanism="none",
                      note="no delay measurements in the capture: offset includes the one-way path delay")))
-    return out
+    return out + csptp
 
 
 def summary(data: bytes) -> Dict[str, object]:

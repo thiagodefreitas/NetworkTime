@@ -55,10 +55,11 @@ are as valuable as code. Look for issues labelled
   - **PTP**: linuxptp `ptp4l`, `phc2sys`, `ts2phc` output from stdout, syslog or journald
     (monotonic stamps are mapped to UTC when the journal prefix is present);
   - **packet captures** (pcap/pcapng, including nanosecond and hardware timestamps): NTP
-    exchanges, NTP over PTP (RFC 10030, with transparent-clock corrections) and **PTP flows**
-    (one-/two-step, E2E/P2P, UDP or Ethernet) are measured from the capture host's clock;
-  - **live**: chrony, ntpd/NTPsec, linuxptp (`pmc`) and facebook/time `ptpcheck`; Windows
-    `w32tm /stripchart`; Prometheus range queries (ntpd-rs, chrony_exporter);
+    exchanges, NTP over PTP (RFC 10030, with transparent-clock corrections), CSPTP
+    (client-server PTP) and **PTP flows** (one-/two-step, E2E/P2P, UDP or Ethernet) are
+    measured from the capture host's clock;
+  - **live**: chrony, ntpd/NTPsec, ntpd-rs (`ntp-ctl`), linuxptp (`pmc`) and facebook/time
+    `ptpcheck`; Windows `w32tm /stripchart`; Prometheus range queries (ntpd-rs, chrony_exporter);
   - **instrument exports** via small TOML profiles (time-interval counters, PTP testers);
   - **research and laboratory data**: CGGTTS GNSS time transfer (with common view), IGS RINEX
     clock files, BIPM Circular T (UTC − UTC(k)), RIPE Atlas NTP results and NTP Pool monitor logs;

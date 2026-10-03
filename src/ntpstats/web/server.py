@@ -557,6 +557,9 @@ def _monitor_error(server, exc):
         del STORE.monitor_log[:-50]
 
 
+LOCAL_SOURCES = ("chrony", "ntpd", "ntpd-rs", "ptp4l", "ptpcheck")
+
+
 def api_monitor_start(body):
     source = str(body.get("source", "sntp"))
     servers = [s.strip() for s in str(body.get("servers", "")).replace(",", " ").split() if s.strip()]
@@ -568,7 +571,7 @@ def api_monitor_start(body):
     api_monitor_stop({})
     with STORE.lock:
         out = body.get("log") or None
-        if source in ("chrony", "ntpd", "ptp4l", "ptpcheck"):
+        if source in LOCAL_SOURCES:
             from ..sources import NUMERIC_EXTRAS, LocalWatch
 
             cols = {k: np.array([]) for k in NUMERIC_EXTRAS[source]}
@@ -582,7 +585,7 @@ def api_monitor_start(body):
         def on_sample(r, sid=sid):
             _monitor_sample(r, sid)
 
-        if source in ("chrony", "ntpd", "ptp4l", "ptpcheck"):
+        if source in LOCAL_SOURCES:
             mon = LocalWatch(source, interval, out_path=out, on_sample=on_sample, on_error=_monitor_error)
         else:
             mon = Monitor(servers, interval, out_path=out, on_sample=on_sample, on_error=_monitor_error,

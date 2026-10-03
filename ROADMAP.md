@@ -99,7 +99,12 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ PTP exchanges in the bench: Sync and Delay_Req at their own rates, transparent clocks, `ptp-lan`/`ptp-tc` presets, and ptp4l-style and SPTP-style client models scored like every other estimator. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
 - ✅ NTP over PTP (RFC 10030, chrony 4.9) in captures, with the transparent-clock corrections applied as the RFC specifies. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
 
-### After 3.1
+### 3.2: New daemons and protocols as sources ✅
+- ✅ ntpd-rs as a live source (`ntpstats watch ntpd-rs`, `ntp-ctl` or the metrics exporter). ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+- ✅ CSPTP (client-server PTP, ntpd-rs 2.0 / statime) in captures, with transparent-clock corrections. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+- ✅ chrony 4.9: the parsers checked against the example lines of the 4.9 documentation; NTP over PTP since 3.1. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+
+### After 3.2
 New features arrive in 3.x minor releases, compatibly. Open items, most of them waiting for data
 from users:
 - Comparison with Stable32 output files and long-term logs against an independent reference ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); TimeLab `.tim` files ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)); vendor instrument profiles ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); OCP Time Card, Timebeat and chrony 4.9 logs ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). Sample files welcome.
@@ -149,3 +154,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 2.17 | OMNeT++/INET and ns-3 interop; Huygens-style and ntpd-rs-style estimators; reproducible trace benchmark; web UI overhaul ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)) |
 | 3.0 | Stable API final for 3.x (no breaking changes), production/stable metadata and support policy, JOSS paper draft, documentation refresh |
 | 3.1 | PTP exchanges, transparent clocks and ptp4l/SPTP-style clients in the bench ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)); NTP over PTP (RFC 10030) in captures ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
+| 3.2 | ntpd-rs live source, CSPTP in captures, chrony 4.9 documentation checks ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |

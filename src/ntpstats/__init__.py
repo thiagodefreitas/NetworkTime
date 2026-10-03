@@ -2,7 +2,7 @@
 # Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
 """ntpstats: NTP / network-time offset and stability analysis toolkit."""
 
-__version__ = "3.1.0"
+__version__ = "3.2.0"
 __author__ = "Thiago de Freitas"
 __url__ = "https://github.com/thiagodefreitas/NetworkTime"
 __license__ = "MIT"

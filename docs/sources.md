@@ -18,6 +18,21 @@ Recorded columns:
 Both tools report local − master, so the offsets are negated into the ntpstats convention
 (reference − local). The web UI's *Live* workspace offers the same sources.
 
+## ntpd-rs
+
+```bash
+ntpstats watch ntpd-rs -i 16 -o ntpd-rs.csv                     # runs: ntp-ctl -f prometheus status
+ntpstats watch ntpd-rs --command-override http://127.0.0.1:9975/metrics   # or its metrics exporter
+```
+
+ntpd-rs 1.x exports `ntp_source_offset_seconds` (source − local, the ntpstats convention),
+`ntp_source_uncertainty_seconds` and `ntp_source_delay_seconds` for every source. Each sample's
+offset is the inverse-variance mean over the sources, and the log keeps the number of sources,
+the best source's uncertainty and delay, and the system root delay, root dispersion and stratum.
+The 2.0 pre-releases (July 2026) reworked ntpd-rs internals and no longer export per-source
+offsets; `watch` says so instead of logging nothing. For those, analyse a packet capture (NTP,
+NTP over PTP or CSPTP, see [PTP captures](ptp.md)).
+
 ## Windows (w32tm)
 
 ```bash
@@ -36,7 +51,7 @@ timestamps.
 
 ## Prometheus (ntpd-rs, chrony_exporter, …)
 
-Anything already in Prometheus can be pulled into ntpstats: ntpd-rs metrics
+Anything already in Prometheus can be pulled into ntpstats: ntpd-rs 1.x metrics
 (`ntp_source_offset_seconds`), `chrony_exporter`, or ntpstats' own exporter.
 
 ```bash

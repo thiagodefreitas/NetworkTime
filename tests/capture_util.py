@@ -130,3 +130,43 @@ def ntp_over_ptp_frames(offsets, d_rq, d_rs, cf_rq, cf_rs, t0=1.0e6, interval=1.
         frames.append((c1, ether(client, server, 319, 319, req)))
         frames.append((c4, ether(server, client, 319, 319, resp)))
     return frames
+
+
+# --- CSPTP (client-server PTP, sdoId 0x300, as in ntpd-rs/statime)
+def ptp_ts_bytes(t_ns):
+    sec, ns = divmod(int(t_ns), 1_000_000_000)
+    return struct.pack("!HII", sec >> 32, sec & 0xFFFFFFFF, ns)
+
+
+def csptp_message(mtype, seq, flags, correction_ns=0.0, origin_ns=0, tlvs=b"", domain=0):
+    body = ptp_ts_bytes(origin_ns) + tlvs
+    length = 34 + len(body)
+    return struct.pack("!BBHBBHq4s10sHBb", 0x30 | mtype, 0x12, length, domain, 0x00, flags,
+                       int(round(correction_ns * 65536)), b"\0" * 4, b"\x02" * 10, seq, 0, 0x7F) + body
+
+
+def csptp_exchange_frames(n=4, theta=0.4e-3, tai=37, fwd=30e-6, bwd=50e-6, cf_rq=10e-6, cf_sync=20e-6, cf_fu=10e-6,
+                          two_step=True, epoch=1_790_000_000, client="192.0.2.99", server="192.0.2.10"):
+    """Client-side frames of CSPTP exchanges; times relative to ``epoch`` (pass it to :func:`pcap_bytes`)."""
+    NS = 1_000_000_000
+    frames = []
+    for i in range(n):
+        c1 = 2.0 * i
+        req = csptp_message(0, i, 0x0400, tlvs=struct.pack("!HH", 0xFF00, 4) + b"\x01\0\0\0")
+        t2 = c1 + fwd + theta
+        t3 = t2 + 20e-6
+        c4 = t3 - theta + bwd
+        to_ns = lambda t: (epoch + tai) * NS + round(t * NS)  # noqa: E731 (server timestamps on TAI)
+        rsp_tlv = struct.pack("!HH", 0xFF01, 18) + ptp_ts_bytes(to_ns(t2)) + struct.pack("!q", round(cf_rq * 1e9 * 65536))
+        status = struct.pack("!HH", 0xF002, 18) + bytes([128, 6, 0x21, 0x4E, 0x5D, 128]) + struct.pack("!Hh", 1, 0) \
+            + b"\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11"
+        flags = 0x0400 | 0x0008 | (0x0200 if two_step else 0)
+        cf_rs = cf_sync if two_step else cf_sync + cf_fu
+        rsp = csptp_message(0, i, flags, correction_ns=cf_rs * 1e9, origin_ns=0 if two_step else to_ns(t3),
+                            tlvs=rsp_tlv + status)
+        frames.append((c1, ether(client, server, 319, 319, req)))
+        frames.append((c4, ether(server, client, 319, 319, rsp)))
+        if two_step:
+            fu = csptp_message(8, i, 0x0400 | 0x0200, correction_ns=cf_fu * 1e9, origin_ns=to_ns(t3))
+            frames.append((c4 + 1e-4, ether(server, client, 320, 320, fu)))
+    return frames

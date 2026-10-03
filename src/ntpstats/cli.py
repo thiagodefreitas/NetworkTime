@@ -1030,8 +1030,12 @@ def cmd_watch(args):
     def show(d):
         if reg is not None:
             reg.observe_watch(args.daemon, d)
-        tail = (f"freq {d['frequency_ppm']:+.3f} ppm" if "frequency_ppm" in d
-                else f"path delay {format_seconds(d.get('mean_path_delay', float('nan')))}")
+        if "frequency_ppm" in d:
+            tail = f"freq {d['frequency_ppm']:+.3f} ppm"
+        elif "min_uncertainty" in d:
+            tail = f"{int(d['sources'])} sources, best ±{format_seconds(d['min_uncertainty'])}"
+        else:
+            tail = f"path delay {format_seconds(d.get('mean_path_delay', float('nan')))}"
         print(f"{_utc(d['time'])} {args.daemon:8} offset {format_seconds(d['offset']):>10}  {tail}", flush=True)
 
     def err(src, exc):
@@ -1489,9 +1493,10 @@ def build_parser() -> argparse.ArgumentParser:
     _metrics_args(s)
     s.set_defaults(func=cmd_monitor)
 
-    s = sub.add_parser("watch", help="log the local chrony, ntpd/NTPsec, ptp4l or ptpcheck (no log files needed)")
-    s.add_argument("daemon", choices=("chrony", "ntpd", "ptp4l", "ptpcheck"),
-                   help="chrony (chronyc), ntpd/NTPsec (ntpq), ptp4l (linuxptp pmc) or ptpcheck (facebook/time)")
+    s = sub.add_parser("watch", help="log the local chrony, ntpd/NTPsec, ntpd-rs, ptp4l or ptpcheck (no log files needed)")
+    s.add_argument("daemon", choices=("chrony", "ntpd", "ntpd-rs", "ptp4l", "ptpcheck"),
+                   help="chrony (chronyc), ntpd/NTPsec (ntpq), ntpd-rs (ntp-ctl, or --command-override URL of "
+                        "its metrics exporter), ptp4l (linuxptp pmc) or ptpcheck (facebook/time)")
     s.add_argument("-o", "--output", default="ntpstats-watch.csv")
     s.add_argument("-i", "--interval", type=float, default=16.0)
     s.add_argument("-n", "--count", type=int, help="stop after N samples")

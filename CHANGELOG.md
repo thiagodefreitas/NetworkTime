@@ -14,6 +14,32 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-10-03
+
+New daemons and protocols as sources ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). No breaking changes.
+
+### Added
+- **ntpd-rs as a live source**: `ntpstats watch ntpd-rs` samples `ntp-ctl -f prometheus status`,
+  or the metrics exporter's URL (`--command-override http://127.0.0.1:9975/metrics`). Each sample
+  is the inverse-variance mean of the per-source offsets ntpd-rs 1.x exports, with the number of
+  sources, the best source's uncertainty and delay, and the system root delay, dispersion and
+  stratum. The 2.0 pre-releases no longer export per-source offsets; `watch` says so. Also in the
+  web UI's *Live* workspace.
+- **CSPTP in captures**: client-server PTP (sdoId 0x300, as in ntpd-rs 2.0 and statime) is read
+  from pcap/pcapng files as one series per client/server pair. Every exchange gives all four
+  timestamps; transparent-clock corrections are removed in both directions; the PTP-timescale
+  offset is inferred; the CSPTP status TLV gives the grandmaster and steps removed. These messages
+  are no longer mistaken for master/slave flows.
+- `ntpstats.sources.parse_prometheus_text`, a reader for the Prometheus/OpenMetrics text format.
+- Tests built from the example lines of the chrony 4.9 documentation (`measurements`, `tracking`,
+  `statistics`): columns and signs match the parsers.
+
+### Changed
+- Docs: the `prom` page notes that ntpd-rs offset metrics are those of the 1.x series.
+
+### Stable API changes since 3.1.0
+- None. Code written against the stable API of an earlier release keeps working.
+
 ## [3.1.0] - 2026-10-03
 
 PTP exchanges in the research bench, and NTP over PTP in captures. No breaking changes.

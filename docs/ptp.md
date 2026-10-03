@@ -66,6 +66,27 @@ ntpstats info examples/data/ntp-over-ptp.pcap      # synthetic: two transparent 
 
 In that example the corrections bring the offset error from 10.8 µs to 2.5 ns rms.
 
+## CSPTP (client-server PTP)
+
+CSPTP is a client-server profile of PTP (sdoId 0x300) that ntpd-rs 2.0 and statime implement,
+experimentally, as `csptp` sources. The client sends a unicast Sync with a CSPTP request TLV; the
+server answers with a Sync whose response TLV carries the request's receive time and its
+correction field, and the response's transmit time follows in the Sync (one-step) or a
+Follow_Up (two-step). Each exchange therefore has all four timestamps, like NTP:
+
+```text
+forward  = t2 − c1 − cf_request        backward = c4 − t3 − cf_response
+offset   = (forward − backward) / 2    delay    = forward + backward
+```
+
+`c1` and `c4` are the capture times of the request and response, so the offset is the server's
+relative to the capture host's clock, with transparent-clock corrections removed in both
+directions as statime does. When the server works on the PTP timescale (TAI) and the capture
+clock on UTC, the UTC offset is inferred from the exchange timing (`meta["utc_offset_s"]`). A
+CSPTP status TLV, when present, gives the grandmaster identity and steps removed. CSPTP
+messages become one series per client/server pair (`meta["protocol"] == "csptp"`) and are not
+mixed into the master/slave flows above.
+
 ## Time-error metrics
 
 `ntpstats timeerror` computes the metrics used to qualify PTP clocks and packet networks, with

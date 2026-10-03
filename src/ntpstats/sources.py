@@ -17,6 +17,13 @@
   here; ``meanPathDelay`` ns; ``gmPresent``).
 * **facebook/time**: ``ptpcheck stats`` JSON (``ptp.offset_ns``, local -
   master as reported by ptp4l, negated here; ``ptp.mean_path_delay_ns``).
+* **ntpd-rs**: ``ntp-ctl -f prometheus status``, or the metrics exporter's
+  HTTP endpoint (give its URL as the command). ntpd-rs 1.x exports per-source
+  ``ntp_source_offset_seconds`` (source - local, the ntpd convention),
+  ``ntp_source_uncertainty_seconds`` and ``ntp_source_delay_seconds``; the
+  sample's offset is the inverse-variance mean over the sources, the
+  combination ntpd-rs itself applies to the sources it selects. The 2.0
+  pre-releases no longer export per-source offsets; they are reported as such.
 
 Only a subprocess is used; nothing is installed or configured. The command
 can be overridden (e.g. ``["ssh", "host", "chronyc"]``) to watch a remote host.
@@ -183,6 +190,84 @@ def sample_ptpcheck(cmd: Sequence[str] = ("ptpcheck",)) -> Dict[str, object]:
     return d
 
 
+def parse_prometheus_text(text: str) -> List[tuple]:
+    """Samples of the Prometheus/OpenMetrics text format: ``(name, labels, value)`` per line."""
+    out = []
+    for raw in text.splitlines():
+        ln = raw.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        m = _PROM_LINE.match(ln)
+        if not m:
+            continue
+        name, lab, rest = m.group(1), m.group(2) or "", m.group(3).split()
+        labels = {k: v.replace('\\"', '"').replace("\\\\", "\\") for k, v in _PROM_LABEL.findall(lab)}
+        try:
+            out.append((name, labels, float(rest[0])))
+        except (ValueError, IndexError):
+            continue
+    return out
+
+
+_PROM_LINE = re.compile(r"^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{(.*)\})?\s+(.+)$")
+_PROM_LABEL = re.compile(r'([a-zA-Z_][a-zA-Z0-9_]*)="((?:[^"\\]|\\.)*)"')
+
+
+def parse_ntpdrs_metrics(text: str) -> Dict[str, object]:
+    """One ntpd-rs observation from its Prometheus text output (``ntp-ctl -f prometheus status``)."""
+    sources: Dict[str, Dict[str, float]] = {}
+    system: Dict[str, float] = {}
+    for name, labels, value in parse_prometheus_text(text):
+        if name.startswith("ntp_source_"):
+            key = labels.get("id") or labels.get("address") or labels.get("name", "?")
+            src = sources.setdefault(key, {})
+            src[name[len("ntp_source_"):]] = value
+        elif name.startswith("ntp_system_"):
+            system[name[len("ntp_system_"):]] = value
+    if not sources and not system:
+        raise SourceError("no ntpd-rs metrics in the output (expected ntp_source_* / ntp_system_* lines)")
+    rows = [(v["offset_seconds"], v.get("uncertainty_seconds", float("nan")), v.get("delay_seconds", float("nan")))
+            for v in sources.values() if "offset_seconds" in v]
+    if not rows:
+        raise SourceError("this ntpd-rs does not export per-source offsets (the 2.0 pre-releases removed "
+                          "ntp_source_offset_seconds); use ntpd-rs 1.x, a packet capture or the Prometheus history")
+    off = [r[0] for r in rows]
+    unc = [r[1] if r[1] == r[1] and r[1] > 0 else float("nan") for r in rows]
+    if all(u == u for u in unc):
+        w = [1.0 / (u * u) for u in unc]
+        offset = sum(wi * o for wi, o in zip(w, off)) / sum(w)
+        best = min(range(len(rows)), key=lambda i: unc[i])
+    else:
+        offset = sorted(off)[len(off) // 2]
+        best = 0
+    return {
+        "offset": float(offset),
+        "sources": float(len(rows)),
+        "min_uncertainty": float(rows[best][1]),
+        "delay": float(rows[best][2]),
+        "root_delay": system.get("root_delay_seconds", float("nan")),
+        "root_dispersion": system.get("root_dispersion_seconds", float("nan")),
+        "stratum": system.get("stratum", float("nan")),
+    }
+
+
+def sample_ntpdrs(cmd: Sequence[str] = ("ntp-ctl", "-f", "prometheus", "status")) -> Dict[str, object]:
+    """Sample ntpd-rs with ``ntp-ctl``, or from its metrics exporter when ``cmd`` is one http(s) URL."""
+    if len(cmd) == 1 and str(cmd[0]).startswith(("http://", "https://")):
+        import urllib.request
+
+        try:
+            with urllib.request.urlopen(str(cmd[0]), timeout=5.0) as resp:  # noqa: S310 (scheme checked above)
+                text = resp.read().decode("utf-8", "replace")
+        except OSError as exc:
+            raise SourceError(f"{cmd[0]}: {exc}") from exc
+    else:
+        text = _run(cmd)
+    d = parse_ntpdrs_metrics(text)
+    d["time"] = time.time()
+    return d
+
+
 def prometheus_query_range(url: str, query: str, start: float, end: float, step="60",
                            timeout: float = 30.0) -> dict:
     """Run a Prometheus ``/api/v1/query_range`` request and return the JSON document."""
@@ -206,12 +291,13 @@ def prometheus_query_range(url: str, query: str, start: float, end: float, step=
 
 #: daemon -> sampler function name (resolved at call time so it can be patched/replaced)
 SAMPLERS: Dict[str, str] = {"chrony": "sample_chrony", "ntpd": "sample_ntpq", "ptp4l": "sample_pmc",
-                            "ptpcheck": "sample_ptpcheck"}
+                            "ptpcheck": "sample_ptpcheck", "ntpd-rs": "sample_ntpdrs"}
 NUMERIC_EXTRAS = {
     "chrony": ("last_offset", "rms_offset", "frequency_ppm", "skew_ppm", "root_delay", "root_dispersion", "stratum"),
     "ntpd": ("frequency_ppm", "sys_jitter", "clk_jitter", "clk_wander_ppm", "rootdelay", "rootdisp", "stratum"),
     "ptp4l": ("mean_path_delay", "master_offset", "steps_removed", "gm_present"),
     "ptpcheck": ("mean_path_delay", "steps_removed", "gm_present"),
+    "ntpd-rs": ("sources", "min_uncertainty", "delay", "root_delay", "root_dispersion", "stratum"),
 }
 
 

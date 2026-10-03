@@ -12,7 +12,7 @@ Formats are detected automatically; `-f/--format` overrides detection.
 | `chrony-statistics` | chrony `statistics.log` | estimated offset (negated) | std dev, skew |
 | `chrony-refclocks` | chrony `refclocks.log` (GNSS/PPS) | cooked offset | raw error, dispersion, PPS flag |
 | `linuxptp` | `ptp4l`, `phc2sys`, `ts2phc` (stdout, syslog, journald) | master/phc offset (negated, ns → s) | path delay, frequency, servo state |
-| `pcap` | pcap/pcapng captures of NTP (v3/v4/v5, also over PTP per RFC 10030) and PTP (v2/v2.1, UDP or Ethernet; see [PTP](ptp.md)) | NTP: from server T2/T3 and capture times; PTP: master vs capture clock | delay, stratum, version; PTP: path/link delay, one-way delays, correction |
+| `pcap` | pcap/pcapng captures of NTP (v3/v4/v5, also over PTP per RFC 10030), PTP (v2/v2.1, UDP or Ethernet) and CSPTP (client-server PTP); see [PTP](ptp.md) | NTP: from server T2/T3 and capture times; PTP: master vs capture clock | delay, stratum, version; PTP: path/link delay, one-way delays, correction |
 | `csv` | generic `unix_time,offset[,…]`, `ntpstats monitor` output | offset column | any other columns |
 | `stable32-phase` | Stable32 data file (phase in s; optional MJD timetags; not auto-detected) | chosen column (default last) | — |
 | `stable32-freq` | Stable32 data file (fractional frequency; zeros are gaps; not auto-detected) | integrated to phase | — |
