@@ -385,6 +385,8 @@ src/ntpstats/web  stdlib HTTP server + static UI (plain JS, uPlot vendored), als
 tests/            pytest suite (+ frozen reference data, API snapshot, browser tests)
 examples/         scripts, notebooks, scenarios, an example plugin and sample logs
 docs/             state of the art, live interop results, example reports, screenshots
+research/         papers (LaTeX, experiment scripts, data, PDF), e.g. the 2026 preprint
+paper/            the short JOSS software paper (draft)
 legacy/           the original 2012 GSoC code, untouched
 ```
 
@@ -394,5 +396,7 @@ MIT License. © 2012–2026 **Thiago de Freitas** ([@thiagodefreitas](https://gi
 and non-commercial use; please keep the copyright notice and credit the author (see
 [NOTICE](NOTICE)). If you use it in research, please cite it via [CITATION.cff](CITATION.cff)
 (DOI [10.5281/zenodo.23070521](https://doi.org/10.5281/zenodo.23070521), all versions).
+A preprint describing the design, validation and experiments of 3.5.0 is in
+[research/preprint-2026](research/preprint-2026/ntpstats-preprint-2026.pdf).
 The bundled uPlot is MIT-licensed © Leon Sorokin. The code under `legacy/` keeps its original
 2012 license.

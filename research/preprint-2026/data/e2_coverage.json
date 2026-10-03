@@ -1,0 +1,252 @@
+[
+ {
+  "alpha": 2,
+  "kind": "oadev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.9375,
+   0.9375,
+   0.955,
+   0.96
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.935,
+   0.9425,
+   0.9525,
+   0.9725
+  ]
+ },
+ {
+  "alpha": 2,
+  "kind": "mdev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.9375,
+   0.9325,
+   0.95,
+   0.9675
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.935,
+   0.86,
+   0.5725,
+   0.3
+  ]
+ },
+ {
+  "alpha": 1,
+  "kind": "oadev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.935,
+   0.9525,
+   0.865,
+   0.6975
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.955,
+   0.9375,
+   0.8375,
+   0.6
+  ]
+ },
+ {
+  "alpha": 1,
+  "kind": "mdev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.935,
+   0.955,
+   0.9325,
+   0.915
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.955,
+   0.8575,
+   0.515,
+   0.295
+  ]
+ },
+ {
+  "alpha": 0,
+  "kind": "oadev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.9475,
+   0.9625,
+   0.9275,
+   0.92
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.9775,
+   0.885,
+   0.605,
+   0.31
+  ]
+ },
+ {
+  "alpha": 0,
+  "kind": "mdev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.9475,
+   0.9525,
+   0.9475,
+   0.96
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.9775,
+   0.825,
+   0.52,
+   0.235
+  ]
+ },
+ {
+  "alpha": -1,
+  "kind": "oadev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.9625,
+   0.955,
+   0.96,
+   0.965
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.99,
+   0.8575,
+   0.5325,
+   0.2625
+  ]
+ },
+ {
+  "alpha": -1,
+  "kind": "mdev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.9625,
+   0.96,
+   0.9625,
+   0.9725
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.99,
+   0.8125,
+   0.51,
+   0.2575
+  ]
+ },
+ {
+  "alpha": -2,
+  "kind": "oadev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.9625,
+   0.965,
+   0.9625,
+   0.95
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.9975,
+   0.795,
+   0.5,
+   0.26
+  ]
+ },
+ {
+  "alpha": -2,
+  "kind": "mdev",
+  "m": [
+   1,
+   4,
+   16,
+   64
+  ],
+  "runs": 400,
+  "n_phase": 1025,
+  "ci": 0.95,
+  "coverage_exact_edf": [
+   0.9625,
+   0.9625,
+   0.9675,
+   0.945
+  ],
+  "coverage_dev_over_sqrt_n": [
+   0.9975,
+   0.7475,
+   0.43,
+   0.2625
+  ]
+ }
+]

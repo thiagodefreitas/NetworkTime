@@ -123,8 +123,9 @@ Checked behaviour (`tests/test_ptpsim.py`):
 
 linuxptp's default PI gains suit a single slave: at 16 Sync/s the loop bandwidth is a few tenths
 of a hertz, with some gain peaking. Cascaded, the peaks multiply. In the default 1 h simulation, 10
-hops end at about 50 ns of max|TE| but 20 hops at about 600 ns. A narrower, well-damped loop of
-about 0.05 Hz keeps 20 hops near 25 ns once locked. This is the range the G.8273.2 T-BC
+hops end at about 60 ns of max|TE| but 20 hops at about 700 ns. A narrower, well-damped loop of
+about 0.05 Hz keeps 20 hops below 10 ns once locked (three seeds; see the
+[2026 preprint](https://github.com/thiagodefreitas/NetworkTime/tree/master/research/preprint-2026)). This is the range the G.8273.2 T-BC
 requirements set for clocks meant to be chained.
 
 ```bash
