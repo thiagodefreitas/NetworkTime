@@ -35,7 +35,7 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ NIST SP 1065 test suites reproduced to 7 digits, MTOT bias correction, TTOT. ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28), first part)
 - ✅ Stable32 files, `ntpstats convert`, allantools-compatible API. ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33); TimeLab `.tim` waits for sample files)
 - ✅ Prometheus exporter, Grafana dashboard, alert rules, compose stack. ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36), first part)
-- ✅ Code of conduct, security policy, issue forms, GHCR image. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38), first part; Discussions and Zenodo need the maintainer to switch them on)
+- ✅ Code of conduct, security policy, issue forms, GHCR image. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38), first part)
 
 ## Releases
 
@@ -91,16 +91,19 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 ### 3.0: API final ✅
 - ✅ The stable API (`ntpstats.api`) is final for the whole 3.x series; the 3.0 changelog lists every change since 2.15, generated from the frozen surface (`docs/api_changes.py`). Nothing was deprecated, so nothing is removed: code written for 2.15 or later runs unchanged. ([#32](https://github.com/thiagodefreitas/NetworkTime/issues/32))
 - ✅ Production/stable package metadata, a supported-versions policy, and a JOSS paper draft (`paper/`). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
+- ✅ Citable releases on Zenodo, concept DOI [10.5281/zenodo.23070521](https://doi.org/10.5281/zenodo.23070521), with the interop dataset; ORCID in `CITATION.cff`. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
+- ✅ [GitHub Discussions](https://github.com/thiagodefreitas/NetworkTime/discussions) for questions, results and ideas. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
+- ✅ conda-forge recipe (`packaging/conda-forge/`), built and tested in CI and submitted to conda-forge ([staged-recipes#35041](https://github.com/conda-forge/staged-recipes/pull/35041)). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 
 ### After 3.0
 New features arrive in 3.x minor releases, compatibly. Open items, most of them waiting for data
 from users:
 - An SPTP-style client and exchange-level PTP in the bench (follow-up of [#29](https://github.com/thiagodefreitas/NetworkTime/issues/29)).
 - Comparison with Stable32 output files and long-term logs against an independent reference ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); TimeLab `.tim` files ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)); vendor instrument profiles ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); OCP Time Card, Timebeat and chrony 4.9 logs ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). Sample files welcome.
-- Community and citability ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)): JOSS submission, Zenodo DOIs, Discussions, a conda-forge package and more gallery entries.
+- Community and citability ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)): conda-forge review and feedstock, JOSS submission (the paper follows the current JOSS structure; about April 2027, once development spans the required period and evidence of use is gathered) and more gallery entries.
 
 ### Continuous: community and citability
-JOSS paper, Zenodo DOIs, Discussions, contributor on-ramp, conda-forge and distribution packages,
+JOSS paper, contributor on-ramp, distribution packages (Debian, Fedora, Homebrew),
 a reproduction gallery, and outreach (FOSDEM, the IETF hackathon, ITSF, ATIS WSTS, PTTI/ION,
 IFCS-EFTF, OCP TAP, time-nuts). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 

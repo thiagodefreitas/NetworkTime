@@ -17,7 +17,9 @@ local web UI, or [in your browser](https://thiagodefreitas.github.io/NetworkTime
 without installing anything.
 
 📖 **Documentation:** [thiagodefreitas.github.io/NetworkTime](https://thiagodefreitas.github.io/NetworkTime/)
-· [Wiki](https://github.com/thiagodefreitas/NetworkTime/wiki) · `pip install ntpstats`
+· [Wiki](https://github.com/thiagodefreitas/NetworkTime/wiki)
+· [Discussions](https://github.com/thiagodefreitas/NetworkTime/discussions)
+· [DOI 10.5281/zenodo.23070521](https://doi.org/10.5281/zenodo.23070521) · `pip install ntpstats`
 
 It started as a Google Summer of Code 2012 project for the NTP Project (kept unchanged in
 [`legacy/`](legacy/)). Version 2 was a complete rewrite, and since **3.0** the Python API is final
@@ -162,6 +164,7 @@ pip install "ntpstats[plot]"        # + matplotlib figures
 pip install "ntpstats[nts]"         # + NTS client (pyOpenSSL, cryptography)
 pip install "ntpstats[data]"        # + pandas, xarray, Parquet
 pip install git+https://github.com/thiagodefreitas/NetworkTime.git   # latest master
+conda install -c conda-forge ntpstats   # once the conda-forge review is merged
 # from a checkout, for development:
 pip install -e ".[test,plot,nts,docs]" && pytest
 ```
@@ -374,6 +377,7 @@ legacy/           the original 2012 GSoC code, untouched
 
 MIT License. © 2012–2026 **Thiago de Freitas** ([@thiagodefreitas](https://github.com/thiagodefreitas)). Free for commercial
 and non-commercial use; please keep the copyright notice and credit the author (see
-[NOTICE](NOTICE)). If you use it in research, please cite it via [CITATION.cff](CITATION.cff).
+[NOTICE](NOTICE)). If you use it in research, please cite it via [CITATION.cff](CITATION.cff)
+(DOI [10.5281/zenodo.23070521](https://doi.org/10.5281/zenodo.23070521), all versions).
 The bundled uPlot is MIT-licensed © Leon Sorokin. The code under `legacy/` keeps its original
 2012 license.
