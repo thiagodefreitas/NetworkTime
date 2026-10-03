@@ -400,7 +400,7 @@ MIT License. © 2012–2026 **Thiago de Freitas** ([@thiagodefreitas](https://gi
 and non-commercial use; please keep the copyright notice and credit the author (see
 [NOTICE](NOTICE)). If you use it in research, please cite it via [CITATION.cff](CITATION.cff)
 (DOI [10.5281/zenodo.23070521](https://doi.org/10.5281/zenodo.23070521), all versions).
-A preprint describing the design, validation and experiments of 3.5.0 is in
+A preprint describing the design, validation and experiments of 3.6.0 is in
 [research/preprint-2026](research/preprint-2026/ntpstats-preprint-2026.pdf).
 The bundled uPlot is MIT-licensed © Leon Sorokin. The code under `legacy/` keeps its original
 2012 license.

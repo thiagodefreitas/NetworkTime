@@ -37,7 +37,7 @@
 \small Independent researcher\\
 \small ORCID \href{https://orcid.org/0009-0006-7749-1401}{0009-0006-7749-1401}\quad
 GitHub \href{https://github.com/thiagodefreitas}{@thiagodefreitas}}
-\date{Preprint, 3 October 2026\\[2pt]\small Software version 3.5.0, \href{https://doi.org/10.5281/zenodo.23070521}{doi:10.5281/zenodo.23070521}}
+\date{Preprint, 3 October 2026\\[2pt]\small Software version 3.6.0, \href{https://doi.org/10.5281/zenodo.23070521}{doi:10.5281/zenodo.23070521}}
 
 \begin{document}
 \maketitle
@@ -58,8 +58,9 @@ of ITU-T G.8260, power-law noise fits, N-cornered-hat separation and holdover pr
 bench scores clock-synchronisation estimators against simulated clocks with known truth, including
 replayed network delays, PTP exchanges and chains of boundary clocks. We report the validation of the
 statistics against the published NIST test suites (largest relative deviation $2.8\times10^{-7}$ at seven
-printed digits), a Monte Carlo study of interval coverage, a benchmark of thirteen reference
-estimators, a study of time-error accumulation in boundary-clock chains, and a re-examination, on its
+printed digits), a Monte Carlo study of interval coverage, a benchmark of seventeen reference
+estimators, among them closed-loop models of ntpd's clock discipline and of the NIST time servers'
+algorithms, a study of time-error accumulation in boundary-clock chains, and a re-examination, on its
 original data, of the 2012 thesis in which the toolkit began. All results are reproducible from seeded
 scripts.
 \end{abstract}
@@ -97,7 +98,7 @@ one-off evaluation code, so their numbers rarely share definitions or test condi
 \ntp{} addresses this gap. It began in 2012 as a Google Summer of Code project for the NTP Project of
 the Network Time Foundation and as the software of the author's undergraduate thesis
 \citep{araujo2012tcc}, and was rewritten from 2026 as a validation, evaluation and study toolkit.
-This paper describes the design of version 3.5.0 and reports its validation and a set of experiments
+This paper describes the design of version 3.6.0 and reports its validation and a set of experiments
 that the toolkit makes reproducible. The contributions are:
 \begin{enumerate}[label=(\roman*)]
 \item a data model and input layer that read 26 built-in formats, from daemon logs and packet captures
@@ -109,7 +110,7 @@ that the toolkit makes reproducible. The contributions are:
   time-error metrics, power-law noise fitting, N-cornered-hat separation and holdover prediction
   (\cref{sec:stats});
 \item a research bench that scores synchronisation estimators against simulated clocks with known
-  truth, including replayed network delays, exchange-level PTP and boundary-clock chains, and thirteen
+  truth, including replayed network delays, exchange-level PTP and boundary-clock chains, and seventeen
   reference estimators (\cref{sec:bench});
 \item a validation against published reference values and a Monte Carlo study of interval coverage
   (\cref{sec:validation});
@@ -234,7 +235,7 @@ time error against simulation time.
 
 \begin{table}[t]
 \centering\small
-\caption{Input formats of \ntp{} 3.5.0, grouped by origin. All are detected from content except
+\caption{Input formats of \ntp{} 3.6.0, grouped by origin. All are detected from content except
 Stable32 files and bare TICC interval readings.}\label{tab:inputs}
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
@@ -305,7 +306,11 @@ Holdover prediction answers how long a clock stays within a limit if its referen
 clock is assumed to continue on the frequency (and optionally the drift) fitted over a window before the
 loss; the variance of the resulting time interval error is computed exactly for the fitted power-law
 model, including the error of the fitted frequency and drift, and the bootstrap models of the noise fit
-are mixed so that the uncertainty of the model itself enters the envelope.
+are mixed so that the uncertainty of the model itself enters the envelope. The same model answers
+how often a client must poll: between polls a client runs on the phase and frequency it has estimated,
+so its error just before the next poll is that of a holdover of one poll interval. For each candidate
+interval the log is decimated to it and the holdover error is predicted, so that the fewer measurements
+of a longer interval count against it; the result is the longest interval that meets a target.
 
 \subsection{Network and time-error metrics}
 
@@ -368,11 +373,20 @@ time-stamp noise, and a fraction of the queueing corrected by transparent clocks
 
 \subsection{Reference estimators}
 
-Thirteen estimators are registered (\cref{tab:estimators}). They are written from the published
+Seventeen estimators are registered (\cref{tab:estimators}). They are written from the published
 algorithms, not from the daemons' code: \texttt{ptp4l}, for example, models the linuxptp slave with its
 default moving-median delay filter of ten samples and the PI servo with linuxptp's default gains for
 hardware time stamping, and \texttt{sptp} models the approach of Meta's Simple PTP client
-\citep{fbsptp2024}. Third-party estimators are added by subclassing one class or through a Python entry
+\citep{fbsptp2024}. The clock-discipline models steer a clock in closed loop the same way. \texttt{ntpd}
+follows the reference implementation's loop filter \citep{ntploopfilter} with its time constant fixed at
+the measurement interval, as with equal minimum and maximum poll; \texttt{ntpd-rfc} replaces its
+constants with those printed in the RFC~5905 appendix. \texttt{lockclock} follows section~6 of
+\citep{levine2020}: a five-point majority vote per cycle, a time-adjustment mode while the residual
+exceeds $3\sigma$, then a frequency estimate $y = \delta x/T$ averaged as $\bar y = (y + k\bar y)/(k+1)$
+over cycles of about 1000~s with $k = 1$, the network configuration of the paper.
+\texttt{levine-kalman} corrects only the fraction $\sigma_o^2/(\sigma_o^2 + \sigma_t^2)$ of each residual
+\citep{levine2011kalman}, with $\sigma_o^2$ estimated online because the bench has no separate
+reference to calibrate it against. Third-party estimators are added by subclassing one class or through a Python entry
 point.
 
 \begin{table}[t]
@@ -394,6 +408,10 @@ Name & Algorithm \\
 \texttt{rfc5905} (multi) & clock filter, then selection, clustering and combining of RFC~5905 \citep{rfc5905,marzullo1985} \\
 \texttt{median} (multi) & median of the clock-filter outputs of all servers \\
 \texttt{kalman-combine} (multi) & per-source Kalman filters, interval intersection, inverse-variance mean \\
+\texttt{ntpd} & ntpd 4.2.8's clock discipline in closed loop \citep{ntploopfilter}: clock filter, state machine, hybrid PLL/FLL \\
+\texttt{ntpd-rfc} & the same with the constants and gain formulas of the RFC~5905 appendix \citep{rfc5905} \\
+\texttt{lockclock} & Levine's frequency-lock loop of the NIST time servers \citep{levine2020} \\
+\texttt{levine-kalman} & the same with Levine's scalar Kalman time estimate \citep{levine2011kalman} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -431,7 +449,7 @@ of the signed intervals gives an authenticated, if coarse, interval for the loca
 
 \Cref{fig:architecture} shows the structure. Parsers, estimators, event detectors, masks and
 instrument profiles are kept in registries that third-party packages extend through Python entry
-points. The public interface is one flat module whose surface (87 names and their signatures) is
+points. The public interface is one flat module whose surface (91 names and their signatures) is
 recorded in a snapshot that the test suite compares on every change; names are removed only after a
 deprecation period, so that scripts written for a study keep working across releases. Logs larger than
 256~MB are read in blocks with bounded memory.
@@ -439,13 +457,13 @@ deprecation period, so that scripts written for a study keep working across rele
 The only runtime dependency is NumPy \citep{harris2020}. This keeps installation simple, and it lets the
 same code run in a web browser through Pyodide \citep{pyodide}, at the cost of implementing some
 numerical routines (the $\chi^2$ quantiles, for instance) that a larger scientific stack would provide.
-The command-line interface has 31 commands. A local web interface written in plain JavaScript, with
+The command-line interface has 32 commands. A local web interface written in plain JavaScript, with
 one bundled charting library \citep{uplot} and no build step, is served by the Python standard library;
 the in-browser edition runs the same interface without a server. For operations, a monitor exports
 OpenMetrics and OpenTelemetry, and a GitHub Action and pytest helpers turn time-error, stability and
 audit checks into test assertions.
 
-The package is MIT-licensed. Version 3.5.0 has about 15{,}000 lines of Python in 52 modules and 491
+The package is MIT-licensed. Version 3.6.0 has about 15{,}700 lines of Python in 54 modules and 508
 automated tests, run on Python 3.9, 3.11 and 3.13 together with static type checking, linting, the
 execution of the example notebooks and browser tests of the web interface. None of the tests needs
 network access; a separate weekly workflow queries public servers (\cref{sec:interop}).
@@ -571,7 +589,7 @@ $\tau_0 = 32$~s, against \ntp{} OADEV with the median interval, gaps left open a
 \section{Experiments}\label{sec:experiments}
 
 All results in this section are produced by \texttt{experiments.py} and \texttt{make\_tables.py},
-published with this paper, from \ntp{} 3.5.0 with fixed seeds.
+published with this paper, from \ntp{} 3.6.0 with fixed seeds.
 
 \subsection{Estimators on simulated NTP networks}
 
@@ -608,6 +626,19 @@ at an error of about 2\ms{}, half of the 4\ms{} one-way step: the median error b
 averaged over five seeds, is 2.00\ms{} for the clock filter, 1.99\ms{} for the hull and between 1.71
 and 1.92\ms{} for the others. This is the asymmetry limit of \cref{eq:ntp} made visible: the error is in
 the path, and no two-way estimator can see it.
+
+The closed-loop clock disciplines sit between the raw offsets and the delay-aware estimators. The
+model of ntpd's loop halves the raw error on \texttt{lan} (11.4\us{} against 26.1\us), \texttt{internet}
+(0.71\ms) and \texttt{falseticker}, with a large spread between seeds that comes from its start without a
+drift file; \texttt{lockclock} and its Kalman variant reduce the raw error by 25 to 60\% on the
+wide-area presets, but on \texttt{lan} their first 1000~s cycles dominate the RMS. The Kalman variant improves on \texttt{lockclock} on
+\texttt{internet} and \texttt{route-change} and not on \texttt{congested}; Levine reported a factor of two on
+noisy telephone links with $\sigma_o$ calibrated separately. None of the loops is as accurate as the regression or hull estimators on the same exchanges. The variant with the constants of the RFC~5905
+appendix is the clearest result: it is worse than the raw offsets on every preset, by factors from
+5 (\texttt{congested}) to more than 400 (\texttt{lan}). The appendix slews the phase by $\theta/(\mathrm{PLL}\,\min(2^{\mathrm{poll}}, 1500\,\mathrm{s}))$
+per second with $\mathrm{PLL} = 65{,}536$, a time constant of about 48~days at poll 6, against 17~minutes
+with the gain of 16 used in ntpd; a 10\ms{} phase step of the reference is still 9.9\ms{} off after
+10~hours. Implementations follow ntpd, but the appendix code, taken literally, barely disciplines a clock.
 
 The \texttt{falseticker} scenario has four servers: one with a constant 40\ms{} error and one that steps
 by 100\ms{} after 12~h, both larger than the root distance of about 10\ms. \Cref{tab:falseticker} shows
@@ -769,8 +800,8 @@ so that the fewer measurements of a longer interval count against it. For this c
 network dominates throughout. The thesis's control-theory chapters hold up: NTP needs a type II loop,
 and at NTP's ratio of loop time constant to update interval (about 32) forward Euler, backward Euler and
 Tustin discretisations place the closed-loop poles within $5\times10^{-4}$ of the continuous system's,
-so the choice among them does not matter. Run against truth with a model of ntpd's discipline
-(below), a 10\ms{} phase step is absorbed to below 1\ms{} within 35~minutes at poll 64~s, and a
+so the choice among them does not matter. Run against truth with the model of ntpd's discipline
+(\cref{sec:bench}), a 10\ms{} phase step is absorbed to below 1\ms{} within 35~minutes at poll 64~s, and a
 10~ppm frequency step is removed completely, as a type II loop must, but only after about 10~hours.
 
 \begin{table}[t]
@@ -791,7 +822,7 @@ Estimator & RMS error (\micro s) & OADEV of the estimate, 32~s \\
 
 On one core of the machine used for this paper (x86-64, Python 3.13, NumPy 2.5), OADEV, MDEV, HDEV
 and TOTDEV of a record of $10^6$ phase points at octave-spaced averaging times, each with noise
-identification and EDF-based intervals, took between 1.0 and 1.4~s. The complete experiment script
+identification and EDF-based intervals, took between 0.8 and 1.3~s. The complete experiment script
 runs in about ten minutes.
 
 \section{Discussion}\label{sec:discussion}
@@ -823,17 +854,6 @@ the seeds are open, a claim that an algorithm improves on another can be checked
 author's own 2012 thesis (\cref{sec:thesis}) is a case in point: its central claim could not be checked
 when it was made, and is checkable now.
 
-\paragraph{Since this version.} Version 3.6 adds the three items the thesis left open. The bench now
-models ntpd's clock discipline in closed loop, written from the reference implementation
-\citep{ntploopfilter}: clock filter, state machine and hybrid PLL/FLL. A variant uses the constants of
-the RFC~5905 appendix \citep{rfc5905}, whose PLL gain of 65{,}536 gives a phase time constant of about
-48~days at poll 6 against 17~minutes with ntpd's gain of 16; taken literally, the appendix code barely
-disciplines a clock (a 10\ms{} phase step is still 9.9\ms{} off after 10~hours). Levine's NIST
-frequency-lock loop \citep{levine2020} and its scalar Kalman variant \citep{levine2011kalman} are
-reference estimators, and \texttt{ntpstats poll} gives the poll-interval advice described above. On the
-bench's presets, all of these closed loops are less accurate than the chrony-style regression and the
-Huygens-style hull estimators on the same exchanges.
-
 \section{Availability and reproducibility}\label{sec:availability}
 
 \ntp{} is available under the MIT licence from PyPI (\texttt{pip install ntpstats}), with source, documentation and issue tracker at
@@ -842,7 +862,7 @@ Huygens-style hull estimators on the same exchanges.
 \citep{ntpstats}. The \LaTeX{} source of this paper, the experiment script, the generated data and the
 figures are in the directory \texttt{research/preprint-2026} of the repository. To reproduce every number:
 \begin{verbatim}
-pip install ntpstats==3.5.0 matplotlib    # 3.6.0 for research/thesis-2012/replicate.py
+pip install ntpstats==3.6.0 matplotlib
 python research/preprint-2026/experiments.py
 python research/thesis-2012/replicate.py
 python research/preprint-2026/make_tables.py

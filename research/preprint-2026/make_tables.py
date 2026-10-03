@@ -72,7 +72,8 @@ def nist():
     return worst
 
 
-SINGLE = ["raw", "mindelay", "kalman", "kalman-dw", "rts-dw", "regression", "feedforward", "hull", "ptp4l", "sptp"]
+SINGLE = ["raw", "mindelay", "kalman", "kalman-dw", "rts-dw", "regression", "feedforward", "hull", "ptp4l", "sptp",
+          "ntpd", "ntpd-rfc", "lockclock", "levine-kalman"]
 MULTI = ["median", "rfc5905", "kalman-combine"]
 
 
