@@ -2,6 +2,13 @@
 
 *Author: Thiago de Freitas — reviewed 30 September 2026. Where this leads next: [ROADMAP](https://github.com/thiagodefreitas/NetworkTime/blob/master/ROADMAP.md).*
 
+ntpstats began as the software of the author's undergraduate thesis at the Universidade Federal de
+Campina Grande, written during two Google Summer of Code projects for the NTP Project (T. F. O.
+Araújo, *Modelagem e análise de relógios locais para otimização de sincronismo horário em rede*,
+2012, <https://dspace.sti.ufcg.edu.br/handle/riufcg/18226>). What the thesis got right, what could be
+reproduced and what is done better now is assessed in
+[research/thesis-2012](https://github.com/thiagodefreitas/NetworkTime/tree/master/research/thesis-2012).
+
 This note answers three questions: **is the 2012 approach still applicable, how is network
 time measured and analysed today, and what had to change?**
 
@@ -78,8 +85,15 @@ The original code is preserved unchanged in [`legacy/`](https://github.com/thiag
 6. **Vendored ntplib 0.1.9** put the local clock in the transmit timestamp (a privacy leak) and did
    not verify the origin timestamp, handle KoD packets, or handle the 2036 era.
 7. **Not runnable today**: Python 2 syntax, PySide 1 / Qt 4, and removed matplotlib APIs.
+8. **Smoothing stage returned a second derivative** (found in 2026 while revisiting the thesis).
+   `savitzky.py` defaults to `deriv=2`, and `estimators.py` built the 39-sample, 5th-order filter
+   without that argument, so the "smoothed" offsets fed to the Kalman filters were the second
+   derivative of the offsets. The Kalman filters also used the measurement matrix H = [1, τ]
+   instead of [1, 0] and fixed noise constants.
 
-Every item above is addressed in v2, and items 1–3 and 6 are covered by regression tests.
+Every item above is addressed in v2, and items 1–3 and 6 are covered by regression tests. Item 8 is
+quantified in [research/thesis-2012](https://github.com/thiagodefreitas/NetworkTime/tree/master/research/thesis-2012):
+the Savitzky-Golay stage is not carried over, and the Kalman filters of ntpstats observe the phase.
 
 ## Sources
 

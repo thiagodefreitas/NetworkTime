@@ -141,6 +141,6 @@ validated; the author confirms responsibility for the submitted work. -->
 # Acknowledgements
 
 `ntpstats` began as a Google Summer of Code 2012 project for the NTP Project of the Network Time
-Foundation.
+Foundation and as the software of the author's undergraduate thesis [@araujo2012].
 
 # References

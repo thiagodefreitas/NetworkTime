@@ -140,7 +140,26 @@ def legacy():
           f"% ntpstats tau={n['tau']} oadev={n['oadev']} lo={n['lo']} hi={n['hi']} alpha={n['alpha']}\n")
 
 
+def thesis():
+    """Rows of the 2012-thesis comparison (research/thesis-2012/replicate.py writes the data)."""
+    with open(os.path.join(HERE, "..", "thesis-2012", "data", "r3_truth.json")) as fh:
+        d = json.load(fh)
+    rows = [("raw", "raw offsets"),
+            ("SG 5/39 centred (offline)", "Savitzky--Golay 5/39, centred (offline)"),
+            ("2012 Kalman", "2012 Kalman filter"),
+            ("SG centred + 2012 Kalman", "centred Savitzky--Golay + 2012 Kalman (design)"),
+            ("SG as built (deriv=2) + 2012 Kalman", "as built (\\texttt{deriv=2}) + 2012 Kalman"),
+            ("kalman-dw", "\\texttt{kalman-dw}"), ("regression", "\\texttt{regression}"), ("hull", "\\texttt{hull}")]
+    lines = []
+    for key, label in rows:
+        e = d["estimators"][key]
+        m, x = f"{e['oadev32']:.1e}".split("e")
+        lines.append(f"{label} & {sig(e['rms'] * 1e6)} & ${m}\\times10^{{{int(x)}}}$ \\\\")
+    write("thesis.tex", "\n".join(lines) + "\n")
+
+
 if __name__ == "__main__":
+    thesis()
     print("NIST worst", nist())
     bench()
     chains()

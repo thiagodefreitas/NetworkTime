@@ -117,6 +117,16 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ gpsd PPS/TOFF, recorded and live, with qErr for the sawtooth correction. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
 - ✅ TAPR TICC output, all modes.
 
+### 3.6: The 2012 thesis, finished ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40))
+The undergraduate thesis in which ntpstats began ([UFCG, 2012](https://dspace.sti.ufcg.edu.br/handle/riufcg/18226))
+is assessed, with its experiments re-run against truth and on the original 2012 data, in
+[research/thesis-2012](research/thesis-2012/). What it left open:
+- the RFC 5905 hybrid PLL/FLL clock discipline as a model in the bench, so the thesis's step and ramp
+  experiments run against truth;
+- Levine's NIST algorithms (1995, 1999) as reference estimators;
+- a poll-interval advisor: the longest poll interval that meets an accuracy target, from the noise
+  fit and the holdover model (the thesis's first objective).
+
 ### After 3.5
 New features arrive in 3.x minor releases, compatibly. Open items, most of them waiting for data
 from users:

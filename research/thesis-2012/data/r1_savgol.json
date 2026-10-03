@@ -1,0 +1,12 @@
+{
+ "test_signal": "a + b k + c k^2 with c = 5e-5",
+ "as_built_output_mid": [
+  9.999999999858996e-05,
+  9.999999999953086e-05
+ ],
+ "expected_second_derivative": 0.0001,
+ "intended_max_abs_error_mid": 1.2967404927621828e-13,
+ "real_2012_input_rms_ms": 16.380716096476274,
+ "real_2012_as_built_rms_ms": 0.1274220502288141,
+ "real_2012_intended_rms_ms": 11.843508169024554
+}

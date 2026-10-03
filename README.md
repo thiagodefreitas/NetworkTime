@@ -385,9 +385,9 @@ src/ntpstats/web  stdlib HTTP server + static UI (plain JS, uPlot vendored), als
 tests/            pytest suite (+ frozen reference data, API snapshot, browser tests)
 examples/         scripts, notebooks, scenarios, an example plugin and sample logs
 docs/             state of the art, live interop results, example reports, screenshots
-research/         papers (LaTeX, experiment scripts, data, PDF), e.g. the 2026 preprint
+research/         papers (LaTeX, experiment scripts, data, PDF): the 2026 preprint, the 2012 thesis revisited
 paper/            the short JOSS software paper (draft)
-legacy/           the original 2012 GSoC code, untouched
+legacy/           the original 2012 GSoC code and data of the 2012 thesis, untouched
 ```
 
 ## License and citation

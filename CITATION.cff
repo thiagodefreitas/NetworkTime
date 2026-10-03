@@ -19,3 +19,20 @@ keywords:
   - Allan deviation
   - time transfer
   - clock synchronization
+references:
+  - type: thesis
+    thesis-type: "Trabalho de Conclusão de Curso (B.Sc. Electrical Engineering)"
+    title: "Modelagem e análise de relógios locais para otimização de sincronismo horário em rede"
+    authors:
+      - family-names: "Araújo"
+        given-names: "Thiago de Freitas Oliveira"
+    institution:
+      name: "Universidade Federal de Campina Grande"
+      city: "Campina Grande"
+      country: "BR"
+    year: 2012
+    date-published: 2012-12-20
+    languages:
+      - por
+    url: "https://dspace.sti.ufcg.edu.br/handle/riufcg/18226"
+    notes: "The undergraduate thesis in which ntpstats began; assessed in research/thesis-2012."
