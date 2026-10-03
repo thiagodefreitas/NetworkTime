@@ -137,6 +137,7 @@ def main():
     with open(os.path.join(OUT, "ntp-capture.pcap"), "wb") as fh:
         fh.write(pcap_bytes(frames, nano=True))
     ntp_over_ptp_capture()
+    ubx_timing_example()
     print(f"wrote example logs to {OUT}")
 
 
@@ -164,8 +165,48 @@ def ntp_over_ptp_capture():
         fh.write(pcap_bytes(frames, nano=True, epoch=1_790_000_000))
 
 
+def ubx_timing_example():
+    """A u-blox receiver's UBX log and a time-interval counter measuring its PPS against an OCXO (30 min).
+
+    The receiver places its pulse on edges of an 8 ns internal clock whose frequency wanders around +270 ns/s
+    against GNSS time, so the PPS carries a quantization sawtooth of +/-4 ns that TIM-TP's qErr predicts
+    (to 30 ps). GNSS time itself has 1.2 ns of white noise and a slow wander; the OCXO drifts 30 ns per
+    1000 s. UBX frames are mixed with NMEA sentences, as receivers write them. Deterministic (seed 2026).
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, "tests"))
+    from ubx_util import gps_week_tow, nav_clock, nav_timeutc, tim_tp
+
+    rng = np.random.default_rng(2026)
+    n, t0, q = 1800, 1_790_000_000, 8e-9
+    k = np.arange(n + 1)
+    freq = 270e-9 + np.cumsum(rng.normal(0, 0.02e-9, n + 1))  # receiver clock vs GNSS, s/s
+    phase = np.cumsum(freq)
+    saw = np.mod(phase, q) - q / 2  # where the pulse lands relative to the ideal second
+    gnss = rng.normal(0, 1.2e-9, n + 1) + np.cumsum(rng.normal(0, 0.05e-9, n + 1))
+    ocxo = 30e-12 * k + np.cumsum(np.cumsum(rng.normal(0, 2e-12, n + 1)))
+    tic = gnss + saw - ocxo + rng.normal(0, 20e-12, n + 1)
+    clkb = 5 + np.cumsum(rng.normal(0, 0.3, n + 1))  # receiver clock bias as the receiver steers it, ns
+    ubx = bytearray()
+    for i in range(n):
+        t = t0 + i
+        _, tow = gps_week_tow(t)
+        itow = int(round(tow * 1000))
+        ubx += nav_clock(itow, clkb[i], 1e9 * freq[i], tacc_ns=4, facc_ps_s=50)
+        ubx += nav_timeutc(itow, t, tacc_ns=6)
+        ubx += b"$GNZDA,%02d%02d%02d.00,21,09,2026,00,00*00\r\n" % ((t // 3600) % 24, (t // 60) % 60, t % 60)
+        ubx += tim_tp(t + 1, qerr_ps=-1e12 * saw[i + 1] + rng.normal(0, 30))
+    with open(os.path.join(OUT, "ubx-timing.ubx"), "wb") as fh:
+        fh.write(bytes(ubx))
+    with open(os.path.join(OUT, "pps-tic.csv"), "w", encoding="utf-8") as fh:
+        fh.write("unix_time,offset\n")
+        for i in range(1, n + 1):
+            fh.write(f"{t0 + i:.3f},{tic[i]:.4e}\n")
+
+
 if __name__ == "__main__":
     if sys.argv[1:] == ["ntp-over-ptp"]:
         ntp_over_ptp_capture()
+    elif sys.argv[1:] == ["ubx"]:
+        ubx_timing_example()
     else:
         main()

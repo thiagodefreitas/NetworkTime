@@ -80,6 +80,7 @@ nav:
       - masks: api/masks.md
       - report: api/report.md
       - ptp: api/ptp.md
+      - ubx: api/ubx.md
       - timeerror: api/timeerror.md
       - sources: api/sources.md
       - bounds: api/bounds.md

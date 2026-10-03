@@ -40,6 +40,37 @@ ntpstats stability ab.csv -k tdev,mdev
 - **All in view** differences the per-epoch means.
 - Line checksums of each file are verified; failing lines are skipped and counted.
 
+## GNSS timing receivers (u-blox UBX)
+
+A raw u-blox receiver log (binary UBX frames, possibly mixed with NMEA sentences) is read directly
+(format `ubx`, detected automatically). Three messages are used, with the layouts of the u-blox
+interface description:
+
+| Message | Series and columns |
+|---|---|
+| `UBX-NAV-CLOCK` | receiver clock bias as reported (`clkB`), with `clock_drift`, `time_accuracy` (tAcc), `freq_accuracy` (fAcc) |
+| `UBX-NAV-TIMEUTC` | the UTC time of each navigation epoch (time stamps), `utc_accuracy` |
+| `UBX-TIM-TP` | the quantization error `qErr` of each time pulse, at the pulse time |
+
+Without NAV-TIMEUTC, times come from TIM-TP's GPS week with GPS − UTC = 18 s.
+
+### Removing the PPS sawtooth
+
+The receiver can only start its PPS on an edge of its internal clock, so each pulse is off by up
+to half a clock period, drifting in a sawtooth; `qErr` predicts it. `ntpstats sawtooth` pairs each
+time-interval-counter reading of the PPS with the `qErr` of that pulse and removes it:
+
+```bash
+ntpstats sawtooth examples/data/pps-tic.csv examples/data/ubx-timing.ubx -o corrected.csv
+# 1800 PPS samples paired with qErr, sign +1 (data (smaller sample-to-sample variance))
+#    TDEV  τ=1s 2.51 ns -> 1.16 ns  τ=10s 592 ps -> 378 ps  ...
+```
+
+u-blox does not state the sign with which `qErr` applies; ntpstats tries both and keeps the one that
+removes the sawtooth (the smaller sample-to-sample variance), and reports it. Fix it with
+`--sign +1` or `--sign -1` once it is known for a receiver and counter. The [sawtooth
+notebook](notebooks.md) walks through the example.
+
 ## Clock products (IGS)
 
 ```bash

@@ -28,6 +28,9 @@ def test_measurements_example_line(tmp_path):
     assert s.extra["delay"][0] == pytest.approx(2.296e-01)
     assert s.extra["root_delay"][0] == pytest.approx(1.615e-01)
     assert s.meta["peer"] == "203.0.113.15"
+    # "4B D K": basic (not interleaved) server response, daemon transmit and kernel receive timestamps
+    assert (s.extra["interleaved"][0], s.extra["tx_timestamp"][0], s.extra["rx_timestamp"][0]) == (0, 0, 1)
+    assert s.meta["timestamping"].startswith("hardware both ways 0%")
 
 
 def test_tracking_example_line(tmp_path):

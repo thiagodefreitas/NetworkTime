@@ -26,6 +26,7 @@
 | `report` | self-contained HTML report; `--time-error` adds time-error cards and a TE/TEL chart |
 | `simulate` | simulate NTP exchanges with ground truth; `--benchmark` |
 | `bench` | estimators × scenarios × seeds against ground truth; `--html`, `--csv`, `--list`; `trace:FILE` replays a capture or log |
+| `sawtooth` | remove the GNSS PPS quantization sawtooth from a time-interval-counter log with a u-blox receiver's `qErr` (UBX-TIM-TP); prints TDEV before and after ([Research data](research-data.md)) |
 | `trace` | per-direction delays of a capture or log (floors, PDV, loss), `--csv` to replay it ([Trace replay](research-bench.md)) |
 | `chain` | simulate a PTP grandmaster and N boundary clocks; time error per hop and at the end against a class and budget; exit code 3 on failure |
 | `query` | one-shot measurement: NTPv4, `--nts`, `--pool N` (NTS pool), `--interleaved` (RFC 9769), `--ntpv5`, `--probe-v5`, `-4/-6` ([Protocols](protocols.md)) |

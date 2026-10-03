@@ -658,7 +658,7 @@ async function renderNetwork(fresh) {
     card("Near floor", `${(s.floor_fraction * 100).toFixed(1)} %`, `within ${fmtSec(s.cluster_width)} of floor`),
     card("Offset σ", fmtSec(s.offset_all_std), `floor packets only: ${fmtSec(s.offset_at_floor_std)}`),
     card("Asymmetry indicator", fmtSec(s.asymmetry_indicator), `offset/delay corr ${fmtNum(s.offset_delay_correlation, 2)}`),
-  ].join("");
+  ].concat(p.timestamping ? [card("Time stamps", esc(p.timestamping.split(",")[0].replace("hardware both ways ", "")), `hardware both ways · ${esc(p.timestamping.split(", ").slice(1).join(", "))}`)] : []).join("");
   const q = p.wedge.q, mid = p.wedge.offset.length ? median(p.wedge.offset.slice(0, 50)) : 0;
   makeChart("wedge", $("#chart-wedge"), {
     series: [{ label: "queueing", value: (u, v) => fmtSec(v) }, { label: "offset", stroke: c, paths: () => null, points: { show: true, size: 3, fill: c + "aa", stroke: c + "aa" }, value: (u, v) => fmtSec(v) },

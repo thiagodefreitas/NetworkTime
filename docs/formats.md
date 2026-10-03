@@ -12,10 +12,11 @@ Formats are detected automatically; `-f/--format` overrides detection.
 | `peerstats` | ntpd/NTPsec per peer (`sys.peer` chosen by default) | offset | delay, dispersion, jitter |
 | `rawstats` | ntpd/NTPsec on-wire timestamps | recomputed from T1–T4 | delay |
 | `chrony-tracking` | chrony `tracking.log` | offset (negated) | frequency, skew, offset sd, root delay/dispersion |
-| `chrony-measurements` | chrony `measurements.log` per source | θ | delay, dispersion, root delay/dispersion |
+| `chrony-measurements` | chrony `measurements.log` per source | θ | delay, dispersion, root delay/dispersion; `interleaved`, and the source of the transmit and receive time stamps (`tx_timestamp`, `rx_timestamp`: 0 daemon, 1 kernel, 2 hardware) with a summary in `meta["timestamping"]` |
 | `chrony-statistics` | chrony `statistics.log` | estimated offset (negated) | std dev, skew |
 | `chrony-refclocks` | chrony `refclocks.log` (GNSS/PPS) | cooked offset | raw error, dispersion, PPS flag |
 | `linuxptp` | `ptp4l`, `phc2sys`, `ts2phc` (stdout, syslog, journald) | master/phc offset (negated, ns → s) | path delay, frequency, servo state |
+| `ubx` | u-blox receiver log (binary UBX, mixed with NMEA is fine): NAV-CLOCK, NAV-TIMEUTC, TIM-TP ([Research data](research-data.md)) | receiver clock bias as reported; time-pulse qErr | clock drift, time and frequency accuracy |
 | `pcap` | pcap/pcapng captures of NTP (v3/v4/v5, also over PTP per RFC 10030), PTP (v2/v2.1, UDP or Ethernet) and CSPTP (client-server PTP); see [PTP](ptp.md) | NTP: from server T2/T3 and capture times; PTP: master vs capture clock | delay, stratum, version; PTP: path/link delay, one-way delays, correction |
 | `csv` | generic `unix_time,offset[,…]`, `ntpstats monitor` output | offset column | any other columns |
 | `stable32-phase` | Stable32 data file (phase in s; optional MJD timetags; not auto-detected) | chosen column (default last) | — |

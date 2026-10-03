@@ -532,6 +532,32 @@ def cmd_dataset(args):
     return 0
 
 
+def cmd_sawtooth(args):
+    from .stability import compute
+    from .ubx import apply_qerr
+
+    pps = load_one(args.pps, fmt=args.format, peer=args.peer)
+    qe = [s for s in load(args.ubx, fmt="ubx") if s.meta.get("message") == "UBX-TIM-TP"]
+    if not qe:
+        raise ValueError(f"{args.ubx}: no UBX-TIM-TP messages (enable TIM-TP output on the receiver)")
+    sign = args.sign if args.sign == "auto" else int(args.sign)
+    out = apply_qerr(pps, qe[0], sign=sign, max_dt=args.max_dt)
+    m = out.meta
+    print(f"{out.name}: {m['matched']} PPS samples paired with qErr ({m['unmatched']} without), "
+          f"sign {m['qerr_sign']:+d} ({m['sign_choice']})")
+    print(f"   sample-to-sample rms  {format_seconds(m['diff_rms_before']):>10} -> {format_seconds(m['diff_rms_after']):>10}")
+    tau0 = float(np.median(np.diff(out.t))) if len(out) > 1 else 1.0
+    taus = [x for x in (1, 10, 100, 1000) if x * tau0 * 4 <= out.t[-1] - out.t[0]]
+    if taus:
+        before = compute(out.extra["uncorrected"], tau0, "tdev", taus=[x * tau0 for x in taus])
+        after = compute(out.offset, tau0, "tdev", taus=[x * tau0 for x in taus])
+        print("   TDEV  " + "  ".join(f"τ={t:g}s {format_seconds(b)} -> {format_seconds(a)}"
+                                      for t, b, a in zip(before.taus, before.dev, after.dev)))
+    if args.output:
+        out.to_csv(args.output)
+        print(f"wrote {args.output}")
+
+
 def cmd_trace(args):
     from .trace import load_trace
 
@@ -1325,6 +1351,17 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--csv", help="write the time error of every node (1 row per second)")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_chain)
+
+    s = sub.add_parser("sawtooth", help="remove the GNSS PPS quantization sawtooth with the receiver's qErr (u-blox TIM-TP)")
+    s.add_argument("pps", help="time-interval-counter measurements of the receiver's PPS (any supported format)")
+    s.add_argument("ubx", help="u-blox UBX log of the same period with UBX-TIM-TP messages")
+    s.add_argument("-f", "--format", default="auto", type=_fmt, help="format of the PPS file")
+    s.add_argument("--peer", help="select a series of the PPS file")
+    s.add_argument("--sign", choices=("auto", "+1", "-1"), default="auto",
+                   help="sign with which qErr is applied (default: the one that removes the sawtooth)")
+    s.add_argument("--max-dt", type=float, default=0.5, help="max time between a PPS sample and its qErr, s")
+    s.add_argument("-o", "--output", help="write the corrected series as CSV (with qerr and uncorrected columns)")
+    s.set_defaults(func=cmd_sawtooth)
 
     s = sub.add_parser("trace", help="extract per-direction network delays from a capture or log, to replay in "
                        "the bench (ntpstats bench trace:FILE)")

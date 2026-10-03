@@ -14,6 +14,31 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-10-03
+
+GNSS timing receivers and time-stamping sources. No breaking changes.
+
+### Added
+- **u-blox UBX receiver logs** (format `ubx`, detected automatically, also mixed with NMEA and in the
+  web UI): `UBX-NAV-CLOCK` becomes a receiver-clock series (bias as reported, with drift, time and
+  frequency accuracy), `UBX-NAV-TIMEUTC` time-stamps it, and `UBX-TIM-TP` gives the time-pulse
+  quantization error `qErr`. Layouts from the u-blox interface description. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
+- **`ntpstats sawtooth`** and `ntpstats.ubx.apply_qerr`: remove the PPS quantization sawtooth from a
+  time-interval-counter measurement with the receiver's `qErr`. The sign with which `qErr` applies
+  (not stated by u-blox) is chosen from the data and reported, or given with `--sign`; TDEV before
+  and after is printed.
+- **chrony time-stamping sources**: `measurements.log` series carry `interleaved`, `tx_timestamp` and
+  `rx_timestamp` (daemon, kernel or hardware) and a summary in `meta["timestamping"]`, also shown on
+  the web UI's network page.
+- Gallery notebook *Removing the GNSS PPS sawtooth with u-blox qErr*, with a synthetic receiver log
+  and counter log (`examples/data/ubx-timing.ubx`, `pps-tic.csv`). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
+
+### Changed
+- Times below a femtosecond are printed as 0 (they are numerical noise).
+
+### Stable API changes since 3.3.0
+- None. Code written against the stable API of an earlier release keeps working.
+
 ## [3.3.0] - 2026-10-03
 
 A quality release: the web UI, the command line and the documentation were checked end to end

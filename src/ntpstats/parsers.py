@@ -42,7 +42,7 @@ import io
 import os
 import re
 from collections import OrderedDict
-from typing import Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -60,6 +60,7 @@ FORMATS = (
     "chrony-refclocks",
     "linuxptp",
     "pcap",
+    "ubx",
     "csv",
     "stable32-phase",
     "stable32-freq",
@@ -449,7 +450,38 @@ def parse_chrony_measurements(lines, name="measurements.log") -> List[TimeSeries
     extra = [("delay", base + 1), ("dispersion", base + 2), ("root_delay", base + 3), ("root_dispersion", base + 4)]
     # chrony.conf(5): "Positive indicates that the local clock is slow of the
     # remote source" - already the ntpd convention, so no sign change.
-    return _parse_chrony(lines, name, "chrony-measurements", base, extra, base + 5, sign=1.0)
+    out = _parse_chrony(lines, name, "chrony-measurements", base, extra, base + 5, sign=1.0)
+    _chrony_timestamp_sources(lines, out)
+    return out
+
+
+#: chrony measurements.log, last three columns (chrony.conf(5)): NTP mode + B(asic)/I(nterleaved), and the
+#: source of the local transmit and receive timestamps: D(aemon), K(ernel), H(ardware)
+_TS_SOURCE = {"D": 0.0, "K": 1.0, "H": 2.0}
+
+
+def _chrony_timestamp_sources(lines, series: List[TimeSeries]) -> None:
+    """Add ``interleaved``, ``tx_timestamp`` and ``rx_timestamp`` (0 daemon, 1 kernel, 2 hardware) columns."""
+    codes: Dict[Tuple[str, float], Tuple[float, float, float]] = {}
+    for ln in _data_lines(lines):
+        f = ln.split()
+        if len(f) < 20 or not _CHRONY_TS.match(ln) or f[-2] not in _TS_SOURCE or f[-1] not in _TS_SOURCE:
+            continue
+        mode = f[-3]
+        codes[(f[2], _chrony_time(f[0], f[1]))] = (1.0 if mode.endswith("I") else 0.0, _TS_SOURCE[f[-2]],
+                                                   _TS_SOURCE[f[-1]])
+    if not codes:
+        return
+    for s in series:
+        peer = str(s.meta.get("peer"))
+        rows = [codes.get((peer, float(t)), (np.nan, np.nan, np.nan)) for t in s.t]
+        a = np.array(rows, dtype=float).reshape(-1, 3)
+        if np.isnan(a).all():
+            continue
+        s.extra.update(interleaved=a[:, 0], tx_timestamp=a[:, 1], rx_timestamp=a[:, 2])
+        hw = np.nanmean((a[:, 1] == 2) & (a[:, 2] == 2))
+        s.meta["timestamping"] = (f"hardware both ways {hw:.0%}, kernel/hardware receive "
+                                  f"{np.nanmean(a[:, 2] >= 1):.0%}, interleaved {np.nanmean(a[:, 0]):.0%}")
 
 
 def parse_chrony_statistics(lines, name="statistics.log") -> List[TimeSeries]:
@@ -775,6 +807,7 @@ FORMAT_DESCRIPTIONS = {
     "chrony-tracking": "chrony tracking.log", "chrony-measurements": "chrony measurements.log",
     "chrony-statistics": "chrony statistics.log", "chrony-refclocks": "chrony refclocks.log",
     "linuxptp": "linuxptp (ptp4l/phc2sys/ts2phc)", "pcap": "pcap / pcapng capture (NTP, PTP)",
+    "ubx": "u-blox UBX receiver log (NAV-CLOCK, NAV-TIMEUTC, TIM-TP)",
     "csv": "CSV / columns", "stable32-phase": "Stable32 phase data", "stable32-freq": "Stable32 frequency data",
     "w32tm": "Windows w32tm", "prometheus": "Prometheus query_range JSON", "bounds": "clock-error bounds",
     "gsoc2012": "2012 estimators.log", "parquet": "Parquet (ntpstats.adapters, needs pyarrow)",
@@ -792,6 +825,16 @@ def all_formats() -> List[str]:
     from . import plugins
 
     return list(FORMATS) + [f for f in plugins.external_parsers() if f not in FORMATS]
+
+
+def _ubx_head(head: bytes, fmt: str) -> bool:
+    if fmt == "ubx":
+        return True
+    if fmt != "auto" or b"\xb5\x62" not in head:
+        return False
+    from .ubx import is_ubx
+
+    return is_ubx(head)
 
 
 # --------------------------------------------------------------- public API
@@ -824,18 +867,25 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
         raw = bytes(source)
     elif isinstance(source, (str, os.PathLike)):
         with open(source, "rb") as fh:
-            head = fh.read(4)
+            head = fh.read(4096)
         if head[:2] == b"\x1f\x8b":  # gzip (IGS products, compressed logs)
             import gzip
 
             with gzip.open(source, "rb") as fh:
                 raw = fh.read()
-            head = raw[:4]
-            if not is_capture(head):
+            head = raw[:4096]
+            if not is_capture(head[:4]) and not _ubx_head(head, fmt):
                 source, raw = io.StringIO(raw.decode("utf-8", errors="replace")), None
-        elif fmt == "pcap" or is_capture(head):
+        elif fmt in ("pcap", "ubx") or is_capture(head[:4]) or (not head.isascii() and _ubx_head(head, fmt)):
             with open(source, "rb") as fh:
                 raw = fh.read()
+    if raw is not None and not is_capture(raw[:4]) and _ubx_head(raw[:4096], fmt):  # u-blox receiver log (binary UBX, maybe mixed with NMEA)
+        from .ubx import parse_ubx
+
+        try:
+            return parse_ubx(raw, label)
+        except ValueError as exc:
+            raise ParseError(str(exc)) from exc
     if isinstance(source, (str, os.PathLike)) and raw is None and fmt in ("auto", "parquet"):
         with open(source, "rb") as fh:
             if fh.read(4) == b"PAR1" or fmt == "parquet":

@@ -364,6 +364,7 @@ def api_network(sid, params):
     return {
         "id": sid,
         "name": s.name,
+        "timestamping": s.meta.get("timestamping"),
         "stats": _clean(stats),
         "t": _f(s.t[idx]),
         "delay": _f(s.extra["delay"][idx]),
@@ -741,7 +742,8 @@ def _dispatch_post(route, params, headers, raw: bytes) -> ApiResponse:
         name = unquote(headers.get("x-filename") or "upload")
         fmt = _q(params, "format", "auto")
         tau0 = _q(params, "tau0", None, float)
-        src = raw if is_capture(raw[:4]) else io.StringIO(raw.decode("utf-8", errors="replace"))
+        binary = is_capture(raw[:4]) or (fmt in ("auto", "ubx") and b"\xb5\x62" in raw[:4096])  # captures, u-blox logs
+        src = raw if binary else io.StringIO(raw.decode("utf-8", errors="replace"))
         series = load(src, fmt=fmt, tau0=tau0, name=name)
         ids = [STORE.add(s) for s in series]
         return _json_response([STORE.describe(i) for i in ids])

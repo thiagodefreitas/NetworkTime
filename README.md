@@ -60,6 +60,9 @@ are as valuable as code. Look for issues labelled
     measured from the capture host's clock;
   - **live**: chrony, ntpd/NTPsec, ntpd-rs (`ntp-ctl`), linuxptp (`pmc`) and facebook/time
     `ptpcheck`; Windows `w32tm /stripchart`; Prometheus range queries (ntpd-rs, chrony_exporter);
+  - **GNSS receivers**: u-blox UBX logs (clock bias and drift, accuracy estimates, time-pulse
+    `qErr`), and `ntpstats sawtooth` to remove the PPS quantization sawtooth from a
+    time-interval-counter measurement;
   - **instrument exports** via small TOML profiles (time-interval counters, PTP testers);
   - **research and laboratory data**: CGGTTS GNSS time transfer (with common view), IGS RINEX
     clock files, BIPM Circular T (UTC − UTC(k)), RIPE Atlas NTP results and NTP Pool monitor logs;
