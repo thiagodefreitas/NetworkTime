@@ -10,7 +10,7 @@ tags:
   - time error
 authors:
   - name: Thiago de Freitas
-    # orcid: add before submission
+    orcid: 0009-0006-7749-1401
     affiliation: 1
 affiliations:
   - name: To be completed before submission

@@ -4,6 +4,7 @@ title: "ntpstats: validating, evaluating and studying network time synchronisati
 authors:
   - family-names: "de Freitas"
     given-names: "Thiago"
+    orcid: "https://orcid.org/0009-0006-7749-1401"
 license: MIT
 repository-code: "https://github.com/thiagodefreitas/NetworkTime"
 version: 3.0.0
