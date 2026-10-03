@@ -64,6 +64,7 @@ nav:
       - network: api/network.md
       - filters: api/filters.md
       - estimators: api/estimators.md
+      - disciplines: api/disciplines.md
       - simulate: api/simulate.md
       - bench: api/bench.md
       - trace: api/trace.md
@@ -76,6 +77,7 @@ nav:
       - noisefit: api/noisefit.md
       - hat: api/hat.md
       - holdover: api/holdover.md
+      - polladvice: api/polladvice.md
       - research: api/research.md
       - masks: api/masks.md
       - report: api/report.md

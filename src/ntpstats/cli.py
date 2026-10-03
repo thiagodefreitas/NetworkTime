@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import calendar
 import json
+import math
 import os
 import sys
 import time
@@ -477,6 +478,50 @@ def cmd_holdover(args):
         if "min_holdover_met" in d:
             print(f"  [{'PASS' if d['min_holdover_met'] else 'FAIL'}] holds {format_seconds(limits[0])} for "
                   f"{args.min_holdover}")
+    if args.json:
+        print(json.dumps(out, indent=2, default=float))
+    return rc
+
+
+def _interval(seconds: float) -> str:
+    """A poll interval as seconds with its power of two and a readable duration, e.g. 1024 s (2^10, 17.1 min)."""
+    s = float(seconds)
+    e = math.log2(s) if s > 0 else 0.0
+    exp = f"2^{round(e)}, " if abs(e - round(e)) < 1e-6 else ""
+    for unit, size in (("d", 86400.0), ("h", 3600.0), ("min", 60.0)):
+        if s >= size:
+            return f"{s:.0f} s ({exp}{s / size:.3g} {unit})"
+    return f"{s:.3g} s" + (f" ({exp[:-2]})" if exp else "")
+
+
+def cmd_poll(args):
+    from .polladvice import poll_advice
+    from .timeerror import _value
+
+    target = _value(args.target) if args.target else None
+    max_interval = _duration(args.max_interval) if args.max_interval else None
+    rc, out = 0, []
+    for s in _load_args(args):
+        a = poll_advice(s, target=target, ci=args.ci, model=args.model, min_samples=args.min_samples,
+                        max_interval=max_interval, uncertainty=args.uncertainty)
+        out.append({"name": s.name, **a.as_dict()})
+        if target is not None and a.recommended is None:
+            rc = 3
+        if args.json:
+            continue
+        print(f"== {s.name}: error just before the next poll ({a.ci:.0%} bound), {a.model} model between polls")
+        print(f"  {'poll interval':<22} {'bound':>11} {'mean':>11} {'samples':>8}")
+        for T, b, mu, n in zip(a.intervals, a.error, a.mean, a.samples):
+            mark = "  <- longest within target" if a.recommended is not None and T == a.recommended else ""
+            print(f"  {_interval(T):<22} {format_seconds(b):>11} {format_seconds(mu):>11} {int(n):>8}{mark}")
+        if target is not None:
+            if a.recommended is None:
+                print(f"  [FAIL] no interval keeps the error within {format_seconds(target)}")
+            else:
+                print(f"  [PASS] poll every {_interval(a.recommended)} or more often to stay within "
+                      f"{format_seconds(target)}")
+        print("  intervals are limited to what the log can show: at least "
+              f"{args.min_samples} measurements after decimation")
     if args.json:
         print(json.dumps(out, indent=2, default=float))
     return rc
@@ -1319,6 +1364,20 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-holdover", metavar="DURATION", help="exit 3 unless the first limit holds this long")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_holdover)
+
+    s = sub.add_parser("poll", help="predicted error versus poll interval; the longest interval that meets a "
+                       "target (exit code 3 if none does)")
+    _common(s)
+    s.add_argument("--target", help="accuracy target, e.g. 10ms")
+    s.add_argument("--ci", type=float, default=0.95)
+    s.add_argument("--model", choices=("frequency", "drift"), default="frequency",
+                   help="what the clock applies between polls: last frequency, or frequency and drift")
+    s.add_argument("--min-samples", type=int, default=32,
+                   help="offer an interval only if the decimated log keeps this many measurements")
+    s.add_argument("--max-interval", help="longest interval to consider, e.g. 1d")
+    s.add_argument("--uncertainty", type=int, default=20, help="bootstrap noise models per prediction")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_poll)
 
     s = sub.add_parser("plugins", help="list installed plugins (parsers, estimators, detectors, masks, profiles)")
     s.add_argument("--all", action="store_true", help="also list the built-ins")

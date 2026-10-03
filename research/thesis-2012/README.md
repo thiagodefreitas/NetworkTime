@@ -24,7 +24,7 @@ written alongside two Google Summer of Code projects for the NTP Project:
 ```
 
 This folder asks what the thesis got right, what can be reproduced, and what can now be done better.
-Everything below comes from [`replicate.py`](replicate.py), which runs on ntpstats 3.5.0 in about
+Everything below comes from [`replicate.py`](replicate.py), which runs on ntpstats 3.6.0 in about
 twenty seconds and writes [`data/`](data/) and [`figures/`](figures/). The 2012 measurements it uses
 are the original files kept in [`legacy/gsoc2012/core_noGUI/`](../../legacy/gsoc2012/core_noGUI/).
 
@@ -63,7 +63,7 @@ It concludes that the algorithm corrects the clock without NTP and improves NTP 
 | Real-time use of the smoother | applied in the correction loop | **Not realisable as written.** A centred 39-sample window needs 19 future samples (about 10 minutes at 32 s). A causal version (fit the last 39 samples, evaluate at the newest) is realisable but gains less | R3 |
 | Evaluation (ch. 8) | lower Allan deviation of the corrected offsets taken as better synchronisation | **Not a valid criterion.** Smoothing lowers the Allan deviation of any series. On the December 2012 data a correct Savitzky-Golay pass lowers σ<sub>y</sub>(32 s) 25-fold (6.4×10⁻⁴ to 2.6×10⁻⁵) and changes the identified noise type, with no new information about the clock. In simulation with known truth, the pipeline as built has the second-lowest Allan deviation of the nine estimators (1.4×10⁻⁷ at 32 s, against 8.0×10⁻⁵ raw) and by far the largest error (132 ms rms, against 1.6 ms raw) | R2, R3 |
 | Conclusions (ch. 10) | corrects the clock without NTP; improves NTP when run in parallel | **Not supported by the evidence presented.** The experiments recorded no independent reference, so they can neither confirm nor refute the claim. Against simulated truth, the intended pipeline (centred smoother + 2012 Kalman) halves the raw error, but only offline; the same exchanges give 167 µs with a delay-weighted Kalman filter, 53 µs with regression and 3 µs with the hull estimator | R3 |
-| Objective 1: poll interval vs accuracy | stated, not resolved | **Answered for the 2012 clock.** See below | R5 |
+| Objective 1: poll interval vs accuracy | stated, not resolved | **Answered for the 2012 clock** with `ntpstats poll` (3.6). See below | R5 |
 | Software (ch. 9) | Python 2, PySide, numpy, scipy | **Rewritten** as ntpstats; the 2012 code is kept unchanged in `legacy/` | [STATE_OF_THE_ART](../../docs/STATE_OF_THE_ART.md) |
 
 ### The ground-truth comparison (R3)
@@ -83,6 +83,9 @@ true clock's is 3.0×10⁻¹⁰ at 32 s.
 | `kalman-dw` (delay-weighted Kalman) | 167 µs | 4.9×10⁻⁷ |
 | `regression` (chrony-style) | 53 µs | 1.0×10⁻⁶ |
 | `hull` (Huygens-style) | 3.2 µs | 1.8×10⁻⁸ |
+| `ntpd` (ntpd's discipline loop, 3.6) | 276 µs | 1.3×10⁻⁷ |
+| `lockclock` (Levine, NIST, 3.6) | 619 µs | 2.2×10⁻⁷ |
+| `levine-kalman` (Levine's Kalman variant, 3.6) | 555 µs | 1.2×10⁻⁷ |
 
 The two columns rank the estimators in different orders. The lesson is the one the bench is built
 on: a synchronisation algorithm has to be scored against a reference, not by the smoothness of its
@@ -105,32 +108,52 @@ ntpstats' noise fit finds only white phase noise, that is, the network. The cloc
 below what this path can detect (upper limits: h<sub>0</sub> ≤ 2.5×10⁻¹⁰, flicker FM floor
 ≤ 3.9×10⁻⁸).
 
-The holdover model then gives the 95 % time error of the corrected clock as a function of the time
-since the last measurement, which is the link between poll interval and accuracy that the thesis
-asked for:
+This is the link between poll interval and accuracy that the thesis asked for, and what
+`ntpstats poll` (3.6) computes: for each candidate interval, the log is decimated to it and the
+holdover model predicts the error just before the next poll, so the fewer measurements of a longer
+interval count against it. For the longest segment of the May log:
 
-| interval | 64 s to 1024 s | 4096 s | 16 384 s | 65 536 s |
+| poll interval | 1024 s (17 min) | 2049 s (34 min) | 4097 s (68 min) |
+|---|---|---|---|
+| 95 % error before the next poll | 21.7 ms | 27.7 ms | 37.9 ms |
+
+The network dominates at every interval this log can speak for (at least 32 measurements after
+decimation, so up to about an hour). An earlier version of this page predicted from the full-rate log
+only (21.2 ms up to 1024 s, 22.1 ms at 4096 s, 24.6 ms at 16 384 s); that assumed the frequency had been
+estimated from every measurement, which a client polling less often does not have, and was
+optimistic. One machine and one week of data do not make a general result, and temperature changes
+were not recorded, but the method is general.
+
+### NTP's loop against truth (R6)
+
+Chapter 5 drove the NTP loop with steps and ramps in Simulink, without a reference. With the ntpd
+model of 3.6 the same inputs run against truth (poll 64 s, frequency known at the start):
+
+| input at 1 h | constants | error 1 h later | error 10 h later | below 1 ms after |
 |---|---|---|---|---|
-| 95 % time error | 21.2 ms | 22.1 ms | 24.6 ms | 39.2 ms |
+| 10 ms phase step | ntpd 4.2.8 | 0.23 ms | 0.07 ms | 35 min |
+| 10 ms phase step | RFC 5905 appendix | 9.99 ms | 9.92 ms | never (12 h run) |
+| 10 ppm frequency step | ntpd 4.2.8 | 9.14 ms | 1.07 ms | 10.3 h |
+| 10 ppm frequency step | RFC 5905 appendix | 36.3 ms | 85.0 ms | never (12 h run) |
 
-For this clock and this path the network dominates: polling every 4.5 hours instead of every 17
-minutes costs 3.4 ms at the 95 % level. One machine and one week of data do not make a general
-result, and temperature changes were not recorded, but the method is general. It is a candidate for
-a `ntpstats` command (see the roadmap).
+The type II loop removes a frequency step completely, as chapter 4 argued, but at poll 64 s it takes
+hours. The constants printed in the RFC 5905 appendix (PLL gain 65536) give a phase time constant of
+about 48 days at poll 6, so the appendix code, taken literally, barely disciplines a clock; ntpd uses
+a PLL gain of 16.
 
 ## What carries over
 
 - **The data.** The May and December 2012 logs are real measurements of a PC clock against a NIST
   server: free-running in May (491 ppm), and in December at 32 s polling with a frequency offset of
   about 1 ppm, so most likely disciplined. They are kept in `legacy/` and analysed here.
-- **The question of objective 1**, now answerable with the noise fit and the holdover model, and
-  worth turning into a poll-interval advisor.
-- **Levine's algorithms**, which the thesis studied (J. Levine, IEEE/ACM Trans. Netw. 3(1):42–50,
-  1995, doi:10.1109/90.365436; IEEE Trans. UFFC 46(4):888–896, 1999, doi:10.1109/58.775655). They are
-  not yet among the bench's reference estimators.
-- **The NTP discipline model of chapters 4 and 5.** The bench scores estimators and PTP servos, but
-  not the RFC 5905 hybrid PLL/FLL clock discipline itself; adding it would let the thesis's step and
-  ramp experiments be run against truth.
+- **Done in 3.6** ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40)):
+  - the question of objective 1, as `ntpstats poll`;
+  - Levine's algorithms, which the thesis studied, as the `lockclock` and `levine-kalman` estimators,
+    written from J. Levine, J. Res. NIST 125:125008 (2020), doi:10.6028/jres.125.008, and "Synchronizing
+    computer clocks by the use of Kalman filters", PTTI 2011 (the thesis's reference [14]). The 1995
+    and 1999 papers (doi:10.1109/90.365436, doi:10.1109/58.775655) describe earlier versions;
+  - the NTP discipline of chapters 4 and 5, as the `ntpd` and `ntpd-rfc` estimators, so the step and
+    ramp experiments run against truth (R6).
 - **Not carried over:** the Savitzky-Golay stage (a causal polynomial fit is what the `regression`
   estimator already does, with a principled window), and Allan deviation of an estimate as a measure
   of its quality.

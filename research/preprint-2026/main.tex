@@ -762,12 +762,16 @@ window needs 19 future samples, so it cannot run in real time; the estimators of
 parameter linking the poll interval with the achievable accuracy, can now be answered. The May 2012 log
 is a free-running PC clock measured every 1024~s for five days; its frequency offset was 491.3~ppm and,
 three days later, 491.0~ppm. Its residual is network noise (8.5\ms{} RMS), and the noise fit detects no
-clock noise above it. The holdover model then predicts a 95\% time error of 21.2\ms{} for poll
-intervals up to 1024~s, 24.6\ms{} at 16{,}384~s and 39.2\ms{} at 65{,}536~s: on that path, polling every
-4.5~hours instead of every 17~minutes would have cost 3.4\ms. The thesis's control-theory chapters hold
-up: NTP needs a type II loop, and at NTP's ratio of loop time constant to update interval (about 32)
-forward Euler, backward Euler and Tustin discretisations place the closed-loop poles within $5\times10^{-4}$
-of the continuous system's, so the choice among them does not matter.
+clock noise above it. Version 3.6 turns the question into a command: for each candidate interval the
+log is decimated to that interval and the holdover model predicts the error just before the next poll,
+so that the fewer measurements of a longer interval count against it. For this clock and path the
+95\% bound is 21.7\ms{} at 17~minutes, 27.7\ms{} at 34~minutes and 37.9\ms{} at 68~minutes; the
+network dominates throughout. The thesis's control-theory chapters hold up: NTP needs a type II loop,
+and at NTP's ratio of loop time constant to update interval (about 32) forward Euler, backward Euler and
+Tustin discretisations place the closed-loop poles within $5\times10^{-4}$ of the continuous system's,
+so the choice among them does not matter. Run against truth with a model of ntpd's discipline
+(below), a 10\ms{} phase step is absorbed to below 1\ms{} within 35~minutes at poll 64~s, and a
+10~ppm frequency step is removed completely, as a type II loop must, but only after about 10~hours.
 
 \begin{table}[t]
 \centering\small
@@ -819,10 +823,16 @@ the seeds are open, a claim that an algorithm improves on another can be checked
 author's own 2012 thesis (\cref{sec:thesis}) is a case in point: its central claim could not be checked
 when it was made, and is checkable now.
 
-\paragraph{Next steps.} Three items follow from the thesis: a model of the RFC~5905 clock discipline in
-the bench, so that ntpd's loop can be scored like the other estimators; Levine's algorithms
-\citep{levine1995,levine1999} as reference estimators; and a poll-interval advisor built on the noise
-fit and the holdover model.
+\paragraph{Since this version.} Version 3.6 adds the three items the thesis left open. The bench now
+models ntpd's clock discipline in closed loop, written from the reference implementation
+\citep{ntploopfilter}: clock filter, state machine and hybrid PLL/FLL. A variant uses the constants of
+the RFC~5905 appendix \citep{rfc5905}, whose PLL gain of 65{,}536 gives a phase time constant of about
+48~days at poll 6 against 17~minutes with ntpd's gain of 16; taken literally, the appendix code barely
+disciplines a clock (a 10\ms{} phase step is still 9.9\ms{} off after 10~hours). Levine's NIST
+frequency-lock loop \citep{levine2020} and its scalar Kalman variant \citep{levine2011kalman} are
+reference estimators, and \texttt{ntpstats poll} gives the poll-interval advice described above. On the
+bench's presets, all of these closed loops are less accurate than the chrony-style regression and the
+Huygens-style hull estimators on the same exchanges.
 
 \section{Availability and reproducibility}\label{sec:availability}
 
@@ -832,7 +842,7 @@ fit and the holdover model.
 \citep{ntpstats}. The \LaTeX{} source of this paper, the experiment script, the generated data and the
 figures are in the directory \texttt{research/preprint-2026} of the repository. To reproduce every number:
 \begin{verbatim}
-pip install ntpstats==3.5.0 matplotlib
+pip install ntpstats==3.5.0 matplotlib    # 3.6.0 for research/thesis-2012/replicate.py
 python research/preprint-2026/experiments.py
 python research/thesis-2012/replicate.py
 python research/preprint-2026/make_tables.py

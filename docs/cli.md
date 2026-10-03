@@ -40,6 +40,7 @@
 | `spectrum` (`psd`) | phase or frequency PSD (Welch or sine multitaper, gap-aware, log bins), `--carrier` for L(f) |
 | `hat` | individual stability of 3+ sources from their differences: Groslambert covariance, three- or N-cornered hat |
 | `holdover` | predicted TIE after loss of reference, time to violate `--limit`s, `--backtest` calibration, `--min-holdover` (exit code 3) |
+| `poll` | predicted error just before the next poll for each candidate poll interval; `--target` gives the longest interval within it (exit code 3 if none) ([Metrology](metrology.md#poll-interval)) |
 | `plugins` | installed plugins (parsers, estimators, detectors, masks, profiles) and load errors ([Writing a plugin](plugins.md)) |
 | `dataset` | summary of the open interop dataset (`data/interop/`): availability, median offset and delay, protocol support per server |
 | `cv` | GNSS time transfer between two CGGTTS files: common view or all in view ([Research data](research-data.md)) |

@@ -30,6 +30,7 @@ from .bench import load_scenarios, run_bench, score
 from .bounds import parse_bounds
 from .bounds import validate as validate_bounds
 from .deprecation import NtpstatsDeprecationWarning
+from .disciplines import lockclock, ntpd_discipline
 from .edf import edf
 from .estimators import Estimator, FunctionEstimator
 from .estimators import available as available_estimators
@@ -48,6 +49,7 @@ from .noisefit import NoiseFit
 from .noisefit import fit_series as fit_noise
 from .parsers import ParseError, all_formats, detect_format, load, load_one
 from .plugins import DetectorPlugin, ParserPlugin
+from .polladvice import PollAdvice, poll_advice
 from .profiles import load_profile
 from .ptpsim import ChainResult, ChainScenario, Link, LinRegServo, PIServo, simulate_chain
 from .report import bench_report, dataset_report
@@ -84,7 +86,7 @@ __all__ = [
     "delay_stats", "wedge", "floor_packet_percentage", "min_delay_filter",
     # metrology
     "series_spectrum", "Spectrum", "fit_noise", "NoiseFit", "hat_series", "HatResult",
-    "holdover_series", "HoldoverResult",
+    "holdover_series", "HoldoverResult", "poll_advice", "PollAdvice",
     # time error, masks and assurance
     "time_error", "TimeErrorResult", "check_time_error", "Mask", "load_mask", "check_mask",
     "audit", "AuditConfig", "detect_events", "Event", "parse_bounds", "validate_bounds",
@@ -96,6 +98,8 @@ __all__ = [
     "DelayTrace", "TracePath", "load_trace", "trace_from_series",
     "ChainScenario", "Link", "ChainResult", "simulate_chain", "PIServo", "LinRegServo",
     "read_omnetpp_vec", "write_omnetpp_vec", "inet_oscillator",
+    # clock-discipline models (3.6)
+    "ntpd_discipline", "lockclock",
     # reports
     "dataset_report", "bench_report",
     # extension points

@@ -14,6 +14,26 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-10-04
+
+The 2012 thesis, finished ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40)). No breaking changes.
+
+### Added
+- **Clock disciplines in the bench** (`ntpstats.disciplines`), steered in closed loop like the PTP
+  servos: `ntpd` (ntpd 4.2.8's clock filter, state machine and hybrid PLL/FLL, from
+  `ntp_loopfilter.c`), `ntpd-rfc` (the same with the RFC 5905 appendix's constants), `lockclock`
+  (J. Levine's NIST frequency-lock loop, J. Res. NIST 2020) and `levine-kalman` (with Levine's scalar
+  Kalman time estimate, PTTI 2011). The appendix's PLL gain of 65536 gives a phase time constant of
+  about 48 days at poll 6; implementations follow ntpd's 16 ([Trace replay & PTP](https://thiagodefreitas.github.io/NetworkTime/research-bench/)).
+- **`ntpstats poll`** and `poll_advice()`: the predicted error just before the next poll for each
+  candidate interval (the log decimated to it, then the holdover model), and the longest interval
+  that meets `--target` (exit code 3 if none) ([Metrology](https://thiagodefreitas.github.io/NetworkTime/metrology/#poll-interval)).
+- `research/thesis-2012`: the 2012 thesis assessed and its experiments re-run, now with the ntpd
+  model's step and ramp responses and the poll-interval advice for the 2012 clock.
+
+### Stable API changes since 3.5.0
+- Added: `ntpd_discipline`, `lockclock`, `poll_advice`, `PollAdvice`. Nothing removed or changed.
+
 ## [3.5.0] - 2026-10-03
 
 GNSS/PPS timing on Linux hosts and in the lab. No breaking changes.

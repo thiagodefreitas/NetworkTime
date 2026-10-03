@@ -117,17 +117,17 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ gpsd PPS/TOFF, recorded and live, with qErr for the sawtooth correction. ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21))
 - ✅ TAPR TICC output, all modes.
 
-### 3.6: The 2012 thesis, finished ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40))
+### 3.6: The 2012 thesis, finished ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40)) ✅
 The undergraduate thesis in which ntpstats began ([UFCG, 2012](https://dspace.sti.ufcg.edu.br/handle/riufcg/18226))
 is assessed, with its experiments re-run against truth and on the original 2012 data, in
 [research/thesis-2012](research/thesis-2012/). What it left open:
-- the RFC 5905 hybrid PLL/FLL clock discipline as a model in the bench, so the thesis's step and ramp
-  experiments run against truth;
-- Levine's NIST algorithms (1995, 1999) as reference estimators;
-- a poll-interval advisor: the longest poll interval that meets an accuracy target, from the noise
-  fit and the holdover model (the thesis's first objective).
+- ✅ ntpd's clock discipline (reference implementation and RFC 5905 appendix constants) as a model in
+  the bench, with the thesis's step and ramp experiments run against truth;
+- ✅ Levine's NIST algorithms as reference estimators (LOCKCLOCK, J. Res. NIST 2020; the Kalman
+  variant, PTTI 2011);
+- ✅ a poll-interval advisor, `ntpstats poll` (the thesis's first objective).
 
-### After 3.5
+### After 3.6
 New features arrive in 3.x minor releases, compatibly. Open items, most of them waiting for data
 from users:
 - Comparison with Stable32 output files and long-term logs against an independent reference ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); TimeLab `.tim` files ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)); vendor instrument profiles ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); OCP Time Card, Timebeat and chrony 4.9 logs ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). Sample files welcome.
@@ -181,3 +181,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 3.3 | Quality release: UI at phone width and with degenerate data, clean CLI errors, dTE_H at slow sampling, gallery notebook, docs for search ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)) |
 | 3.4 | u-blox UBX receiver logs and PPS sawtooth correction ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)); chrony time-stamping sources; sawtooth notebook ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)) |
 | 3.5 | gpsd PPS/TOFF (recorded and live), TAPR TICC ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
+| 3.6 | Clock disciplines in the bench (ntpd, RFC 5905 appendix, Levine's LOCKCLOCK and Kalman variant); `ntpstats poll`; the 2012 thesis revisited ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40)) |

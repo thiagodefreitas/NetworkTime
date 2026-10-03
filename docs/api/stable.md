@@ -78,6 +78,7 @@ change in a minor release (always noted in the changelog).
 | `fit_noise`, `NoiseFit` | power-law noise model h₋₂…h₂ with intervals (`ntpstats.noisefit.fit_series`, [noisefit](noisefit.md)) |
 | `hat_series`, `HatResult` | N-cornered hat and Groslambert covariance ([hat](hat.md)) |
 | `holdover_series`, `HoldoverResult` | holdover prediction ([holdover](holdover.md)) |
+| `poll_advice`, `PollAdvice` | predicted error versus poll interval, longest interval within a target (3.6, [polladvice](polladvice.md)) |
 
 ## Time error, masks and assurance
 
@@ -98,6 +99,7 @@ change in a minor release (always noted in the changelog).
 | `kalman_series` | Kalman filter and RTS smoother ([filters](filters.md)) |
 | `Scenario`, `ClockModel`, `PathModel`, `PathEvent`, `ServerSpec`, `simulate_ntp`, `simulate_multi` | simulator with ground truth ([simulate](simulate.md)) |
 | `load_scenarios`, `run_bench`, `score` | benchmark runner ([bench](bench.md)) |
+| `ntpd_discipline`, `lockclock` | ntpd's clock discipline and Levine's NIST algorithms in closed loop, also the `ntpd`, `ntpd-rfc`, `lockclock` and `levine-kalman` estimators (3.6, [disciplines](disciplines.md)) |
 
 ## Traces, PTP chains and network simulators
 

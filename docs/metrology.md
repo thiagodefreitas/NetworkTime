@@ -126,6 +126,30 @@ modelled yet.
 
 The UI's *Holdover* tab shows the envelope, the limits and the time to each.
 
+## Poll interval
+
+*How often must a client poll to stay within 10 ms?* Between polls a client runs on the phase and
+frequency it estimated so far, so its error just before the next poll is the time error of a
+holdover of one poll interval, starting from an estimate made with measurements that far apart.
+
+```bash
+ntpstats poll /var/log/chrony/measurements.log --peer 192.0.2.10 --target 10ms
+ntpstats poll monitor.csv --target 1ms --model drift --json
+```
+
+For each candidate interval (the log's own, then 2×, 4×, …) the log is decimated to that interval
+and the holdover model above predicts the error, with the uncertainty of the fitted frequency and of
+the noise model. Decimating makes the fewer measurements of a long interval count against it.
+Polling less often cannot make the error smaller, so the reported bound is the running maximum
+over the intervals. An interval is offered only while the decimated log keeps `--min-samples`
+(32) measurements, so a log of a few days answers for intervals up to a few hours. `--target`
+names the longest interval within the target, with exit code 3 if none is.
+
+The answer is only as general as the log: it should cover the conditions the client will see
+(time of day, temperature, load). For the free-running PC clock measured in 2012 against a NIST
+server, the network dominates: 21.7 ms at 17 minutes, 27.7 ms at 34 minutes and 37.9 ms at 68
+minutes ([research/thesis-2012](https://github.com/thiagodefreitas/NetworkTime/tree/master/research/thesis-2012)).
+
 ## Hadamard total deviation
 
 `-k htot` is the Hadamard total deviation (NIST SP 1065 §5.2.14). Like HDEV it ignores linear

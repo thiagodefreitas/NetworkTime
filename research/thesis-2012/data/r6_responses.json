@@ -1,0 +1,26 @@
+{
+ "phase step 10 ms / ntpd": {
+  "max_error": 0.01,
+  "error_after_1h": 0.00023299354904970232,
+  "error_after_10h": 7.265066273856938e-05,
+  "settles_below_1ms_after_s": 2096.0
+ },
+ "phase step 10 ms / rfc5905": {
+  "max_error": 0.01,
+  "error_after_1h": 0.009991458494733428,
+  "error_after_10h": 0.009914589346755558,
+  "settles_below_1ms_after_s": null
+ },
+ "frequency step 10 ppm / ntpd": {
+  "max_error": 0.00920610711974492,
+  "error_after_1h": 0.009135743970866868,
+  "error_after_10h": 0.0010733494685599143,
+  "settles_below_1ms_after_s": 37104.0
+ },
+ "frequency step 10 ppm / rfc5905": {
+  "max_error": 0.13740385568312058,
+  "error_after_1h": 0.036304554915504925,
+  "error_after_10h": 0.0850342817956165,
+  "settles_below_1ms_after_s": null
+ }
+}

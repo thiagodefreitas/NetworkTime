@@ -233,6 +233,60 @@ ntpstats simulate --preset ptp-lan --benchmark
 ntpstats bench ptp-lan ptp-tc --seeds 1-3 --html ptp-bench.html
 ```
 
+## Clock disciplines: ntpd and the NIST algorithms
+
+3.6 adds the clock-discipline loops themselves, steered in closed loop on the scenario's
+free-running clock like the PTP servos above ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40)):
+
+| Estimator | Model |
+|---|---|
+| `ntpd` | ntpd 4.2.8's daemon discipline (`ntpd/ntp_loopfilter.c`, no kernel PLL): the clock filter (minimum delay of the last eight samples, only samples newer than the last update), the NSET/FREQ/SYNC/SPIK state machine (step 128 ms, stepout 300 s, frequency measured directly at the first stepout), the hybrid PLL/FLL frequency update (PLL gain 16, FLL 0.25 above the Allan intercept of 2048 s) and the phase slewed once per second |
+| `ntpd-rfc` | the same with the constants and gain formulas of the RFC 5905 appendix (A.5.5.6, A.5.6.1): PLL 65536, FLL 1/(18 − poll), Allan intercept 1500 s, stepout 900 s |
+| `lockclock` | J. Levine's NIST frequency-lock loop, from J. Res. NIST 125:125008 (2020), section 6: a five-point majority vote per cycle, time-adjustment mode until the residual is within 3σ, then a frequency estimate y = δx/T averaged as ȳ = (y + kȳ)/(k + 1) plus a phase correction over the next cycle, and the frequency-innovation outlier rule of section 7. Network configuration of the paper: cycles of about 1000 s, k = 1 |
+| `levine-kalman` | LOCKCLOCK with the scalar Kalman time estimate of J. Levine, PTTI 2011 (Eq. 5): the correction is the fraction σ_o²/(σ_o² + σ_t²) of the residual |
+
+The time constant (poll exponent) is fixed at the scenario's measurement interval, as with
+`minpoll = maxpoll`. Not modelled: ntpd's popcorn spike suppressor and the 500 ppm limit on the
+phase slew, LOCKCLOCK's automatic re-evaluation of its parameters. In time-adjustment mode the
+paper adjusts every second; with the bench's longer intervals the model also estimates the
+frequency from successive residuals, or a large frequency offset would never leave that mode.
+Levine measured σ_o² against a reference of negligible noise; the model estimates it online from
+the cycle residuals. These are models written from the published code and papers.
+
+Five seeds, the first 30 minutes excluded (RMS error):
+
+| Estimator | `lan` | `internet` | `congested` | `route-change` |
+|---|---|---|---|---|
+| raw | 26.1 µs | 1.61 ms | 8.9 ms | 2.16 ms |
+| `ntpd` | 11.4 µs | 712 µs | 2.93 ms | 1.69 ms |
+| `ntpd-rfc` | 12.1 ms | 36.4 ms | 49.1 ms | 58.7 ms |
+| `lockclock` | 218 µs | 711 µs | 4.6 ms | 1.63 ms |
+| `levine-kalman` | 218 µs | 654 µs | 5.5 ms | 1.46 ms |
+| `regression` (chrony-style) | 3.99 µs | 54.4 µs | 575 µs | 1.33 ms |
+
+What the numbers show:
+- **The RFC appendix's constants do not discipline a clock.** The appendix slews the phase by
+  offset/(PLL·min(2^poll, 1500 s)) per second with PLL = 65536: a time constant of about 48 days
+  at poll 6, against 17 minutes with ntpd's PLL gain of 16. A 10 ms phase step of the reference is
+  still 9.9 ms off after 10 hours with the appendix's constants and below 1 ms after 35 minutes
+  with ntpd's ([research/thesis-2012](https://github.com/thiagodefreitas/NetworkTime/tree/master/research/thesis-2012), R6).
+  Implementations follow ntpd, not the printed constants.
+- **ntpd's loop is a type II loop**: it removes a frequency offset completely (tested), but slowly
+  at the shortest time constants; its RMS depends on the start (no drift file), hence the large
+  spread between seeds.
+- **LOCKCLOCK** is built for long cycles in the white-frequency-noise domain of the local clock.
+  On the LAN preset (16 s polling, a 12 ppm clock) its first cycles dominate the RMS; its error
+  afterwards is that of the clock between 1024 s cycles.
+- **The Kalman variant** improves on LOCKCLOCK on the internet and route-change presets and not on
+  the congested one. Levine reported a factor of two on noisy telephone links with σ_o calibrated
+  separately; with σ_o estimated from the data, the gain is modest and not uniform.
+- The chrony-style `regression` and the Huygens-style `hull`, which use the delay of every exchange,
+  remain more accurate than any of the closed loops on all four presets.
+
+```bash
+ntpstats bench lan internet congested route-change --seeds 1-5 -e raw,ntpd,ntpd-rfc,lockclock,levine-kalman,regression
+```
+
 ## NTP over PTP (RFC 10030)
 
 RFC 10030 carries NTP messages in a TLV of unicast PTP event messages, so that NICs which time-stamp

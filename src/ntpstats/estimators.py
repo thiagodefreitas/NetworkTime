@@ -41,6 +41,11 @@ Built-in reference algorithms
 ``median``         (multi) median of the servers' clock-filter outputs
 ``kalman-combine`` (multi) ntpd-rs-style: per-source Kalman filters, interval
                    intersection, inverse-variance combination
+``ntpd``, ``ntpd-rfc`` ntpd's clock discipline in closed loop, with the
+                   reference implementation's or the RFC 5905 appendix's constants
+``lockclock``      J. Levine's NIST frequency-lock loop (J. Res. NIST 2020)
+``levine-kalman``  LOCKCLOCK with Levine's scalar Kalman time estimate (PTTI 2011)
+                   (see :mod:`ntpstats.disciplines`)
 """
 
 from __future__ import annotations
@@ -587,6 +592,10 @@ def _builtin():
     register(FunctionEstimator("median", median_combine, multi=True, description="median of clock-filter outputs"))
     register(FunctionEstimator("kalman-combine", kalman_combine, multi=True,
                                description="ntpd-rs-style: per-source Kalman, intersection, inverse-variance mean"))
+
+    from .disciplines import _register as _disciplines
+
+    _disciplines()
 
 
 _builtin()

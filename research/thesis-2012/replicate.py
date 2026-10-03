@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
-"""Revisit the 2012 undergraduate thesis with ntpstats 3.5.0.
+"""Revisit the 2012 undergraduate thesis with ntpstats 3.6.0.
 
 T. F. O. Araújo, "Modelagem e análise de relógios locais para otimização de
 sincronismo horário em rede", Trabalho de Conclusão de Curso, UFCG, 2012,
 https://dspace.sti.ufcg.edu.br/handle/riufcg/18226
 
-    pip install ntpstats==3.5.0 matplotlib
+    pip install ntpstats==3.6.0 matplotlib
     python research/thesis-2012/replicate.py          # about one minute
 
 R1  the Savitzky-Golay stage of the 2012 code, as written and as intended
@@ -14,6 +14,7 @@ R2  the real 2012 measurements in legacy/, re-analysed
 R3  the correction loop of chapters 7-8 against a simulated clock with known truth
 R4  chapter 5: discretising the type II loop (forward/backward Euler, Tustin)
 R5  chapter 1, first objective: poll interval versus accuracy, from the 2012 free-running clock
+R6  chapter 5 against truth: step and ramp responses of NTP's loop (ntpd and RFC 5905 appendix constants)
 """
 
 import json
@@ -188,7 +189,8 @@ def r3_truth(seeds=(1, 2, 3, 4, 5)):
     ((_, base),) = api.load_scenarios(["internet"])
     base = replace(base, poll=32.0, duration=12 * 3600.0)
     names = ["raw", "SG 5/39 centred (offline)", "SG 5/39 causal", "2012 Kalman", "SG centred + 2012 Kalman",
-             "SG as built (deriv=2) + 2012 Kalman", "kalman-dw", "regression", "hull"]
+             "SG as built (deriv=2) + 2012 Kalman", "kalman-dw", "regression", "hull", "ntpd", "lockclock",
+             "levine-kalman"]
     acc = {n: {"rms": [], "oadev32": [], "oadev1024": []} for n in names}
     truth_adev = {"oadev32": [], "oadev1024": []}
     for seed in seeds:
@@ -205,7 +207,7 @@ def r3_truth(seeds=(1, 2, 3, 4, 5)):
             "SG centred + 2012 Kalman": legacy_kalman_series(sg_c, tau),
             "SG as built (deriv=2) + 2012 Kalman": legacy_kalman_series(LegacySavitzkyGolay(39, 5).filter(z), tau),
         }
-        for e in ("kalman-dw", "regression", "hull"):
+        for e in ("kalman-dw", "regression", "hull", "ntpd", "lockclock", "levine-kalman"):
             r = api.run_estimator(e, m)
             est[e] = np.interp(m.t, r.t, r.offset)
         tr = np.interp(m.t, truth.t, truth.offset)
@@ -285,7 +287,42 @@ def r5_poll(may):
            "h_lo": {str(k): float(v) for k, v in nf.lo.items()}, "h_hi": {str(k): float(v) for k, v in nf.hi.items()},
            "active": [int(a) for a in nf.active], "drift": float(nf.drift) if nf.drift is not None else None,
            "tie95": rows}
+    # the same question answered by `ntpstats poll` (3.6): the log decimated to each candidate interval
+    adv = api.poll_advice(seg, target=0.025, uncertainty=20)
+    out["advice"] = {"intervals": adv.intervals.tolist(), "error95": adv.error.tolist(),
+                     "samples": adv.samples.astype(int).tolist(), "target": 0.025, "recommended": adv.recommended}
     save("r5_poll.json", out)
+    return out
+
+
+# ---------------------------------------------------------------- R6: step and ramp responses of NTP's loop
+def r6_responses():
+    """Chapter 5's experiments against truth: a 10 ms phase step and a 10 ppm frequency step of the reference,
+    for the ntpd model with the reference implementation's constants and with the RFC 5905 appendix's."""
+    from ntpstats.disciplines import ntpd_discipline
+
+    poll, hours = 64.0, 12
+    t = 1_790_000_000.0 + np.arange(0, hours * 3600, poll)
+    rel = t - t[0]
+    cases = {"phase step 10 ms": np.where(rel >= 3600, 0.010, 0.0),
+             "frequency step 10 ppm": np.where(rel >= 3600, 10e-6 * (rel - 3600), 0.0)}
+    out = {}
+    for case, truth in cases.items():
+        s = TimeSeries(t, truth.copy(), name=case, extra={"delay": np.full(t.size, 0.01)})
+        for const in ("ntpd", "rfc5905"):
+            r = ntpd_discipline(s, constants=const, initial_frequency=0.0)
+            err = np.abs(r.offset - truth)
+            after = rel >= 3600
+            settle = None
+            for i in np.flatnonzero(after):
+                if np.all(err[i:] < 0.001):
+                    settle = float(rel[i] - 3600)
+                    break
+            out[f"{case} / {const}"] = {"max_error": float(err[after].max()),
+                                        "error_after_1h": float(err[np.searchsorted(rel, 7200)]),
+                                        "error_after_10h": float(err[np.searchsorted(rel, 11 * 3600)]),
+                                        "settles_below_1ms_after_s": settle}
+    save("r6_responses.json", out)
     return out
 
 
@@ -356,6 +393,9 @@ def main():
     print("R4", {m: r4[m]["first_unstable_r"] for m in ("forward", "backward", "tustin")}, r4["at_r_1_32"])
     r5 = r5_poll(may)
     print("R5", r5)
+    for k, v in r6_responses().items():
+        print("R6", k, {a: (f"{b * 1e3:.3f} ms" if isinstance(b, float) and a != "settles_below_1ms_after_s" else b)
+                        for a, b in v.items()})
     figures(r2, r3, r4)
 
 

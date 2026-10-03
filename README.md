@@ -92,7 +92,9 @@ are as valuable as code. Look for issues labelled
     clocks is the noisy one without a better reference (`ntpstats hat`);
   - **holdover prediction**: how long a clock stays within 1.1 µs, 100 µs or 1 ms if GNSS or
     the network is lost, with a calibrated envelope and a backtest on your own log
-    (`ntpstats holdover`).
+    (`ntpstats holdover`);
+  - **poll-interval advice**: the error just before the next poll for each candidate interval,
+    and the longest interval that meets a target (`ntpstats poll`).
 - **Telecom time error**: max|TE|, cTE, dTE_L/dTE_H, max|TEL|, and MTIE/TDEV of dTE_L, checked
   against your own limits and masks (`ntpstats timeerror`, exit code 3 on failure). Input can be
   a PTP capture, a linuxptp log or a time-interval counter.
@@ -124,7 +126,9 @@ are as valuable as code. Look for issues labelled
     congestion and outages, and multi-server scenarios with falsetickers;
   - reference algorithms: Kalman/RTS, NTP clock filter, chrony-style regression,
     RADclock-style feed-forward, a Huygens-style convex hull, RFC 5905 select/cluster/combine,
-    an ntpd-rs-style multi-server combination, and ptp4l-style and SPTP-style PTP clients;
+    an ntpd-rs-style multi-server combination, ptp4l-style and SPTP-style PTP clients, and
+    clock disciplines in closed loop: ntpd's (with the reference implementation's or the RFC 5905
+    appendix's constants) and J. Levine's NIST algorithms (LOCKCLOCK and its Kalman variant);
   - bring your own estimator via a small API or a package entry point; scenarios can be
     presets or TOML files;
   - reproducible reports as tables, CSV/JSON or self-contained HTML;

@@ -34,6 +34,8 @@ otherwise dominate them.
 | `kalman-combine` | multi-server, ntpd-rs-style: per-source Kalman filters, intersection, inverse-variance mean |
 | `ptp4l` | linuxptp-style slave: moving-median path delay and the PI (or linreg) servo ([details](research-bench.md#ptp-exchanges-in-the-bench)) |
 | `sptp` | SPTP-style client: complete exchanges, delay-outlier discard, PI servo |
+| `ntpd`, `ntpd-rfc` | ntpd's clock discipline in closed loop: clock filter, state machine, hybrid PLL/FLL; the reference implementation's constants or the RFC 5905 appendix's ([details](research-bench.md#clock-disciplines-ntpd-and-the-nist-algorithms)) |
+| `lockclock`, `levine-kalman` | J. Levine's NIST frequency-lock loop (J. Res. NIST 2020) and its scalar Kalman time estimate (PTTI 2011) |
 
 Add your own by subclassing `ntpstats.estimators.Estimator` and calling `register()`, or
 publish it through the `ntpstats.estimators` entry-point group
