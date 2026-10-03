@@ -9,6 +9,7 @@ edit_uri: edit/master/docs/
 
 theme:
   name: material
+  custom_dir: overrides  # adds the Search Console verification tag to <head>
   features:
     - navigation.tabs
     - navigation.top
