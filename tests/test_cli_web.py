@@ -327,3 +327,15 @@ def test_cli_ptp_capture_timeerror_and_convert(capsys, tmp_path):
     rep = tmp_path / "r.html"
     main(["report", cap, "--time-error", "-o", str(rep), "-k", "tdev"])
     assert "Time error" in rep.read_text()
+
+
+def test_cli_reports_input_errors_without_a_traceback(tmp_path, capsys):
+    from ntpstats.cli import main
+
+    assert main(["info", str(tmp_path / "missing.log")]) == 2
+    assert "No such file or directory" in capsys.readouterr().err
+    log = tmp_path / "loopstats"
+    log.write_text("60000 0.000 0.000123 1.5 0.000010 0.001 6\n60000 64.000 0.000120 1.5 0.000010 0.001 6\n")
+    assert main(["trace", str(log)]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("ntpstats: error:") and "Traceback" not in err

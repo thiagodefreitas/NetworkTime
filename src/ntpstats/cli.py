@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import calendar
 import json
+import os
 import sys
 import time
 from typing import List, Optional
@@ -504,7 +505,6 @@ def cmd_plugins(args):
 
 def cmd_dataset(args):
     import glob
-    import os
 
     from .research import interop_summary
 
@@ -572,7 +572,6 @@ def _time_value(v: str) -> float:
 
 
 def cmd_chain(args):
-    import os
     from dataclasses import replace
 
     from . import ptpsim as P
@@ -1521,10 +1520,16 @@ def main(argv=None) -> int:
     try:
         rc = args.func(args)
     except BrokenPipeError:  # output piped into head & co.: stop quietly, like other Unix tools
-        import os
-
         os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
         return 1
+    except (FileNotFoundError, IsADirectoryError, PermissionError) as exc:  # a usage error, not a crash
+        print(f"ntpstats: error: {exc.strerror or exc}: {exc.filename}", file=sys.stderr)
+        return 2
+    except (ParseError, ValueError) as exc:  # bad input or options: a message, not a traceback
+        if os.environ.get("NTPSTATS_DEBUG"):
+            raise
+        print(f"ntpstats: error: {exc}", file=sys.stderr)
+        return 2
     return int(rc or 0)
 
 

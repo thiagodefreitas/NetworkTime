@@ -146,7 +146,8 @@ are as valuable as code. Look for issues labelled
   - **Roughtime** (draft-19): signed time from several servers, chained so that a lying server
     is provable (malfeasance reports), and an authenticated bound on the local clock's error;
   - a polite `monitor` (RATE back-off, jitter), and `watch`, which samples the local
-    **chrony** (`chronyc -c tracking`) or **ntpd/NTPsec** (`ntpq -c rv`) without log files.
+    **chrony** (`chronyc -c tracking`), **ntpd/NTPsec** (`ntpq -c rv`), **ntpd-rs**
+    (`ntp-ctl`), **ptp4l** (`pmc`) or **ptpcheck** without log files.
 - **Lightweight UI**: `ntpstats ui` starts a local web app. It runs on the Python standard
   library HTTP server with one static page and [uPlot](https://github.com/leeoniya/uPlot) (≈50 kB,
   bundled, MIT), so there is no Qt, Electron, Node or CDN, and it works offline.
@@ -154,8 +155,9 @@ are as valuable as code. Look for issues labelled
     a verdict), *Lab* (simulator, estimator bench, PTP chains) and *Live*.
   - A command palette (Ctrl K), keyboard shortcuts and a link for every page.
   - Dataset sparklines, light and dark themes, drag-and-drop, overlays, zoom-to-analyse, and
-    PNG/CSV/HTML export. The same UI also runs **in the browser** on the docs site (Pyodide/WebAssembly; files
-  never leave your machine).
+    PNG/CSV/HTML export.
+  - The same UI also runs **in the browser** on the docs site (Pyodide/WebAssembly; files
+    never leave your machine).
 - **Small footprint**: the only runtime dependency is **numpy**. matplotlib is optional
   (static/publication figures).
 
@@ -230,7 +232,7 @@ ntpstats query ntpd-rs.example.net --ntpv5          # experimental NTPv5 draft-0
 ntpstats query pool.ntp.org --probe-v5              # does the server offer NTPv5?
 ntpstats query time.example.net --interleaved       # RFC 9769: precise server transmit time
 ntpstats roughtime --check-local                    # signed time; exit 3 if servers or this clock disagree
-ntpstats watch chrony -i 16 -o chrony-live.csv      # local daemon, no log files needed
+ntpstats watch chrony -i 16 -o chrony-live.csv      # local daemon, no log files needed (also ntpd, ntpd-rs, ptp4l)
 ntpstats info capture.pcapng                        # NTP exchanges from a packet capture
 ntpstats stability /var/log/ptp4l.log -k tdev,mtie  # PTP servo offsets
 ```
@@ -336,7 +338,8 @@ regenerates the sample logs in `examples/data/` in each native format.
 
 ## Validation
 
-`pytest` runs about 170 tests (plus `ruff` lint and coverage in CI), and none of them need network access:
+`pytest` runs about 480 tests (plus `ruff` lint, `mypy` and coverage in CI), and none of them need
+network access; the example notebooks and a browser test of the web UI run in CI as well:
 
 - every estimator is checked against a literal implementation of the NIST SP 1065 sums, against
   the analytic log-log slopes of the five power-law noise types, and against a frozen table of
@@ -350,8 +353,11 @@ regenerates the sample logs in `examples/data/` in each native format.
   spoofed replies, timeouts, 2036 rollover, TAI timescale, forged NTS responses, certificate
   mismatch);
 - the pcap/pcapng readers are checked on synthesised captures (VLAN tags, nanosecond
-  resolution, NTPv4 and v5 matching), and the linuxptp parser on the exact `pr_info` formats from
-  the linuxptp source;
+  resolution, NTPv4 and v5 matching, PTP one-/two-step E2E/P2P, NTP over PTP with
+  transparent-clock corrections, CSPTP), and the linuxptp parser on the exact `pr_info` formats
+  from the linuxptp source;
+- the chrony parsers are checked on the example lines of the chrony 4.9 documentation, and the
+  ntpd-rs source on the metrics layout of its 1.9 source;
 - the web API is checked, including its CSRF, Host-header and path-traversal protections.
 
 CI runs on Python 3.9, 3.11 and 3.13.

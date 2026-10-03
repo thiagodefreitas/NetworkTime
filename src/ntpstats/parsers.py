@@ -805,7 +805,8 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
         # A directory of log files (e.g. the weekly interop dataset): concatenate its text files in name order.
         root = os.fspath(source)
         files = sorted(os.path.join(dp, f) for dp, _, fs in os.walk(root) for f in fs
-                       if not f.startswith(".") and not f.lower().endswith((".md", ".txt.md")))
+                       if not f.startswith(".") and not f.lower().endswith((".md", ".txt.md"))
+                       and os.path.isfile(os.path.join(dp, f)))  # skip broken links, sockets, fifos
         if not files:
             raise ParseError(f"{source}: empty directory")
         parts = []

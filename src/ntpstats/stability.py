@@ -651,7 +651,9 @@ def slopes(result: StabilityResult) -> np.ndarray:
     """Local log-log slope between consecutive tau points."""
     if result.taus.size < 2:
         return np.array([])
-    return np.diff(np.log10(result.dev)) / np.diff(np.log10(result.taus))
+    dev = np.where(np.asarray(result.dev, float) > 0, result.dev, np.nan)  # a zero deviation has no slope
+    with np.errstate(invalid="ignore"):
+        return np.diff(np.log10(dev)) / np.diff(np.log10(result.taus))
 
 
 def identify_noise(result: StabilityResult) -> List[str]:
