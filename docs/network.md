@@ -1,3 +1,7 @@
+---
+description: "Network delay analysis for NTP and PTP: delay floor, queueing, offset-versus-delay wedge, asymmetry, floor packet percentage, and Kalman, RTS, clock-filter and Huygens-style estimators."
+---
+
 # Network metrics and estimators
 
 ## Network metrics

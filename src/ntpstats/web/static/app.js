@@ -147,11 +147,31 @@ function chartHeight(el) {
   if (el.closest(".panel.expanded")) return Math.max(300, el.closest(".panel").clientHeight - 90);
   return el.classList.contains("tall") ? 420 : el.classList.contains("short") ? 190 : 320;
 }
+// On log scales uPlot cannot place ticks for values that are zero to numerical precision (its tick
+// generator rounds to a fixed number of decimals and never terminates), so those become gaps.
+const LOG_FLOOR = 1e-20;
+function sanitizeLog(opts, data) {
+  const scales = opts.scales || {};
+  let empty = false;
+  for (const [key, sc] of Object.entries(scales)) {
+    if (key === "x" || !sc || sc.distr !== 3) continue;
+    let any = false;
+    (opts.series || []).forEach((s, i) => {
+      if (!i || (s.scale || "y") !== key || !data[i]) return;
+      data[i] = Array.from(data[i], (v) => (v == null || !isFinite(v) || Math.abs(v) < LOG_FLOOR ? null : v));
+      any = any || data[i].some((v) => v != null && v > 0);
+    });
+    if (!any) { sc.range = [1e-12, 1e-9]; empty = true; }
+  }
+  return empty;
+}
 function makeChart(name, el, opts, data) {
   if (state.charts[name]) state.charts[name].destroy();
   el.innerHTML = "";
   el.classList.remove("loading");
+  const empty = sanitizeLog(opts, data);
   const u = new uPlot(Object.assign({ width: Math.max(280, el.clientWidth - 16), height: opts.height || chartHeight(el) }, opts), data, el);
+  if (empty) el.insertAdjacentHTML("beforeend", `<p class="note">Nothing to plot on a log scale: the values are zero to numerical precision (noise-free or quantised data).</p>`);
   state.charts[name] = u;
   return u;
 }
@@ -355,6 +375,7 @@ async function render() {
     $("#ov-offset-panel").hidden = $("#ov-adev-panel").hidden = true;
     return;
   }
+  $$(".chart.loading").forEach((el) => el.classList.remove("loading"));  // a superseded render elsewhere left them
   $$(`.page[data-page="${page}"] .chart`).forEach((el) => el.classList.add("loading"));
   try {
     await RENDER[page](() => tok === state.seq);
@@ -619,7 +640,9 @@ async function renderDistribution(fresh) {
 
 async function renderNetwork(fresh) {
   const id = state.active;
-  const [p, tr] = await Promise.all([tryApi(`/api/network/${id}?${params()}`), tryApi(`/api/trace/${id}?${params()}`)]);
+  const hasDelay = (dsById(id)?.columns || []).includes("delay");
+  const [p, tr] = hasDelay ? await Promise.all([tryApi(`/api/network/${id}?${params()}`), tryApi(`/api/trace/${id}?${params()}`)])
+    : [{ __error: "this dataset has no round-trip delay; network metrics need two-way exchanges (NTP or PTP logs and captures)" }, null];
   if (!fresh()) return;
   if (p.__error) {
     for (const k of ["wedge", "delay", "fpp", "trace"]) { dropChart(k); }
@@ -735,10 +758,10 @@ async function renderCompareTable(fresh) {
   const list = state.datasets.slice(0, 40);
   const sums = await Promise.all(list.map((d) => tryApi(`/api/series/${d.id}?max_points=2`)));
   if (!fresh()) return;
-  $("#compare-table").innerHTML = `<table><tr><th></th><th>Dataset</th><th>Format</th><th>Samples</th><th>Start</th><th>Span</th><th>Mean</th><th>RMS</th><th>90 % range</th><th>Trend ppm</th></tr>${list.map((d, i) => {
+  $("#compare-table").innerHTML = `<table><tr><th></th><th class="nm">Dataset</th><th>Format</th><th>Samples</th><th>Start</th><th>Span</th><th>Mean</th><th>RMS</th><th>90 % range</th><th>Trend ppm</th></tr>${list.map((d, i) => {
     const m = sums[i].summary || {};
     return `<tr class="click" data-id="${d.id}"><td><input type="checkbox" ${state.compare.has(d.id) || d.id === state.active ? "checked" : ""} ${d.id === state.active ? "disabled" : ""}></td>
-      <td>${swatch(d.id)}${esc(d.name)}${d.id === state.active ? " <span class='hint'>(active)</span>" : ""}</td><td>${esc(d.format)}</td><td>${d.samples.toLocaleString()}</td><td>${fmtDate(m.start)}</td><td>${fmtDur(m.span_s)}</td>
+      <td class="nm">${swatch(d.id)}${esc(d.name)}${d.id === state.active ? " <span class='hint'>(active)</span>" : ""}</td><td>${esc(d.format)}</td><td>${d.samples.toLocaleString()}</td><td>${fmtDate(m.start)}</td><td>${fmtDur(m.span_s)}</td>
       <td>${fmtSec(m.mean)}</td><td>${fmtSec(m.rms)}</td><td>${fmtSec(m.range_90)}</td><td>${fmtNum(m.offset_slope_ppm, 4)}</td></tr>`;
   }).join("")}</table>`;
   $$("#compare-table tr.click").forEach((tr) => {
@@ -751,12 +774,16 @@ async function renderCompareTable(fresh) {
 }
 
 async function renderReference(fresh) {
-  const others = state.datasets.filter((d) => d.id !== state.active);
+  const me = dsById(state.active);
+  const overlaps = (d) => me && d.start < me.end && d.end > me.start;
+  // datasets that overlap the active one in time first: only those can serve as its reference
+  const others = state.datasets.filter((d) => d.id !== state.active).sort((a, b) => overlaps(b) - overlaps(a));
   const sel = $("#ref-select"), prev = sel.value;
-  sel.innerHTML = others.map((d) => `<option value="${d.id}">${esc(d.name)}</option>`).join("");
+  sel.innerHTML = others.map((d) => `<option value="${d.id}">${esc(d.name)}${overlaps(d) ? "" : " (no overlap)"}</option>`).join("");
   if (!others.length) { $("#ref-cards").innerHTML = card("Reference", "–", "load a second dataset (PPS, GNSS or a better server)"); return; }
   sel.value = others.some((d) => d.id === prev) ? prev : others[0].id;
-  const r = await tryApi(`/api/compare/${state.active}?${params({ ref: sel.value })}`);
+  const r = overlaps(dsById(sel.value)) ? await tryApi(`/api/compare/${state.active}?${params({ ref: sel.value })}`)
+    : { __error: "the two datasets do not overlap in time; pick a reference recorded over the same period" };
   if (!fresh()) return;
   if (r.__error) {
     $("#ref-cards").innerHTML = card("Cannot compare", "–", esc(r.__error));
@@ -820,7 +847,7 @@ async function renderTimeErrorPage(fresh) {
     card("max|TE|", fmtSec(te.max_abs_te), "unfiltered"), card("cTE", fmtSec(te.cte), "whole record"),
     card(`max |cTE| (${fmtDur(te.cte_window_s)})`, fmtSec(te.max_abs_cte_window), `${te.cte_windows.length} windows`),
     card("max|TEL|", fmtSec(te.max_abs_tel), `${te.lpf_hz} Hz low-pass`),
-    card("dTE_L p-p", fmtSec(te.dte_l_pp), `MTIE ${fmtSec(last(te.dte_l_mtie))}`), card("dTE_H p-p", fmtSec(te.dte_h_pp), "high-pass part"),
+    card("dTE_L p-p", fmtSec(te.dte_l_pp), `MTIE ${fmtSec(last(te.dte_l_mtie))}`), card("dTE_H p-p", fmtSec(te.dte_h_pp), te.dte_h_pp == null || !isFinite(te.dte_h_pp) ? "sampling too slow to separate" : "high-pass part"),
   ].join("");
   makeChart("te", $("#chart-te"), {
     series: [{}, { label: "TE", stroke: state.colors[state.active], width: 1, value: (u, v) => fmtSec(v) }, { label: "TEL", stroke: css("--text"), width: 1.6, value: (u, v) => fmtSec(v) }],
@@ -966,7 +993,9 @@ function commands() {
   for (const [ws, w] of Object.entries(WORKSPACES)) for (const [p, label] of w.pages) cmds.push({ group: w.label, label, hint: `#/${ws}/${p}`, run: () => go(`${ws}/${p}`) });
   for (const d of state.datasets) cmds.push({ group: "Dataset", label: d.name, hint: `${d.format} · ${d.samples} pts`, run: () => selectDataset(d.id) });
   cmds.push({ group: "Action", label: "Open files…", hint: "O", run: () => $("#file-input").click() });
-  for (const p of ["internet", "lan", "congested", "route-change", "falseticker"]) cmds.push({ group: "Action", label: `Simulate ${p}`, hint: "Lab", run: () => simulate(p) });
+  for (const p of ["internet", "lan", "congested", "route-change", "falseticker", "ptp-lan", "ptp-tc"]) cmds.push({ group: "Action", label: `Simulate ${p}`, hint: "Lab", run: () => simulate(p) });
+  // shown only when asked for ("format …"), so the dozens of formats do not crowd other results
+  for (const o of $$("#format option")) cmds.push({ group: "Input format", label: `Format: ${o.textContent}`, hint: o.value, onlyFor: "format", run: () => { $("#format").value = o.value; toast(`Next files are read as ${o.textContent}`); } });
   cmds.push({ group: "Action", label: "Download HTML report of the active dataset", run: () => reportDownload() });
   cmds.push({ group: "Action", label: "Download audit evidence report", run: () => state.active && download(`/api/export/${state.active}/audit.html?${auditParams()}`) });
   cmds.push({ group: "Action", label: "Export offset CSV", run: () => state.active && download(`/api/export/${state.active}/series.csv?${params()}`) });
@@ -1004,7 +1033,8 @@ function drawPalette() {
     if (l) return 2 * l + (c.label.toLowerCase().startsWith(q.toLowerCase()) ? 25 : 0);
     return score(q, `${c.group} ${c.label}`);
   };
-  palItems = commands().map((c) => ({ c, s: rank(c) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 40).map((x) => x.c);
+  const asked = (c) => !c.onlyFor || q.toLowerCase().startsWith(c.onlyFor.slice(0, Math.max(3, Math.min(q.length, c.onlyFor.length))));
+  palItems = commands().filter(asked).map((c) => ({ c, s: rank(c) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 40).map((x) => x.c);
   palSel = 0;
   renderPalList();
 }

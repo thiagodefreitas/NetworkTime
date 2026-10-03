@@ -1,3 +1,7 @@
+---
+description: "Analyse NTP and PTP logs in the browser without installing anything: ntpstats runs locally in WebAssembly (Pyodide); files never leave your machine."
+---
+
 # In your browser
 
 **[Open ntpstats in your browser →](https://thiagodefreitas.github.io/NetworkTime/app/)**

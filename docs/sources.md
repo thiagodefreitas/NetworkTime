@@ -1,3 +1,7 @@
+---
+description: "Live and offline sources: chrony, ntpd/NTPsec, ntpd-rs, linuxptp pmc, facebook/time ptpcheck, Windows w32tm, Prometheus, and validation of AWS ClockBound and fbclock error bounds."
+---
+
 # More sources, instruments and clock-error bounds
 
 ## Live PTP clients

@@ -1,3 +1,7 @@
+---
+description: "Runnable notebooks: chrony stability and noise, benchmarking synchronisation algorithms, compliance evidence, NIST SP 1065 reproduction, PTP boundary-clock budgets, PTP without on-path support."
+---
+
 # Notebooks and reproduction gallery
 
 Runnable notebooks in

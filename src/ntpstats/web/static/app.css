@@ -210,6 +210,7 @@ table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nu
 th, td { padding: 5px 10px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
 th { color: var(--muted); font-weight: 600; background: var(--panel-2); position: sticky; top: 0; }
 td:first-child, th:first-child { text-align: left; }
+td.nm, th.nm { text-align: left; white-space: normal; overflow-wrap: anywhere; min-width: 12em; }
 tr:last-child td { border-bottom: 0; }
 tr.click { cursor: pointer; }
 tr.click:hover td { background: var(--panel-2); }
@@ -258,7 +259,8 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; ma
 .chip.fail { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
 
 @media (max-width: 1000px) {
-  .grid2, .formgrid { grid-template-columns: 1fr; }
+  .grid2, .formgrid { grid-template-columns: minmax(0, 1fr); }  /* min 0: long content wraps or scrolls, never widens the page */
+  .grid2 > *, .formgrid > * { min-width: 0; }
   .search span { display: none; }
   .search { flex: 0; }
 }
@@ -274,7 +276,19 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; ma
   .pagebar { position: static; }
   .search kbd { display: none; }
   .brand small { display: none; }
+  .actions #format { display: none; }
+  #tabs { overflow-x: auto; scrollbar-width: none; }
+  select { max-width: 100%; min-width: 0; }
+  label { min-width: 0; flex-wrap: wrap; }
+  .u-legend { max-width: 100%; }
+  .u-legend.u-inline .u-series { white-space: normal; }
+  .kvlist { overflow-wrap: anywhere; grid-template-columns: minmax(0, 40%) minmax(0, 1fr); }  /* auto-detection is right for nearly every file; the palette still sets it */
   .statusbar .hint, .statusbar > span:last-child { display: none; }
+}
+
+@media (max-width: 420px) {
+  .actions .btn.primary span { display: none; }
+  .topbar { gap: 6px; }
 }
 
 /* in-browser edition: boot banner */

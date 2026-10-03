@@ -1,5 +1,5 @@
 site_name: ntpstats
-site_description: "NTP / PTP / network-time offset, delay and frequency-stability analysis"
+site_description: "Open-source Python toolkit for NTP and PTP: Allan deviation, TDEV, MTIE and time error from chrony, ntpd, ntpd-rs and linuxptp logs and packet captures, plus a clock-synchronisation test bench."
 site_author: "Thiago de Freitas"
 site_url: "https://thiagodefreitas.github.io/NetworkTime/"
 copyright: "© 2012–2026 Thiago de Freitas · MIT License"

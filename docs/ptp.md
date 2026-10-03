@@ -1,3 +1,7 @@
+---
+description: "PTP (IEEE 1588) analysis from pcap/pcapng captures: offset, path delay, one-/two-step, E2E/P2P, NTP over PTP (RFC 10030), CSPTP, and ITU-T G.8260 time error (max|TE|, cTE, dTE, MTIE, TDEV) with limits and masks."
+---
+
 # PTP captures and time error
 
 ## PTP from packet captures
@@ -103,7 +107,8 @@ sign of ntpstats offsets, which are converted automatically.
 
 The filter restarts after gaps. The first five time constants after each start (8 s at 0.1 Hz)
 are left out of the filtered metrics. Sample at 1 Hz or faster, or the filter cannot separate
-dTE_L from dTE_H (a warning says so).
+dTE_L from dTE_H: a warning says so, dTE_H is then reported as not available, and a limit on it
+is reported as not checked rather than passed or failed.
 
 ```bash
 # a PTP capture, a linuxptp log or any supported log

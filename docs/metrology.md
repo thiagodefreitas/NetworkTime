@@ -1,3 +1,7 @@
+---
+description: "Frequency-domain clock metrology: phase and frequency PSD, L(f), power-law noise fits with intervals, three-cornered hat and Groslambert covariance, holdover prediction."
+---
+
 # Metrology: noise model, spectra, N-cornered hat, holdover
 
 ## Power-law noise model

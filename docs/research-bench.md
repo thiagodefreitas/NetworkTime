@@ -1,3 +1,7 @@
+---
+description: "Benchmark clock synchronisation algorithms with ground truth: trace replay of real network delays, PTP exchanges and transparent clocks, ptp4l- and SPTP-style clients, boundary-clock chains, OMNeT++/INET and ns-3 interop."
+---
+
 # Trace replay and PTP chains
 
 The [research bench](network.md#research-bench) scores synchronisation algorithms against a

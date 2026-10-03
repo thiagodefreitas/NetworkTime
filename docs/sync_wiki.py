@@ -115,6 +115,7 @@ def convert(src: str, text: str) -> str:
         new = _image(src, target) if bang else _resolve(src, target)
         return f"{bang}[{label}]({new})"
 
+    text = re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.S)  # MkDocs front matter (page description)
     text = _LINK.sub(repl, text)
     text = re.sub(r"^::: .*$", "", text, flags=re.M)  # mkdocstrings directives
     text = _admonitions(text)

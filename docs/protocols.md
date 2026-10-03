@@ -1,3 +1,7 @@
+---
+description: "Roughtime, NTS and NTS pools, RFC 9769 interleaved mode and NTPv5 clients for measuring time servers."
+---
+
 # Protocols: Roughtime, NTS pools, interleaved mode, NTPv5
 
 ntpstats includes clients for the time protocols now being standardised or deployed, so they can

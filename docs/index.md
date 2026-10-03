@@ -1,3 +1,8 @@
+---
+title: "ntpstats: NTP, PTP and clock stability analysis"
+description: "Open-source Python toolkit to validate, evaluate and study network time synchronisation: Allan deviation, TDEV, MTIE and time error from chrony, ntpd, NTPsec, ntpd-rs and linuxptp logs and NTP/PTP packet captures."
+---
+
 # ntpstats
 
 **Validate, evaluate and study network time synchronisation.**

@@ -105,3 +105,19 @@ def test_from_ptp_capture():
     (s,) = parse_ptp(pcapng_ns(scenario(n=400, x_ns=250)), "cap")
     r = time_error(s)
     assert r.cte == pytest.approx(250e-9, abs=1e-12) and r.dte_h_pp == pytest.approx(0, abs=1e-12)
+
+
+def test_dte_h_not_available_when_sampling_cannot_separate_it():
+    import numpy as np
+
+    from ntpstats.series import TimeSeries
+    from ntpstats.timeerror import check, time_error
+
+    t = 1.7e9 + 64.0 * np.arange(500)  # 64 s sampling: far below the 0.2 Hz Nyquist rate of a 0.1 Hz filter
+    s = TimeSeries(t, 1e-6 * np.sin(t / 3000.0))
+    r = time_error(s)
+    assert r.warnings and np.isnan(r.dte_h_pp)
+    verdict = check(r, {"dte_h_pp": 1e-6, "max_te": 1e-3})
+    rows = {c["metric"]: c for c in verdict["checks"]}
+    assert rows["dte_h_pp"]["passed"] is None and rows["max_te"]["passed"] is True
+    assert verdict["passed"] is True

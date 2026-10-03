@@ -101,3 +101,27 @@ def test_palette_keyboard_and_theme(ui):
     ui.keyboard.press("?")
     assert ui.evaluate("document.querySelector('#help').open")
     assert not ui.errors, ui.errors
+
+
+def test_narrow_screen_and_degenerate_data(ui):
+    """Phone width: no page scrolls sideways. A dataset whose deviations are zero to numerical precision
+    (a noise-free Circular T ramp) must not hang the log-scale charts."""
+    ui.set_input_files("#file-input", [os.path.join(EX, "circular-t.example")])
+    ui.wait_for_function("[...document.querySelectorAll('#datasets li .nm')].some(e => e.title.includes('circular-t'))",
+                         timeout=20000)
+    ui.evaluate("() => [...document.querySelectorAll('#datasets li')].find(li => li.querySelector('.nm').title"
+                ".includes('circular-t')).click()")
+    ui.set_viewport_size({"width": 390, "height": 844})
+    before = len(ui.errors)
+    try:
+        for page in PAGES:
+            ui.evaluate(f"() => location.hash = '#/{page}'")
+            ui.wait_for_function("document.querySelector('#busy').hidden && "
+                                 "!document.querySelector('.page.active .chart.loading')", timeout=15000)
+            over = ui.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+            assert over <= 1, f"{page} scrolls sideways by {over}px at 390 px"
+        assert ui.errors[before:] == []
+        # superseded renders must not leave charts of other pages marked as loading
+        assert ui.evaluate("() => document.querySelectorAll('.page:not(.active) .chart.loading').length") == 0
+    finally:
+        ui.set_viewport_size({"width": 1400, "height": 900})

@@ -8,7 +8,7 @@ authors:
 license: MIT
 doi: 10.5281/zenodo.23070521
 repository-code: "https://github.com/thiagodefreitas/NetworkTime"
-version: 3.2.0
+version: 3.3.0
 date-released: 2026-10-03
 keywords:
   - NTP

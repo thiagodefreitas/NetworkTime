@@ -14,6 +14,45 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-10-03
+
+A quality release: the web UI, the command line and the documentation were checked end to end
+(every page with every example dataset, on desktop, at phone width and in the dark theme; every
+command on every example file), and what that found is fixed. No breaking changes.
+
+### Added
+- Gallery notebook *PTP through networks without PTP support*: ptp4l-style and SPTP-style clients,
+  delay filters and a Huygens-style estimator on the same PTP exchanges with ground truth, how much
+  transparent-clock coverage is enough, a narrower servo, and RFC 10030 corrections on a capture.
+- Command palette: choose the input format for the next files (type "format"), and simulate the PTP
+  presets.
+- Docs site: a description for every main page and a clearer site description, so that searches
+  for NTP/PTP stability, time-error or capture analysis can find it; the tools landscape lists
+  ntpxyz, chrony_ntp_logconv, PTP-DAL and timeTools.
+
+### Changed
+- Command line: a missing file, unreadable input or impossible request prints one line
+  (`ntpstats: error: …`) and exits with status 2 instead of a Python traceback;
+  `NTPSTATS_DEBUG=1` shows the traceback.
+- Time error: when the sampling is too slow for the filter bandwidth, dTE_H is reported as not
+  available (it was numerical noise), and a limit on it is reported as not checked.
+- Web UI: the reference picker lists datasets that overlap the active one first and marks the
+  others; the network page explains when a dataset has no round-trip delay instead of failing a
+  request.
+
+### Fixed
+- Web UI: log-scale charts hung (and raised a script error) on deviations that are zero to
+  numerical precision, e.g. a noise-free ramp; such values are now gaps, with a note.
+- Web UI at phone width: the header, page tabs, comparison table, events table, reference
+  picker, chart legends and the audit rules no longer push the page sideways; the dTE_H card no
+  longer shows a raw number.
+- Web UI: charts of a page left mid-render no longer stay marked as loading.
+- Loading a directory skips broken links and other non-regular files.
+- Stability slopes no longer warn on a zero deviation.
+
+### Stable API changes since 3.2.0
+- None. Code written against the stable API of an earlier release keeps working.
+
 ## [3.2.0] - 2026-10-03
 
 New daemons and protocols as sources ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). No breaking changes.

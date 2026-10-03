@@ -1,6 +1,6 @@
 # Tools landscape
 
-*Reviewed 2 October 2026.* This page lists the tools that practitioners and researchers
+*Reviewed 3 October 2026.* This page lists the tools that practitioners and researchers
 use and cite for network-time and clock analysis. For each, it says what the tool is good at,
 where ntpstats overlaps, and how the two work together. ntpstats aims to **interoperate** with
 these tools, not to replace them. Corrections are welcome as issues or pull requests.
@@ -19,8 +19,10 @@ these tools, not to replace them. Corrections are welcome as issues or pull requ
 | Tool | What it is | Relation to ntpstats |
 |---|---|---|
 | **chrony** / `chronyc` | The default client on most Linux distributions; logs tracking, measurements, statistics and refclocks | All of these logs are parsed, and chrony can be polled live |
-| **ntpd-rs** | Rust NTP/NTS daemon with experimental NTPv5; announced as the default in Ubuntu 27.04 | NTPv5 interop tested; its Prometheus metrics are read with `ntpstats prom` ([Sources](sources.md)) |
+| **ntpd-rs** | Rust NTP/NTS daemon with experimental NTPv5 and, in 2.0, CSPTP; announced as the default in Ubuntu 27.04 | NTPv5 interop tested; polled live with `ntpstats watch ntpd-rs` (1.x metrics) or read from Prometheus with `ntpstats prom`; its CSPTP exchanges are read from captures ([Sources](sources.md), [PTP](ptp.md)) |
 | **NTPsec** `ntpviz` | Percentile plots from `loopstats`/`peerstats` | Same inputs; ntpstats adds stability statistics, network metrics and chrony support |
+| **ntpxyz** (Python) | Plots of ntpd `loopstats`, `sysstats` and `usestats` with matplotlib | Overlapping inputs for loopstats; ntpstats adds confidence intervals, peer/network analysis and the other daemons |
+| **chrony_ntp_logconv** | Converts chrony `tracking`/`statistics` logs so that `ntpviz` can plot them | Not needed with ntpstats, which reads chrony logs directly (and keeps chrony's error bounds distinct from an Allan deviation) |
 | **ntpperf** (M. Lichvar) | Load and timestamp-accuracy tester for NTP servers and PTP masters | Complementary: ntpstats analyses the resulting NTP and PTP captures |
 | `chrony_exporter` + Prometheus/Grafana | Operational dashboards | ntpstats exports OpenMetrics and OpenTelemetry with a Grafana dashboard ([Monitoring](monitoring.md)) and imports Prometheus range queries (`ntpstats prom`) |
 
@@ -31,7 +33,9 @@ these tools, not to replace them. Corrections are welcome as issues or pull requ
 | **linuxptp** (`ptp4l`, `phc2sys`, `ts2phc`, `pmc`) | The Linux PTP stack | Logs parsed; live polling via `pmc` (`ntpstats watch ptp4l`) |
 | **Meinberg PTP Track Hound** (free, closed source) | Captures and decodes PTP traffic, groups devices, monitors | Complementary: ntpstats computes offset, PDV and time-error statistics from the captures ([PTP & time error](ptp.md)) |
 | **Calnex CAT**, VIAVI, Keysight, Microchip software | Vendor analysis for test equipment: TE, cTE, dTE, MTIE, TDEV, FPP with standard masks | ntpstats offers transparent, scriptable TE/cTE/dTE/MTIE/TDEV on exported data ([PTP & time error](ptp.md)); exports are read through TOML import profiles, with vendor profiles added from contributed samples ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)) |
-| **facebook/time** (ptpcheck, sptp, ptp4u, fbclock) | Meta's open-source PTP/NTP tools and TrueTime-style uncertainty | `ptpcheck stats` live polling (`ntpstats watch ptpcheck`); fbclock windows validated with `ntpstats bounds`; an SPTP-style client in the bench is a later item |
+| **facebook/time** (ptpcheck, sptp, ptp4u, fbclock) | Meta's open-source PTP/NTP tools and TrueTime-style uncertainty | `ptpcheck stats` live polling (`ntpstats watch ptpcheck`); fbclock windows validated with `ntpstats bounds`; an SPTP-style client model is scored in the bench ([Trace replay & PTP](research-bench.md)) |
+| **PTP-DAL** (Python) | Offline analysis of recorded PTP datasets: synchronisation algorithms scored with max\|TE\| and MTIE | Similar research purpose; ntpstats works from standard captures and daemon logs, simulates exchanges with ground truth and covers NTP too |
+| **timeTools** (Python, GPL-3) | Time error, MTIE and TDEV, and PDV generation with ITU-T G.8263-style methods | Overlapping metrics; ntpstats (MIT) adds the input formats, limits and masks, captures and the audit report |
 | **OCP TAP Time Card / Open Time Server** | Open-hardware grandmaster (GNSS + atomic oscillator) | Holdover prediction applies to its logs ([Metrology](metrology.md)); dedicated parsers wait for sample data ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
 | **AWS ClockBound** | Clock-error bound daemon for EC2 | Bounds validated against a reference (`ntpstats bounds`) |
 | **Windows w32tm** | The Windows time service | `w32tm /stripchart` output read directly |

@@ -1,3 +1,7 @@
+---
+description: "Input formats read by ntpstats: ntpd peerstats/loopstats/rawstats, chrony measurements/tracking/statistics/refclocks, linuxptp, pcap/pcapng, CSV, Stable32, RINEX clock, CGGTTS and more."
+---
+
 # Input formats
 
 Formats are detected automatically; `-f/--format` overrides detection.

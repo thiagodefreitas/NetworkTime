@@ -148,7 +148,8 @@ def time_error(
     if ok.sum() < 3:
         raise ValueError("need at least 3 samples")
     warnings = []
-    if tau0 > 1.0 / (2.0 * lpf_hz):
+    separable = tau0 <= 1.0 / (2.0 * lpf_hz)
+    if not separable:
         warnings.append(f"sample interval {tau0:g} s is too long for a {lpf_hz:g} Hz filter: "
                         "dTE_L/dTE_H cannot be separated (sample at 1 Hz or faster)")
     cte = float(np.mean(te[ok]))
@@ -172,7 +173,8 @@ def time_error(
         tau0=float(tau0), t=t, te=te, tel=tel, max_abs_te=float(np.max(np.abs(te[ok]))), cte=cte,
         cte_window=float(cte_window), cte_windows=cw,
         max_abs_cte_window=float(np.max(np.abs(cw[:, 1]))) if len(cw) else abs(cte),
-        max_abs_tel=float(np.nanmax(np.abs(tel))), dte_l_pp=_pp(dte_l), dte_h_pp=_pp(dte_h),
+        max_abs_tel=float(np.nanmax(np.abs(tel))), dte_l_pp=_pp(dte_l),
+        dte_h_pp=_pp(dte_h) if separable else float("nan"),  # below Nyquist the high-pass part is numerical noise
         mtie=mt, tdev=td, lpf_hz=float(lpf_hz), n=int(ok.sum()), warnings=warnings,
     )
 
@@ -235,8 +237,12 @@ def check(result: TimeErrorResult, limits: Optional[Dict[str, float]] = None,
     values = result.metrics()
     for key, lim in (limits or {}).items():
         v = values[key]
+        if not np.isfinite(v):  # e.g. dTE_H when the sampling cannot separate it: not checked, not passed
+            rows.append({"metric": key, "label": LIMIT_METRICS[key], "value": v, "limit": lim, "passed": None,
+                         "note": "not measurable from this record (see warnings)"})
+            continue
         rows.append({"metric": key, "label": LIMIT_METRICS[key], "value": v, "limit": lim,
-                     "passed": bool(np.isfinite(v) and v <= lim), "margin": lim - v})
+                     "passed": bool(v <= lim), "margin": lim - v})
     for mk in masks:
         res = {"mtie": result.mtie, "tdev": result.tdev}.get(mk.kind)
         if res is None:

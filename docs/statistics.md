@@ -1,3 +1,7 @@
+---
+description: "Allan, modified Allan, time, Hadamard, total and Theo deviations, MTIE and TIE rms with exact EDF confidence intervals and noise identification, validated against NIST SP 1065."
+---
+
 # Statistics
 
 All estimators take **phase data** (offsets, seconds) on a uniform grid. Irregular logs are
