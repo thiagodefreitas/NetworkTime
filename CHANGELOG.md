@@ -14,6 +14,10 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.6.1] - 2026-10-04
+
+Exact confidence intervals at low degrees of freedom, and the Stable32 cross-check. No API changes.
+
 ### Changed
 - The χ² quantile behind every confidence interval is now exact (regularized incomplete gamma with
   Newton refinement, numpy and the standard library only) instead of the Wilson–Hilferty

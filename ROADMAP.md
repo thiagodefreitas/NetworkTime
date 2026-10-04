@@ -181,4 +181,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 3.3 | Quality release: UI at phone width and with degenerate data, clean CLI errors, dTE_H at slow sampling, gallery notebook, docs for search ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)) |
 | 3.4 | u-blox UBX receiver logs and PPS sawtooth correction ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)); chrony time-stamping sources; sawtooth notebook ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)) |
 | 3.5 | gpsd PPS/TOFF (recorded and live), TAPR TICC ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
+| 3.6.1 | Exact χ² quantile for confidence intervals; Stable32 cross-check with its output files in the test suite ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)) |
 | 3.6 | Clock disciplines in the bench (ntpd, RFC 5905 appendix, Levine's LOCKCLOCK and Kalman variant); `ntpstats poll`; the 2012 thesis revisited ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40)) |
