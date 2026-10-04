@@ -14,6 +14,21 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+### Changed
+- The χ² quantile behind every confidence interval is now exact (regularized incomplete gamma with
+  Newton refinement, numpy and the standard library only) instead of the Wilson–Hilferty
+  approximation, which was off by 0.2 % at 5 degrees of freedom and by about half at 2 for the
+  2.5 % tail. Intervals with EDF above 20 are unchanged to four digits.
+
+### Validation
+- **Stable32 cross-check** ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)): Stable32
+  1.62 run in batch mode under Wine on four phase files for OADEV, MDEV, TDEV and HDEV; its
+  `SIGMA.TAU` files are in `tests/data/stable32/` and `tests/test_stable32.py` checks that point
+  estimates and analysis-point counts agree on every row and intervals wherever the EDF does. The
+  two documented differences (Greenhall's averaged-phase EDF at small τ for FM noise; Stable32's
+  B1-ratio noise identification below about 30 averaged points) are described in
+  [Validation](https://thiagodefreitas.github.io/NetworkTime/validation/#stable32-cross-check).
+
 ## [3.6.0] - 2026-10-04
 
 The 2012 thesis, finished ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40)). No breaking changes.

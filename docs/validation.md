@@ -45,6 +45,25 @@ them need network access.
   replies, forged NTS responses, certificate mismatch, TAI timescale and the 2036 era rollover.
 - **Web UI**: API, CSRF and Host-header checks, header injection, path traversal.
 
+## Stable32 cross-check
+
+Stable32 1.62 (the free IEEE UFFC distribution) was run in its batch mode under Wine on four phase
+files (the NIST 1000-point suite and the sample file it ships with, and two simulated power-law
+mixtures), for OADEV, MDEV, TDEV and HDEV with its default 68 % intervals. Its `SIGMA.TAU` outputs
+are in `tests/data/stable32/` and `tests/test_stable32.py` compares them with ntpstats on the same
+inputs (16 runs, 160 rows):
+
+| What | Result |
+|---|---|
+| point estimates | agree to Stable32's four printed digits on every row (worst 3.1×10⁻⁴); the number of analysis points is identical |
+| confidence intervals | agree to four digits wherever the two programs use the same EDF |
+| EDF at small τ for FM noise | differ: white FM, OADEV, m = 1: Stable32 782, ntpstats 666. Stable32 uses Greenhall's algorithm for phase averaged over each sample interval, ntpstats the exact value for instantaneous samples ([statistics](statistics.md#confidence-intervals)); the difference shrinks with m and is gone by m = 64 |
+| noise identification at long τ | differ when fewer than about 30 averaged points remain: Stable32 switches to its B1 ratio method and on these records reports white FM where the data say white PM or random-walk FM. Its EDF is then ntpstats' EDF for that other noise type, to the printed digits: the same formula, a different identification |
+
+The cross-check also found that ntpstats' χ² quantile, a Wilson–Hilferty approximation until 3.6.0,
+was off by 0.2 % at 5 degrees of freedom and by half at 2 degrees of freedom for the 2.5 % tail (the
+95 % upper bound of the last point of a stability curve). It is exact now (within 10⁻¹⁰ of scipy's).
+
 ## Live interoperability
 
 The [Live interop](INTEROP.md) workflow queries public NTPv4, NTS, NTS-pool, NTPv5 and Roughtime
@@ -53,9 +72,6 @@ servers every week from GitHub-hosted runners, and records one run per month in 
 
 ## Not yet done
 
-- Comparison with actual **Stable32** output files on further datasets, including confidence
-  intervals ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); the published
-  tables and formulas are covered above.
 - Long-term real logs against an independent reference (for example a GNSS-disciplined host).
 
 Contributions of reference datasets and Stable32 outputs are welcome.

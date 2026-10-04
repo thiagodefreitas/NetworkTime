@@ -334,3 +334,13 @@ def test_noise_id_survives_perfectly_anticorrelated_data():
     """Lag-1 autocorrelation of exactly -1 (alternating data) is the white-PM limit, not a crash."""
     x = np.tile([1.0, -1.0], 50)
     assert st.noise_alpha(x) == 2
+
+
+def test_chi2_quantile_is_exact_at_low_degrees_of_freedom():
+    # reference values of the chi-squared quantile function (scipy.stats.chi2.ppf)
+    from ntpstats.stability import _chi2_ppf
+
+    ref = {(0.975, 1.0): 5.023886, (0.025, 1.0): 0.00098207, (0.025, 2.0): 0.050636, (0.1585, 1.3): 0.1031554,
+           (0.8415, 5.3): 8.3584783, (0.5, 10.0): 9.341818, (0.975, 100.0): 129.561197, (0.025, 3668.0): 3502.0305}
+    for (p, k), v in ref.items():
+        assert float(_chi2_ppf(p, np.array([k]))[0]) == pytest.approx(v, rel=2e-5), (p, k)

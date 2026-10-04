@@ -34,6 +34,7 @@ Estimators
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from statistics import NormalDist
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Union
@@ -727,12 +728,75 @@ def edf_approx(kind: str, N: int, m: int, alpha: float, terms: int) -> float:
     return edf_for_result(kind, alpha, m, terms, N)
 
 
-def _chi2_ppf(p: float, k: np.ndarray) -> np.ndarray:
-    """Chi-squared quantile, Wilson-Hilferty approximation (stdlib only)."""
+def _gammainc_p(a: float, x: float) -> float:
+    """Regularized lower incomplete gamma P(a, x): series for x < a + 1, continued fraction otherwise."""
+    if x <= 0.0:
+        return 0.0
+    lg = math.lgamma(a)
+    if x < a + 1.0:
+        term = total = 1.0 / a
+        ap = a
+        for _ in range(1000):
+            ap += 1.0
+            term *= x / ap
+            total += term
+            if abs(term) < abs(total) * 1e-15:
+                break
+        return total * math.exp(-x + a * math.log(x) - lg)
+    tiny = 1e-300
+    b = x + 1.0 - a
+    c = 1.0 / tiny
+    d = 1.0 / b
+    h = d
+    for i in range(1, 1000):
+        an = -i * (i - a)
+        b += 2.0
+        d = an * d + b
+        d = tiny if abs(d) < tiny else d
+        c = b + an / c
+        c = tiny if abs(c) < tiny else c
+        d = 1.0 / d
+        delta = d * c
+        h *= delta
+        if abs(delta - 1.0) < 1e-15:
+            break
+    return 1.0 - math.exp(-x + a * math.log(x) - lg) * h
+
+
+def _chi2_ppf_scalar(p: float, k: float) -> float:
+    """Exact chi-squared quantile: the Wilson-Hilferty value refined by Newton steps on the regularized
+    incomplete gamma function, with bisection as a safeguard."""
+    if not (k > 0.0) or not (0.0 < p < 1.0):
+        return float("nan")
+    a = k / 2.0
     z = NormalDist().inv_cdf(p)
-    k = np.asarray(k, dtype=float)
     c = 2.0 / (9.0 * k)
-    return k * np.maximum(1 - c + z * np.sqrt(c), 1e-6) ** 3
+    x = k * max(1.0 - c + z * math.sqrt(c), 1e-3) ** 3
+    if k < 2.0 and p < 0.5:  # the approximation is poor in this corner; start from the series' leading term
+        x = min(x, 2.0 * math.exp((math.log(p) + math.lgamma(a + 1.0)) / a))
+    lo, hi = 0.0, max(10.0 * x, k + 50.0 * math.sqrt(2.0 * k) + 100.0)
+    for _ in range(200):
+        f = _gammainc_p(a, x / 2.0) - p
+        if f > 0:
+            hi = x
+        else:
+            lo = x
+        if abs(f) < 1e-13:
+            break
+        # density of chi-squared at x, for the Newton step
+        dens = math.exp((a - 1.0) * math.log(x / 2.0) - x / 2.0 - math.lgamma(a)) / 2.0 if x > 0 else 0.0
+        step = x - f / dens if dens > 0 else None
+        x = step if step is not None and lo < step < hi else 0.5 * (lo + hi)
+        if hi - lo < 1e-14 * max(1.0, hi):
+            break
+    return x
+
+
+def _chi2_ppf(p: float, k: np.ndarray) -> np.ndarray:
+    """Chi-squared quantile for each degrees-of-freedom value in ``k`` (exact, numpy and the stdlib only)."""
+    k = np.asarray(k, dtype=float)
+    out = np.array([_chi2_ppf_scalar(float(p), float(v)) for v in k.ravel()])
+    return out.reshape(k.shape)
 
 
 def chi2_interval(dev: np.ndarray, edf: np.ndarray, ci: float = 0.683):

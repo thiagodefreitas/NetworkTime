@@ -833,9 +833,26 @@ products. The simulator's path model (a fixed floor with exponential queueing) i
 trace replay is the way to bring real delay distributions into the bench, and it inherits the
 unobservability of a constant asymmetry. Parsers for vendor instruments rely on declarative profiles
 until sample exports are contributed. The validation reproduces published tables and checks interval
-coverage by simulation, but a comparison with Stable32 output files on further data sets, including its
-confidence intervals, has not been done yet, nor a long comparison of real logs against an independent
-reference such as a GNSS-disciplined host.
+coverage by simulation; a comparison with Stable32's own output files, made after this version was
+prepared, is summarised below. A long comparison of real logs against an independent reference such as
+a GNSS-disciplined host has not been done yet.
+
+\paragraph{Comparison with Stable32.} Stable32 1.62 \citep{stable32} has a batch mode, and it runs
+under Wine, so after this version was prepared it was run on four phase files (the 1000-point test
+suite and the sample file it ships with, and two simulated power-law mixtures) for OADEV, MDEV, TDEV
+and HDEV with its 68\% intervals; the output files are in the repository with a test that compares
+them. On all 160 rows the point estimates agree to the four digits Stable32 prints and the numbers of
+analysis points are identical. The intervals agree to four digits wherever the two programs use the
+same equivalent degrees of freedom. They differ in two places. At small averaging factors for FM noise
+Stable32's EDF follows Greenhall's algorithm for phase averaged over the sample interval and is larger
+than the exact value for instantaneous samples (782 against 666 for white FM at $m = 1$); the
+difference is gone by $m = 64$. When fewer than about 30 averaged points remain, Stable32 switches its
+noise identification to a B1-ratio method and on these records reports white FM where the generating
+model (and ntpstats) says white PM or random-walk FM; its EDF is then ntpstats' EDF for that other
+noise type to the printed digits, so the formula is the same and the identification differs. The
+comparison also exposed that the $\chi^2$ quantile of \ntp{} 3.6.0 and earlier was a Wilson--Hilferty
+approximation, off by 0.2\% at five degrees of freedom and by about half at two for the 2.5\% tail; it is
+exact from the next release.
 
 \paragraph{Threats to validity.} The experiments use simulated networks whose parameters were chosen to
 be representative, not measured; results on real networks can differ, which is why the bench accepts
