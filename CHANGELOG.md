@@ -14,6 +14,8 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+- ntpstats is on conda-forge (`conda install -c conda-forge ntpstats`); feedstock [conda-forge/ntpstats-feedstock](https://github.com/conda-forge/ntpstats-feedstock). Install docs updated.
+
 ## [3.6.1] - 2026-10-04
 
 Exact confidence intervals at low degrees of freedom, and the Stable32 cross-check. No API changes.

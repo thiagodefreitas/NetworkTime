@@ -176,7 +176,7 @@ pip install "ntpstats[plot]"        # + matplotlib figures
 pip install "ntpstats[nts]"         # + NTS client (pyOpenSSL, cryptography)
 pip install "ntpstats[data]"        # + pandas, xarray, Parquet
 pip install git+https://github.com/thiagodefreitas/NetworkTime.git   # latest master
-conda install -c conda-forge ntpstats   # once the conda-forge review is merged
+conda install -c conda-forge ntpstats   # conda-forge (also pixi, mamba)
 # from a checkout, for development:
 pip install -e ".[test,plot,nts,docs]" && pytest
 ```

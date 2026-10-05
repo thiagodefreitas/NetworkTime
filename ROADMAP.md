@@ -93,7 +93,7 @@ both groups already use (see the [tools landscape](docs/LANDSCAPE.md)). Items ar
 - ✅ Production/stable package metadata, a supported-versions policy, and a JOSS paper draft (`paper/`). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 - ✅ Citable releases on Zenodo, concept DOI [10.5281/zenodo.23070521](https://doi.org/10.5281/zenodo.23070521), with the interop dataset; ORCID in `CITATION.cff`. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 - ✅ [GitHub Discussions](https://github.com/thiagodefreitas/NetworkTime/discussions) for questions, results and ideas. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
-- ✅ conda-forge recipe (`packaging/conda-forge/`), built and tested in CI and submitted to conda-forge ([staged-recipes#35041](https://github.com/conda-forge/staged-recipes/pull/35041)). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
+- ✅ Published on conda-forge: recipe in `packaging/conda-forge/`, built and tested in CI, accepted through [staged-recipes#35041](https://github.com/conda-forge/staged-recipes/pull/35041) and maintained in [conda-forge/ntpstats-feedstock](https://github.com/conda-forge/ntpstats-feedstock); `conda install -c conda-forge ntpstats`. ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 
 ### 3.1: PTP exchanges and NTP over PTP ✅
 - ✅ PTP exchanges in the bench: Sync and Delay_Req at their own rates, transparent clocks, `ptp-lan`/`ptp-tc` presets, and ptp4l-style and SPTP-style client models scored like every other estimator. ([#29](https://github.com/thiagodefreitas/NetworkTime/issues/29))
@@ -131,7 +131,7 @@ is assessed, with its experiments re-run against truth and on the original 2012 
 New features arrive in 3.x minor releases, compatibly. Open items, most of them waiting for data
 from users:
 - Comparison with Stable32 output files and long-term logs against an independent reference ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); TimeLab `.tim` files ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)); vendor instrument profiles ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); OCP Time Card, Timebeat and chrony 4.9 logs ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). Sample files welcome.
-- Community and citability ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)): conda-forge review and feedstock, JOSS submission (the paper follows the current JOSS structure; about April 2027, once development spans the required period and evidence of use is gathered) and more gallery entries.
+- Community and citability ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)): feedstock version bumps on each release (bot pull requests), JOSS submission (the paper follows the current JOSS structure; about April 2027, once development spans the required period and evidence of use is gathered) and more gallery entries.
 
 ### Continuous: community and citability
 JOSS paper, contributor on-ramp, distribution packages (Debian, Fedora, Homebrew),

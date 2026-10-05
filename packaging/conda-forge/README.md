@@ -3,17 +3,18 @@
 `recipe.yaml` packages the PyPI release of ntpstats for conda-forge (a pure-Python, `noarch`
 package; numpy is the only runtime dependency, the optional extras stay optional).
 
-## First submission
+## The feedstock
 
-1. Fork [conda-forge/staged-recipes](https://github.com/conda-forge/staged-recipes) and copy this
-   file to `recipes/ntpstats/recipe.yaml`.
-2. Open a pull request. The bot lints it and builds it on Linux, macOS and Windows; when it is
-   merged, conda-forge creates the `ntpstats-feedstock` repository with you as maintainer.
-3. From then on the conda-forge bot opens a pull request on the feedstock for every new PyPI
-   release (new version and checksum); merging it publishes the package.
+ntpstats is on conda-forge: the recipe was submitted through
+[staged-recipes#35041](https://github.com/conda-forge/staged-recipes/pull/35041) and lives in
+[conda-forge/ntpstats-feedstock](https://github.com/conda-forge/ntpstats-feedstock), maintained
+by [@thiagodefreitas](https://github.com/thiagodefreitas). Install with
+`conda install -c conda-forge ntpstats` (or `pixi add ntpstats`, `mamba install ntpstats`).
 
-Install afterwards with `conda install -c conda-forge ntpstats` (or `pixi add ntpstats`,
-`mamba install ntpstats`).
+For every new PyPI release the conda-forge bot (`regro-cf-autotick-bot`) opens a pull request on
+the feedstock with the new version and checksum; merging it publishes the package. When the bot is
+late, the same two-line change (`version`, `sha256`) can be made by hand on the feedstock; this
+file is the reference copy and is kept at the released version by the release process.
 
 ## Checking it
 

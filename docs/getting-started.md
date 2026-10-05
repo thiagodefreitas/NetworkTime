@@ -6,6 +6,7 @@
 pip install ntpstats                 # core + web UI (numpy only)
 pip install "ntpstats[plot]"         # + matplotlib figures
 pip install "ntpstats[nts]"          # + NTS client (pyOpenSSL, cryptography)
+conda install -c conda-forge ntpstats  # conda-forge (also pixi, mamba)
 # development
 git clone https://github.com/thiagodefreitas/NetworkTime && cd NetworkTime
 pip install -e ".[test,plot,nts,docs]" && pytest
