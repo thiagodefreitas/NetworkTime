@@ -127,14 +127,65 @@ is assessed, with its experiments re-run against truth and on the original 2012 
   variant, PTTI 2011);
 - ✅ a poll-interval advisor, `ntpstats poll` (the thesis's first objective).
 
-### After 3.6
-New features arrive in 3.x minor releases, compatibly. Open items, most of them waiting for data
-from users:
-- Comparison with Stable32 output files and long-term logs against an independent reference ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)); TimeLab `.tim` files ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)); vendor instrument profiles ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); OCP Time Card, Timebeat and chrony 4.9 logs ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)). Sample files welcome.
-- Community and citability ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38)): feedstock version bumps on each release (bot pull requests), JOSS submission (the paper follows the current JOSS structure; about April 2027, once development spans the required period and evidence of use is gathered) and more gallery entries.
+### 3.7: Real logs against an independent reference (completes [#28](https://github.com/thiagodefreitas/NetworkTime/issues/28))
+Everything so far is validated on test vectors, simulations and Stable32 output. What is still
+missing is a long record of a real client checked against a reference it does not use.
+- A validation protocol, documented and scripted: a host disciplined over the Internet (chrony or
+  ntpd, logs on), a local PPS or GNSS receiver as the independent reference, and `ntpstats compare`
+  on the two series: alignment on a common time base, residuals, coverage of the reported
+  confidence intervals and of the audit error bound, OADEV/TDEV of the difference. Runs for weeks,
+  not hours. The protocol is written so that anyone with a Raspberry Pi and a GNSS module can
+  repeat it and send the result in.
+- First campaign on the maintainer's own hardware, published as a dataset next to the interop
+  dataset, with a notebook in the gallery and a results section in the preprint (v2).
+- The weekly live interop dataset grows; `ntpstats interop` gains a trend view over runs
+  (per-server offset and delay over weeks, servers that drift or disappear).
+- Poll advisor (`ntpstats poll`) checked on those real logs: does the recommended interval meet
+  the target error on the reference? The ntpd model gains the popcorn spike suppressor and the
+  500 ppm slew limit, the two documented gaps in `ntpstats.disciplines`.
+- Stable32 cross-check extended to the remaining statistics its batch mode can write (TOTDEV,
+  Theo1, MTIE) and TimeLab `.tim` round trips once a sample file arrives
+  ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)).
+
+### 3.8: Operators: fleets, alerts and instruments
+The operator audience has the exporter and dashboard; the next layer is many hosts and the
+instruments people already own.
+- Fleet view: many logs or exporters at once, one table ranking hosts by offset, jitter, bound
+  and mask verdict, in the CLI and the web UI; the Prometheus exporter emits alert rules for the
+  same thresholds ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)).
+- Remaining sources of [#21](https://github.com/thiagodefreitas/NetworkTime/issues/21): OCP Time
+  Card sysfs and `phc2sys` logs, Meta `fbclock` and AWS ClockBound as live samplers (the bound
+  formats are already read), `pmc` watch for several ports.
+- Instrument exports ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)): a
+  column-mapping wizard in the UI and CLI (`--columns`) that turns any CSV or TSV into a series,
+  saved as a profile; built-in profiles for Calnex, VIAVI, Keysight and Microchip as sample
+  files arrive. Sample files are the blocker, not code.
+
+### 3.9: Research bench, part 3: closed loops
+3.6 put clock disciplines in the bench with a fixed poll interval. The next step is the full
+loop as the daemons run it.
+- Poll-interval adaptation: ntpd's poll adjust (RFC 5905 section 13, `poll_update()`) and chrony's
+  `minpoll`/`maxpoll` with its own criterion, so a scenario reports the intervals the daemon
+  would have chosen as well as the error.
+- A chrony discipline model from its documented algorithm (regression over the last samples,
+  with its outlier and skew handling), next to ntpd, LOCKCLOCK and the PTP servos; the bench
+  then covers every discipline in common use.
+- Closed-loop scenarios: the discipline's corrections feed back into the simulated local clock,
+  so transients (steps, frequency jumps, route changes) are measured as the user sees them, not
+  on an open-loop record.
+- Preprint v2 with the real-data campaign of 3.7 and the closed-loop results, and the RFC 5905
+  erratum (appendix A.5.5.6 `PLL`/`AVG` constants) filed and tracked.
+
+### 4.0: only when forced
+The 3.x API is final and nothing is scheduled to break it. A 4.0 happens only for a floor
+change (dropping Python 3.9 and numpy 1.x once the supported-versions policy allows), and it
+will carry no other removals. Until then every feature ships in a 3.x minor release.
 
 ### Continuous: community and citability
-JOSS paper, contributor on-ramp, distribution packages (Debian, Fedora, Homebrew),
+conda-forge bumps on each release (bot pull requests on the feedstock), the preprint on
+ResearchGate and Zenodo, JOSS submission about April 2027 (the paper follows the current JOSS
+structure; development must span the required period and evidence of use be gathered),
+contributor on-ramp, distribution packages (Debian, Fedora, Homebrew),
 a reproduction gallery, and outreach (FOSDEM, the IETF hackathon, ITSF, ATIS WSTS, PTTI/ION,
 IFCS-EFTF, OCP TAP, time-nuts). ([#38](https://github.com/thiagodefreitas/NetworkTime/issues/38))
 
