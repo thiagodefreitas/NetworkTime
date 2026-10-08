@@ -14,6 +14,14 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+### Changed
+- `ntpd` estimator: the model now has ntpd's popcorn spike suppressor (`ntp_proto.c`), the 500 ppm
+  bound on the total slew (`adj_host_clock()`), the unsorted clock filter of the startup clamp and
+  dispersion-weighted ranking of samples older than the Allan intercept. `popcorn=False` turns the
+  suppressor off. Bench results change: during the startup clamp ntpd uses each new sample
+  unfiltered, which raises its RMS error by 20 to 70 % on the NTP presets (`docs/research-bench.md`).
+  The suppressor never fires on them: it cannot reject a spike that the filter selects.
+
 - ntpstats is on conda-forge (`conda install -c conda-forge ntpstats`); feedstock [conda-forge/ntpstats-feedstock](https://github.com/conda-forge/ntpstats-feedstock). Install docs updated.
 
 ## [3.6.1] - 2026-10-04

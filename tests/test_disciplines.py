@@ -111,3 +111,53 @@ def test_ntpd_beats_raw_on_the_internet_preset():
     rows = api.run_bench(api.load_scenarios(["internet"]), estimators=["ntpd", "lockclock", "raw"], seeds=[1, 2])
     rms = {e: np.mean([r["rms"] for r in rows if r["estimator"] == e]) for e in ("ntpd", "lockclock", "raw")}
     assert rms["ntpd"] < rms["raw"] and rms["lockclock"] < rms["raw"]
+
+
+
+def test_ntpd_popcorn_gate_cannot_reject_a_spike_the_filter_selects():
+    # ntp_proto.c computes the jitter around the newly selected sample, so a selected spike inflates it:
+    # while the previous selection is still in the 8-stage register, jitter >= |jump| / sqrt(7) and the
+    # gate (jump > 3 jitter) cannot open. An isolated low-delay spike is used, not suppressed.
+    s, _ = clock(freq=0.0, noise=1e-5, hours=6, seed=4)
+    i = int(np.searchsorted(s.t, T0 + 4 * 3600))
+    s.offset[i] += 0.05
+    s.extra["delay"][i] = 0.001
+    r = ntpd_discipline(s, initial_frequency=0.0)
+    assert r.meta["popcorns"] == 0
+    assert np.max(np.abs(r.offset[i + 1:i + 30])) > 1e-3  # the spike was taken into the loop
+
+
+def test_ntpd_popcorn_gate_fires_when_the_previous_selection_ages_out():
+    # a low-delay spike is used and stays the best sample for eight polls; when it leaves the register the
+    # next best sample is one poll newer than it and 20 ms away while the register agrees within 10 us:
+    # that sample is dropped as popcorn once, then accepted
+    s, _ = clock(freq=0.0, noise=1e-5, hours=6, seed=4)
+    i = int(np.searchsorted(s.t, T0 + 4 * 3600))
+    s.offset[i] += 0.02
+    s.extra["delay"][i] = 0.001
+    s.extra["delay"][i + 1] = 0.005
+    on = ntpd_discipline(s, initial_frequency=0.0)
+    off = ntpd_discipline(s, initial_frequency=0.0, popcorn=False)
+    assert on.meta["popcorns"] == 1 and off.meta["popcorns"] == 0
+    d = np.abs(on.offset - off.offset)
+    assert d[: i + 9].max() == 0.0 and d[i + 9:].max() > 0.0  # identical until the gate fires
+
+
+def test_ntpd_phase_step_is_accepted_at_once():
+    s, _ = clock(freq=0.0, hours=3)
+    s.offset[:] = 0.0
+    s.offset[s.t >= T0 + 3600] = 0.01
+    r = ntpd_discipline(s, initial_frequency=0.0)
+    assert r.meta["popcorns"] == 0
+    assert abs(0.01 - r.offset[-1]) < 2e-3
+
+
+def test_ntpd_slew_is_bounded_at_500_ppm():
+    # adj_host_clock(): |frequency + phase adjustment| <= NTP_MAXFREQ per second. During the startup clamp
+    # the phase gain is offset / 32 per second, so a 100 ms offset would slew at about 3000 ppm unbounded.
+    s, _ = clock(freq=0.0, offset=0.1, hours=1, poll=16.0)
+    r = ntpd_discipline(s, initial_frequency=0.0)
+    rate = np.diff(r.offset) / np.diff(r.t)
+    assert np.max(np.abs(rate)) <= 500e-6 * (1 + 1e-9)
+    assert np.max(np.abs(rate)) > 450e-6  # the bound is reached
+    assert r.meta["steps"] == 0

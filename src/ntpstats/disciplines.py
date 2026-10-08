@@ -14,16 +14,25 @@ measurement noise, so this is the closed loop exactly.
     4.2.8, ``ntpd/ntp_loopfilter.c``, without the kernel PLL): the clock
     filter (minimum delay of the last eight samples, used only when newer than
     the last update; among equal delays the newest, as the RFC's sort keeps
-    it first), the state machine (NSET, FREQ, SYNC, SPIK; step threshold
-    128 ms, stepout 300 s), the hybrid PLL/FLL frequency update and the phase
-    adjustment once per second. ``constants="rfc5905"`` uses the constants and
+    it first; during the startup clamp, when ntpd does not sort, the newest
+    sample; samples older than the Allan intercept ranked by delay plus their
+    grown dispersion), the popcorn spike suppressor of ``ntp_proto.c`` (a new
+    best sample whose offset differs from the previous one by more than three
+    times the filter jitter, less than two poll intervals after the last sample
+    used, is ignored), the state machine (NSET, FREQ, SYNC, SPIK; step
+    threshold 128 ms, stepout 300 s), the hybrid PLL/FLL frequency update and
+    the phase adjustment once per second, with the total slew (frequency plus
+    phase) bounded at 500 ppm as in ``adj_host_clock()``. ``constants="rfc5905"`` uses the constants and
     gain formulas of the RFC 5905 appendix (A.5.5.6, A.5.6.1) instead: PLL gain
     65536, FLL gain 1/(18 - poll), Allan intercept 1500 s, stepout 900 s, the
-    phase adjusted by offset/(PLL min(2^poll, 1500 s)) per second. The state
-    machine is ntpd's in both cases.
+    phase adjusted by offset/(PLL min(2^poll, 1500 s)) per second, without
+    the 500 ppm bound on the slew (the appendix's ``clock_adjust()`` has none).
+    The clock filter, popcorn suppressor and state machine are ntpd's in both
+    cases. (The appendix's own suppressor, A.5.2, compares the interval in
+    seconds with twice the poll *exponent* and sums the squared offset
+    differences without averaging; ntpd's version is used instead.)
     The time constant (poll exponent) is fixed at the measurement interval,
-    as with ``minpoll = maxpoll``; the popcorn spike suppressor and the 500 ppm
-    slew limit on the phase adjustment are not modelled.
+    as with ``minpoll = maxpoll``; ``popcorn=False`` turns the suppressor off.
 ``lockclock``
     J. Levine's frequency-lock loop for the NIST time servers, as described in
     J. Res. NIST 125:125008 (2020), section 6: a five-point majority vote on the
@@ -65,6 +74,9 @@ import numpy as np
 from .series import TimeSeries
 
 MAXFREQ = 500e-6
+PHI = 15e-6  # dispersion growth, s/s
+SGATE = 3.0  # popcorn spike gate
+MAXDIST = 1.5  # sys_maxdist, s
 
 #: the two constant sets of the ntpd model
 NTPD_CONSTANTS: Dict[str, Dict[str, float]] = {
@@ -100,13 +112,15 @@ def _poll_exponent(t: np.ndarray, poll: Optional[int]) -> int:
 
 
 def ntpd_discipline(series: TimeSeries, constants: str = "ntpd", poll: Optional[int] = None,
-                    initial_frequency: Optional[float] = None, stages: int = 8) -> TimeSeries:
+                    initial_frequency: Optional[float] = None, stages: int = 8,
+                    popcorn: bool = True) -> TimeSeries:
     """ntpd's clock discipline in closed loop (see the module docstring).
 
     ``poll`` is the time constant exponent (log2 s; default: the measurement
     interval). ``initial_frequency`` (s/s) starts in FSET state as if a drift
     file existed; otherwise the loop starts in NSET and measures the frequency
-    directly after the stepout interval.
+    directly after the stepout interval. ``popcorn`` enables ntpd's popcorn
+    spike suppressor.
     """
     if constants not in NTPD_CONSTANTS:
         raise ValueError(f"constants must be one of {', '.join(NTPD_CONSTANTS)}")
@@ -124,6 +138,8 @@ def ntpd_discipline(series: TimeSeries, constants: str = "ntpd", poll: Optional[
     est = np.empty(t.size)
     filt: Deque[Tuple[float, float, float]] = deque(maxlen=max(1, int(stages)))
     last_used = -math.inf
+    peer_offset = 0.0
+    popcorns = 0
     tick = float(t[0]) if t.size else 0.0  # next one-second adjustment
     precision = 2.0 ** -20
 
@@ -138,6 +154,8 @@ def ntpd_discipline(series: TimeSeries, constants: str = "ntpd", poll: Optional[
             st.freq_cnt -= 1
         else:
             adj = st.offset / (k["pll"] * tc)
+        if not rfc:  # the total slew is bounded at NTP_MAXFREQ
+            adj = min(max(adj, -MAXFREQ - st.drift), MAXFREQ - st.drift)
         st.offset -= adj
         st.c += st.drift + adj
 
@@ -147,8 +165,24 @@ def ntpd_discipline(series: TimeSeries, constants: str = "ntpd", poll: Optional[
             tick += 1.0
         est[i] = st.c
         r = meas[i] - st.c
-        filt.append((float(t[i]), float(r), float(delay[i])))
-        sel = min(filt, key=lambda x: (x[2], -x[0]))  # increasing delay; the newest first among equals
+        now = float(t[i])
+        filt.append((now, float(r), float(delay[i])))
+        if st.freq_cnt > 0:
+            order = sorted(filt, key=lambda x: -x[0])  # not sorted during the startup clamp: newest first
+        else:
+            def dist(x, now=now):
+                age = now - x[0]
+                return x[2] + PHI * age if age > k["allan"] else x[2]
+            order = sorted(filt, key=lambda x: (dist(x), -x[0]))  # increasing distance; newest first among equals
+        sel = order[0]
+        m = sum(1 for j, x in enumerate(order) if not (j >= 2 and x[2] >= MAXDIST))
+        jitter = math.sqrt(sum((x[1] - sel[1]) ** 2 for x in order[:m]) / max(m - 1, 1))
+        jitter = max(jitter, precision)
+        etemp = abs(peer_offset - sel[1])
+        peer_offset = sel[1]
+        if popcorn and etemp > SGATE * jitter and sel[0] - last_used < 2.0 * tc:
+            popcorns += 1
+            continue  # popcorn spike
         if sel[0] <= last_used:
             continue  # the clock filter passes only samples newer than the last one used
         last_used = sel[0]
@@ -157,8 +191,9 @@ def ntpd_discipline(series: TimeSeries, constants: str = "ntpd", poll: Optional[
             st.state = SYNC
             filt.clear()
             last_used = float(t[i])
+            peer_offset = 0.0
     meta = {"estimator": "ntpd", "constants": constants, "poll": p, "steps": st.steps,
-            "frequency": st.drift, "state": st.state}
+            "popcorns": popcorns, "frequency": st.drift, "state": st.state}
     return TimeSeries(t, est, name=f"{s.name} (ntpd {constants})", source_format=s.source_format, meta=meta)
 
 

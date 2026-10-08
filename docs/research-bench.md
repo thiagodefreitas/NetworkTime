@@ -240,14 +240,16 @@ free-running clock like the PTP servos above ([#40](https://github.com/thiagodef
 
 | Estimator | Model |
 |---|---|
-| `ntpd` | ntpd 4.2.8's daemon discipline (`ntpd/ntp_loopfilter.c`, no kernel PLL): the clock filter (minimum delay of the last eight samples, only samples newer than the last update), the NSET/FREQ/SYNC/SPIK state machine (step 128 ms, stepout 300 s, frequency measured directly at the first stepout), the hybrid PLL/FLL frequency update (PLL gain 16, FLL 0.25 above the Allan intercept of 2048 s) and the phase slewed once per second |
-| `ntpd-rfc` | the same with the constants and gain formulas of the RFC 5905 appendix (A.5.5.6, A.5.6.1): PLL 65536, FLL 1/(18 − poll), Allan intercept 1500 s, stepout 900 s |
+| `ntpd` | ntpd 4.2.8's daemon discipline (`ntpd/ntp_loopfilter.c`, no kernel PLL): the clock filter (minimum delay of the last eight samples, only samples newer than the last update; unsorted, so the newest sample, during the startup clamp), the popcorn spike suppressor of `ntp_proto.c`, the NSET/FREQ/SYNC/SPIK state machine (step 128 ms, stepout 300 s, frequency measured directly at the first stepout), the hybrid PLL/FLL frequency update (PLL gain 16, FLL 0.25 above the Allan intercept of 2048 s) and the phase slewed once per second, the total slew bounded at 500 ppm |
+| `ntpd-rfc` | the same with the constants and gain formulas of the RFC 5905 appendix (A.5.5.6, A.5.6.1): PLL 65536, FLL 1/(18 − poll), Allan intercept 1500 s, stepout 900 s, no startup clamp and no slew bound |
 | `lockclock` | J. Levine's NIST frequency-lock loop, from J. Res. NIST 125:125008 (2020), section 6: a five-point majority vote per cycle, time-adjustment mode until the residual is within 3σ, then a frequency estimate y = δx/T averaged as ȳ = (y + kȳ)/(k + 1) plus a phase correction over the next cycle, and the frequency-innovation outlier rule of section 7. Network configuration of the paper: cycles of about 1000 s, k = 1 |
 | `levine-kalman` | LOCKCLOCK with the scalar Kalman time estimate of J. Levine, PTTI 2011 (Eq. 5): the correction is the fraction σ_o²/(σ_o² + σ_t²) of the residual |
 
 The time constant (poll exponent) is fixed at the scenario's measurement interval, as with
-`minpoll = maxpoll`. Not modelled: ntpd's popcorn spike suppressor and the 500 ppm limit on the
-phase slew, LOCKCLOCK's automatic re-evaluation of its parameters. In time-adjustment mode the
+`minpoll = maxpoll`. Not modelled: LOCKCLOCK's automatic re-evaluation of its parameters. (Until
+3.6 the ntpd model also lacked the popcorn suppressor, the slew bound and the unsorted filter of
+the startup clamp; adding them in 3.7 raised its RMS error by 20 to 70 % on these presets, all of
+it from the startup filter order.) In time-adjustment mode the
 paper adjusts every second; with the bench's longer intervals the model also estimates the
 frequency from successive residuals, or a large frequency offset would never leave that mode.
 Levine measured σ_o² against a reference of negligible noise; the model estimates it online from
@@ -258,7 +260,7 @@ Five seeds, the first 30 minutes excluded (RMS error):
 | Estimator | `lan` | `internet` | `congested` | `route-change` |
 |---|---|---|---|---|
 | raw | 26.1 µs | 1.61 ms | 8.9 ms | 2.16 ms |
-| `ntpd` | 11.4 µs | 712 µs | 2.93 ms | 1.69 ms |
+| `ntpd` | 16.1 µs | 1.12 ms | 4.96 ms | 2.05 ms |
 | `ntpd-rfc` | 12.1 ms | 36.4 ms | 49.1 ms | 58.7 ms |
 | `lockclock` | 218 µs | 711 µs | 4.6 ms | 1.63 ms |
 | `levine-kalman` | 218 µs | 654 µs | 5.5 ms | 1.46 ms |
@@ -274,6 +276,19 @@ What the numbers show:
 - **ntpd's loop is a type II loop**: it removes a frequency offset completely (tested), but slowly
   at the shortest time constants; its RMS depends on the start (no drift file), hence the large
   spread between seeds.
+- **ntpd does not filter at startup.** `clock_filter()` sorts the register only when the startup
+  clamp `freq_cnt` is zero; the clamp starts at the 300 s stepout and counts down only in SYNC
+  state. Through NSET, FREQ and the first 300 s of SYNC each new sample is used as it comes, so the
+  direct frequency measurement at the end of FREQ rests on one unfiltered offset. On the congested
+  preset that alone raises the mean RMS from 2.93 ms to 4.96 ms. A drift file
+  (`initial_frequency`) avoids it.
+- **The popcorn suppressor cannot reject a spike the filter selects.** ntpd computes the filter
+  jitter around the newly selected sample, so a selected spike inflates it: while the previous
+  selection is still among the eight stages the jitter is at least the offset jump divided by √7,
+  and the gate (jump > 3 jitter) cannot open. It fires only once the previous selection has left
+  the register, which happens within two poll intervals only after a low-delay sample ages out or in
+  bursts. It never fired on the presets above. The RFC 5905 appendix version (A.5.2) differs again:
+  it compares the interval in seconds with twice the poll exponent.
 - **LOCKCLOCK** is built for long cycles in the white-frequency-noise domain of the local clock.
   On the LAN preset (16 s polling, a 12 ppm clock) its first cycles dominate the RMS; its error
   afterwards is that of the clock between 1024 s cycles.

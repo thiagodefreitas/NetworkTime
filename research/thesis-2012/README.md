@@ -83,7 +83,7 @@ true clock's is 3.0×10⁻¹⁰ at 32 s.
 | `kalman-dw` (delay-weighted Kalman) | 167 µs | 4.9×10⁻⁷ |
 | `regression` (chrony-style) | 53 µs | 1.0×10⁻⁶ |
 | `hull` (Huygens-style) | 3.2 µs | 1.8×10⁻⁸ |
-| `ntpd` (ntpd's discipline loop, 3.6) | 276 µs | 1.3×10⁻⁷ |
+| `ntpd` (ntpd's discipline loop; 3.7 model, with the startup filter order) | 466 µs | 1.5×10⁻⁷ |
 | `lockclock` (Levine, NIST, 3.6) | 619 µs | 2.2×10⁻⁷ |
 | `levine-kalman` (Levine's Kalman variant, 3.6) | 555 µs | 1.2×10⁻⁷ |
 
