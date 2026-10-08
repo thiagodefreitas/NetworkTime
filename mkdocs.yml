@@ -52,6 +52,7 @@ nav:
   - Writing a plugin: plugins.md
   - Notebooks & gallery: notebooks.md
   - Validation: validation.md
+  - Validation campaign: validation-campaign.md
   - Stable32, TimeLab, allantools: migrating.md
   - API:
       - Overview: api/index.md
@@ -78,6 +79,7 @@ nav:
       - hat: api/hat.md
       - holdover: api/holdover.md
       - polladvice: api/polladvice.md
+      - refcheck: api/refcheck.md
       - research: api/research.md
       - masks: api/masks.md
       - report: api/report.md

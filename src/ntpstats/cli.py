@@ -1246,6 +1246,70 @@ def cmd_compare(args):
     return 0
 
 
+def cmd_validate(args):
+    """A disciplined clock, its daemon's bound, its servers and the estimators against an independent reference."""
+    from .refcheck import DEFAULT_ESTIMATORS, validate
+
+    ref = load_one(args.reference, fmt=args.ref_format, peer=args.ref_peer)
+    if args.negate_reference:
+        extra = {k: (-np.asarray(v) if k == "raw_error" else v) for k, v in ref.extra.items()}
+        ref = TimeSeries(t=ref.t, offset=-ref.offset, name=ref.name, extra=extra, meta=ref.meta)
+    tracking = load_one(args.tracking, fmt="auto") if args.tracking else None
+    meas = load(args.measurements, fmt=args.format) if args.measurements else []
+    ests = DEFAULT_ESTIMATORS if args.estimators is None else \
+        [e for e in args.estimators.split(",") if e and e != "none"]
+    r = validate(ref, tracking, meas, estimators=ests, ref_uncertainty=args.ref_uncertainty, max_gap=args.max_gap,
+                 warmup=args.warmup, max_violation_rate=args.max_violation_rate,
+                 reference_column="cooked" if args.cooked else "raw")
+    rc = 0 if r.passed else 3
+    if args.json:
+        print(json.dumps(r.as_dict(), indent=2, default=float))
+        return rc
+    fs = lambda v: format_seconds(v) if v is not None and np.isfinite(v) else "-"  # noqa: E731
+    c = r.clock
+    print(f"== validation against {r.reference}: {r.samples} samples over {r.span / 3600:.1f} h"
+          + (f" after {args.warmup / 60:.0f} min warm-up" if args.warmup else ""))
+    print(f"clock error   bias {fs(c.get('bias'))}, rms {fs(c.get('rms'))}, p95 |x| {fs(c.get('p95_abs'))}, "
+          f"max |x| {fs(c.get('max_abs'))}")
+    if "tdev" in c:
+        taus = list(c["tdev"])[:: max(1, len(c["tdev"]) // 6)]
+        print("   tau      " + " ".join(f"{float(t):>9g}" for t in taus))
+        print("   TDEV     " + " ".join(f"{fs(c['tdev'][t]):>9}" for t in taus))
+        print("   MTIE     " + " ".join(f"{fs(c.get('mtie', {}).get(t)):>9}" for t in taus))
+    b = r.bound
+    if b is None:
+        print("daemon bound  - (no tracking log with a maximum error, root delay and root dispersion)")
+    else:
+        print(f"daemon bound  {b['source']}" + (" (approximate)" if b["approximate"] else ""))
+        print(f"   {b['checked']} {b['unit']} over {b['updates']} updates: {b['violations']} outside "
+              f"({b['violation_rate']:.2%}, in {b['violated_updates']} update intervals); worst |x|/bound "
+              f"{b['worst_ratio']:.3g}; median bound {fs(b['median_bound'])} for a median |x| of "
+              f"{fs(b['median_abs_error'])}")
+        se = b["self_estimate"]
+        if se.get("samples"):
+            print(f"   the daemon's own offset estimate: error rms {fs(se['rms'])}, bias {fs(se['bias'])}")
+    if r.servers:
+        print(f"servers       {'peer':18} {'samples':>7} {'bias':>10} {'std':>10} {'in root dist.':>13} "
+              f"{'worst':>6}  (bias = server error + mean path asymmetry)")
+        for v in r.servers:
+            flag = "  FALSETICKER" if v.get("within_bound", 1.0) < 0.5 else (
+                "  violations" if v.get("violations") else "")
+            print(f"              {str(v['peer'])[:18]:18} {v['samples']:>7} {fs(v.get('bias')):>10} "
+                  f"{fs(v.get('std')):>10} {v.get('within_bound', float('nan')):>13.1%} "
+                  f"{v.get('worst_ratio', float('nan')):>6.2f}{flag}")
+    if r.estimators:
+        print(f"estimators    {'estimator':16} {'peer':18} {'rms':>10} {'bias':>10} {'std':>10}")
+        for e in r.estimators[: args.top]:
+            if e.get("error"):
+                print(f"              {e['estimator']:16} {e['peer'][:18]:18} error: {e['error'][:40]}")
+                continue
+            print(f"              {e['estimator']:16} {e['peer'][:18]:18} {fs(e.get('rms')):>10} "
+                  f"{fs(e.get('bias')):>10} {fs(e.get('std')):>10}")
+    print("verdict       " + ("PASS: the daemon's bound held" if r.passed else
+                              f"FAIL: the daemon's bound was exceeded in {b['violated_updates']} update intervals"))
+    return rc
+
+
 def cmd_ui(args):
     from .web.server import serve
 
@@ -1580,6 +1644,31 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-o", "--output", help="write the error series as CSV")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_compare)
+
+    s = sub.add_parser("validate", help="a disciplined clock against an independent reference (e.g. a PPS "
+                       "refclock with noselect): clock error, the daemon's bound, servers' correctness intervals and "
+                       "every estimator on the real exchanges; exit code 3 if the daemon's bound fails")
+    s.add_argument("reference", help="the clock's true error, reference - local (chrony refclocks.log, gpsd, "
+                   "TICC, any log)")
+    s.add_argument("--tracking", help="the daemon's own record (chrony tracking.log)")
+    s.add_argument("--measurements", help="per-server exchanges (chrony measurements.log, ntpd peerstats, pcap)")
+    s.add_argument("-f", "--format", default="auto", type=_fmt, help="format of --measurements")
+    s.add_argument("--ref-format", default="auto", type=_fmt)
+    s.add_argument("--ref-peer", help="select a source in a multi-source reference log (e.g. the PPS refid)")
+    s.add_argument("--negate-reference", action="store_true", help="the reference logs local - reference")
+    s.add_argument("--cooked", action="store_true", help="chrony refclocks.log: use the cooked offset (minus the "
+                   "correction still being slewed) instead of the raw error of the system clock")
+    s.add_argument("--ref-uncertainty", type=float, default=1e-6, metavar="S",
+                   help="added to every bound (default 1e-6: a timing receiver's PPS)")
+    s.add_argument("--max-gap", type=float, default=4.0, metavar="S",
+                   help="largest reference gap to interpolate across (default 4 s)")
+    s.add_argument("--warmup", type=_duration, default=0.0, metavar="S", help="exclude the start (e.g. 30m)")
+    s.add_argument("-e", "--estimators", help="comma-separated estimators to score ('none' to skip; default: "
+                   "raw, mindelay, kalman-dw, regression, hull, ntpd and the multi-server ones)")
+    s.add_argument("--top", type=int, default=12, help="estimator rows to print (default 12)")
+    s.add_argument("--max-violation-rate", type=float, default=0.0)
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_validate)
 
     s = sub.add_parser("query", help="one-shot SNTP measurement")
     s.add_argument("servers", nargs="+")

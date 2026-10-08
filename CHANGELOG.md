@@ -15,6 +15,14 @@ uploads to PyPI.
 ## [Unreleased]
 
 ### Added
+- `ntpstats validate` and `ntpstats.refcheck`: a disciplined clock against an independent reference,
+  typically a GNSS PPS that chrony logs as a `noselect` refclock. Reports the clock's error (bias,
+  RMS, TDEV, MTIE; chrony's raw refclock column, the system clock as applications read it), whether
+  chrony's maximum error held over every update interval (exit code 3 if not), whether each server
+  stayed within its RFC 5905 root distance (falsetickers), and every bench estimator scored on the
+  real exchanges. `synthetic_campaign` writes logs with a known truth. Protocol, chrony
+  configuration and a daily cron script: `docs/validation-campaign.md`, `examples/validation/`
+  ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)).
 - `ntpstats dataset --trend` and `ntpstats.research.interop_trend`: each server of the open interop
   dataset over the runs. Offsets are taken relative to the median of the NTP servers in the same
   run, which cancels the runner's clock; a server is flagged `shift` only when its relative offset
@@ -28,7 +36,6 @@ uploads to PyPI.
   suppressor off. Bench results change: during the startup clamp ntpd uses each new sample
   unfiltered, which raises its RMS error by 20 to 70 % on the NTP presets (`docs/research-bench.md`).
   The suppressor never fires on them: it cannot reject a spike that the filter selects.
-
 - ntpstats is on conda-forge (`conda install -c conda-forge ntpstats`); feedstock [conda-forge/ntpstats-feedstock](https://github.com/conda-forge/ntpstats-feedstock). Install docs updated.
 
 ## [3.6.1] - 2026-10-04

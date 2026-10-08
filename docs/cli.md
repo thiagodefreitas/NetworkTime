@@ -22,6 +22,7 @@
 | `network` | delay floor, queueing, asymmetry indicator, floor packet percentage |
 | `filter` | Kalman / RTS smoother / min-delay filter, output CSV |
 | `compare A B` | error of A against reference B: bias, RMS, TDEV and MTIE of the error |
+| `validate REF` | a disciplined clock against an independent reference ([campaign](validation-campaign.md)): clock error, the daemon's maximum error over each update interval, each server's correctness interval and every estimator on the real exchanges; exit code 3 if the daemon's bound fails |
 | `plot` | static report figure (matplotlib) |
 | `report` | self-contained HTML report; `--time-error` adds time-error cards and a TE/TEL chart |
 | `simulate` | simulate NTP exchanges with ground truth; `--benchmark` |

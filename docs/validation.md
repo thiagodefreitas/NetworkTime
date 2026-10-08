@@ -72,16 +72,24 @@ servers every week from GitHub-hosted runners, and records one run per month in 
 
 ## Not yet done
 
-- Long-term real logs against an independent reference (for example a GNSS-disciplined host).
+- Long-term real logs against an independent reference. The protocol and the analysis are ready
+  ([validation campaign](validation-campaign.md), `ntpstats validate`); the first campaign on real
+  hardware is the next step.
 
 Contributions of reference datasets and Stable32 outputs are welcome.
 
 ## Validating your own setup
 
 ```bash
-# chrony's view against its PPS reference clock: bias, RMS, TDEV and MTIE of the error
+# a chrony host against a noselect PPS refclock: clock error, chrony's bound, servers, estimators
+ntpstats validate /var/log/chrony/refclocks.log --tracking /var/log/chrony/tracking.log \
+    --measurements /var/log/chrony/measurements.log --warmup 1h
+# chrony's own offset estimate against the PPS: bias, RMS, TDEV and MTIE of the difference
 ntpstats compare /var/log/chrony/tracking.log /var/log/chrony/refclocks.log --ref-peer PPS0
 ```
+
+The [validation campaign](validation-campaign.md) page describes the hardware, the chrony
+configuration and how to read and share the result.
 
 To check a synchronisation algorithm rather than a deployment, simulate the scenario with
 `ntpstats bench` and compare it with the reference estimators.
