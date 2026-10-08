@@ -551,7 +551,7 @@ def cmd_plugins(args):
 def cmd_dataset(args):
     import glob
 
-    from .research import interop_summary
+    from .research import interop_summary, interop_trend
 
     files = sorted(glob.glob(os.path.join(args.path, "**", "*.jsonl"), recursive=True)) \
         if os.path.isdir(args.path) else [args.path]
@@ -559,6 +559,8 @@ def cmd_dataset(args):
     for f in files:
         with open(f, encoding="utf-8") as fh:
             lines += fh.read().splitlines()
+    if args.trend:
+        return _dataset_trend(interop_trend(lines, shift=args.shift), files, args)
     rows = interop_summary(lines)
     if args.test:
         rows = [r for r in rows if r["test"] == args.test]
@@ -575,6 +577,27 @@ def cmd_dataset(args):
         dly = format_seconds(r["median_delay"]) if r["median_delay"] is not None else "-"
         print(f"{r['test']:16} {r['server'][:34]:34} {r['runs']:>4} {r['availability']:>6.0%} {off:>14} {dly:>13}  {note}")
     return 0
+
+
+def _dataset_trend(rows, files, args):
+    if args.test:
+        rows = [r for r in rows if r["test"] == args.test]
+    if args.json:
+        print(json.dumps(rows, indent=2))
+        return 0
+    runs = sorted({t[0] for r in rows for t in r["timeline"]})
+    print(f"{len(files)} files, {len(runs)} runs ({runs[0][:10]} to {runs[-1][:10]}); offsets relative to "
+          "the median of the NTP servers in each run")
+    print(f"{'test':12} {'server':32} {'runs':>4} {'avail':>6} {'rel. offset first -> last':>27} "
+          f"{'per week':>10} {'delay first -> last':>21}  status")
+    fs = lambda v: format_seconds(v) if v is not None else "-"  # noqa: E731
+    for r in rows:
+        rel = f"{fs(r['rel_first'])} -> {fs(r['rel_last'])}"
+        dl = f"{fs(r['delay_first'])} -> {fs(r['delay_last'])}"
+        print(f"{r['test']:12} {r['server'][:32]:32} {r['runs']:>4} {r['availability']:>6.0%} {rel:>27} "
+              f"{fs(r['slope_per_week']):>10} {dl:>21}  {r['status']}")
+    flagged = [r for r in rows if r["status"] in ("gone", "shift")]
+    return 3 if flagged and args.strict else 0
 
 
 def cmd_sawtooth(args):
@@ -1388,6 +1411,12 @@ def build_parser() -> argparse.ArgumentParser:
                        "offsets, protocol support per server")
     s.add_argument("path", nargs="?", default="data/interop")
     s.add_argument("--test", help="only this test (ntp4, nts, ntpv5, interleaved, nts-pool, roughtime)")
+    s.add_argument("--trend", action="store_true", help="per server over the runs: offset relative to the run's "
+                   "consensus, delay, availability; flags servers that shifted, appeared or disappeared")
+    s.add_argument("--shift", type=float, default=1e-3, help="--trend: a change of the relative offset beyond "
+                   "both runs' error bounds (delay/2, Roughtime radius) plus this many seconds is a shift "
+                   "(default 1e-3)")
+    s.add_argument("--strict", action="store_true", help="--trend: exit code 3 if a server shifted or is gone")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_dataset)
 

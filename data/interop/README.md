@@ -37,6 +37,19 @@ for s in load("data/interop"):
 | `midp`, `radius`, `merkle_leaf`, `protocol` | Roughtime signed time, radius (s), Merkle-leaf form, `ietf` or `google` (pre-IETF protocol) |
 | `responses`, `violations`, `local_offset_interval` | Roughtime chain summary |
 
+## Trends over runs
+
+```bash
+ntpstats dataset data/interop --trend          # table; --json for the per-run timeline
+```
+
+The runner's clock cancels when each offset is taken relative to the run's consensus, the median
+offset of all NTP-family probes (`ntp4`, `nts`, `interleaved`, `ntpv5`) in that run. A server is
+flagged `shift` when its relative offset changes by more than both runs' error bounds plus 1 ms
+(`--shift`): half the round-trip delay for NTP, whatever the path asymmetry, and the radius for
+Roughtime. A path change alone therefore cannot produce a shift. `gone` marks a server that
+answered before and failed in the last run, `new` one first probed after the first run.
+
 Caveats:
 - The runner's clock is not a reference. Offsets mix server error, the runner's clock error and
   path asymmetry; they are useful for availability, protocol support and gross errors, not for

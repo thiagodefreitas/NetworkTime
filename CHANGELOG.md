@@ -14,6 +14,13 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+### Added
+- `ntpstats dataset --trend` and `ntpstats.research.interop_trend`: each server of the open interop
+  dataset over the runs. Offsets are taken relative to the median of the NTP servers in the same
+  run, which cancels the runner's clock; a server is flagged `shift` only when its relative offset
+  moves by more than both runs' error bounds (delay/2, Roughtime radius) plus 1 ms, and `gone` or
+  `new` when it disappears or appears. `--strict` returns exit code 3 on a shift or a lost server.
+
 ### Changed
 - `ntpd` estimator: the model now has ntpd's popcorn spike suppressor (`ntp_proto.c`), the 500 ppm
   bound on the total slew (`adj_host_clock()`), the unsorted clock filter of the startup clamp and

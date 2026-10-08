@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import calendar
 import json
+import math
 import re
 from collections import OrderedDict, defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -447,6 +448,123 @@ def interop_summary(lines: Sequence[str]) -> List[Dict[str, object]]:
                     **{k: sum(v) / len(v) for k, v in flags.items()},
                     "last_error": g["err"][-1][1] if g["err"] else None})
     return out
+
+
+#: tests whose offsets form the per-run consensus of :func:`interop_trend` (all are NTP exchanges)
+CONSENSUS_TESTS = ("ntp4", "nts", "interleaved", "ntpv5")
+
+
+def interop_trend(lines: Sequence[str], shift: float = 1e-3, consensus_tests: Sequence[str] = CONSENSUS_TESTS
+                  ) -> List[Dict[str, Any]]:
+    """Per test and server, how its offset, delay and availability evolve over the runs of the dataset.
+
+    The runner's clock is not a reference and changes between runs, so each
+    offset is taken relative to the run's *consensus*: the median offset of
+    all successful NTP-family probes (``consensus_tests``) in that run. The
+    runner's own clock error cancels; what remains is the server's offset from
+    the other public servers plus the path asymmetry of that run.
+
+    Each row has the runs where the server was probed, its availability
+    overall and in the last run, the relative offset (median, first, last and,
+    with three runs or more, the least-squares slope per week), the delay at
+    the first and last run, and ``status``:
+
+    ``gone``
+        probed successfully before, failing in the last run;
+    ``new``
+        first probed after the dataset's first run;
+    ``shift``
+        the last relative offset differs from the median of the earlier ones
+        by more than the two runs' error bounds plus ``shift`` seconds
+        (default 1 ms). The bound of an NTP exchange is half its round-trip
+        delay (the offset error of a correct server and client cannot exceed
+        it, whatever the path asymmetry); of a Roughtime response, its radius.
+        A path change alone cannot produce a shift; a server whose clock moved
+        can;
+    ``ok``
+        none of these.
+
+    ``timeline`` lists, per run, ``[run, ok, relative offset, delay, bound]``.
+    """
+    recs = []
+    for ln in lines:
+        ln = ln.strip()
+        if not ln.startswith("{"):
+            continue
+        rec = json.loads(ln)
+        if "schema" in rec and "test" in rec and rec.get("run"):
+            recs.append(rec)
+    runs = sorted({r["run"] for r in recs})
+    if not runs:
+        raise ResearchFormatError("interop dataset: no records with a run")
+    cons: Dict[str, float] = {}
+    for run in runs:
+        v = [float(r["offset"]) for r in recs if r["run"] == run and r.get("ok") and r.get("offset") is not None
+             and r["test"] in consensus_tests]
+        cons[run] = float(np.median(v)) if v else float("nan")
+    groups: Dict[Tuple[str, str], Dict[str, list]] = OrderedDict()
+    for r in sorted(recs, key=lambda r: (r["run"], float(r.get("time", 0.0)))):
+        if r["test"] == "roughtime-chain":
+            continue
+        g = groups.setdefault((str(r["test"]), str(r.get("server", ""))), {})
+        g.setdefault(r["run"], []).append(r)
+
+    def run_seconds(run: str) -> float:
+        return float(calendar.timegm(_iso(run)))
+
+    out = []
+    for (test, server), byrun in groups.items():
+        timeline = []
+        for run in runs:
+            if run not in byrun:
+                continue
+            rs = byrun[run]
+            good = [x for x in rs if x.get("ok") and x.get("offset") is not None]
+            ok = any(x.get("ok") for x in rs)
+            rel = float(np.median([float(x["offset"]) for x in good])) - cons[run] if good else None
+            if rel is not None and not math.isfinite(rel):
+                rel = None
+            d = [float(x["delay"]) for x in good if x.get("delay") is not None]
+            delay = float(np.median(d)) if d else None
+            radius = [float(x["radius"]) for x in good if x.get("radius") is not None]
+            bound = float(np.median(radius)) if radius else (delay / 2 if delay is not None else 0.0)
+            timeline.append([run, ok, rel, delay, bound])
+        probes = sum(len(v) for v in byrun.values())
+        oks = sum(1 for v in byrun.values() for x in v if x.get("ok"))
+        rels = [(run_seconds(t[0]), t[2]) for t in timeline if t[2] is not None]
+        bounds = [t[4] for t in timeline if t[2] is not None]
+        dl = [t[3] for t in timeline if t[3] is not None]
+        row: Dict[str, Any] = {"test": test, "server": server, "runs": len(timeline), "first": timeline[0][0],
+                               "last": timeline[-1][0], "availability": oks / probes if probes else 0.0,
+                               "last_ok": bool(timeline[-1][1]),
+                               "rel_offset": float(np.median([v for _, v in rels])) if rels else None,
+                               "rel_first": rels[0][1] if rels else None, "rel_last": rels[-1][1] if rels else None,
+                               "slope_per_week": None, "delay_first": dl[0] if dl else None,
+                               "delay_last": dl[-1] if dl else None, "timeline": timeline}
+        if len(rels) >= 3:
+            x = np.array([a for a, _ in rels]) / 604800.0
+            y = np.array([b for _, b in rels])
+            if np.ptp(x) > 0:
+                row["slope_per_week"] = float(np.polyfit(x - x[0], y, 1)[0])
+        if not timeline[-1][1] and any(t[1] for t in timeline[:-1]):
+            status = "gone"
+        elif timeline[0][0] != runs[0]:
+            status = "new"
+        elif len(rels) >= 2 and timeline[-1][2] is not None and \
+                abs(rels[-1][1] - float(np.median([v for _, v in rels[:-1]]))) > \
+                shift + bounds[-1] + float(np.median(bounds[:-1])):
+            status = "shift"
+        else:
+            status = "ok"
+        row["status"] = status
+        out.append(row)
+    return out
+
+
+def _iso(run: str):
+    import time as _time
+
+    return _time.strptime(run.rstrip("Z")[:19], "%Y-%m-%dT%H:%M:%S")
 
 
 def detect(lines: Sequence[str]) -> Optional[str]:

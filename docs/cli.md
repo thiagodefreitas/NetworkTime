@@ -42,7 +42,7 @@
 | `holdover` | predicted TIE after loss of reference, time to violate `--limit`s, `--backtest` calibration, `--min-holdover` (exit code 3) |
 | `poll` | predicted error just before the next poll for each candidate poll interval; `--target` gives the longest interval within it (exit code 3 if none) ([Metrology](metrology.md#poll-interval)) |
 | `plugins` | installed plugins (parsers, estimators, detectors, masks, profiles) and load errors ([Writing a plugin](plugins.md)) |
-| `dataset` | summary of the open interop dataset (`data/interop/`): availability, median offset and delay, protocol support per server |
+| `dataset` | summary of the open interop dataset (`data/interop/`): availability, median offset and delay, protocol support per server; `--trend` follows each server over the runs (offset relative to the run's consensus, delay, availability) and flags servers that shifted, appeared or disappeared (`--strict`: exit code 3) |
 | `cv` | GNSS time transfer between two CGGTTS files: common view or all in view ([Research data](research-data.md)) |
 | `bounds` | validate clock-error bounds (ClockBound, fbclock, CSV) against a reference; exit code 3 on violations |
 | `ui` | start the local web UI |

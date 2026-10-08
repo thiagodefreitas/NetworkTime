@@ -8,6 +8,7 @@ The dataset ships with every release and is therefore archived on Zenodo with it
 
 ```bash
 ntpstats dataset data/interop                 # availability, offsets, protocol support per server
+ntpstats dataset data/interop --trend         # each server over the runs: shifted, new or gone?
 ntpstats info data/interop --all-peers        # one series per test and server
 ```
 

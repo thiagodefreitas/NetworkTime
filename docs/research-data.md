@@ -137,7 +137,8 @@ servers; the first run of each month is recorded in
 dataset is versioned with every release (Zenodo), and its schema is in the directory's README.
 
 ```bash
-ntpstats dataset data/interop --test nts      # availability and offsets of NTS servers over time
+ntpstats dataset data/interop --test nts      # availability and offsets of NTS servers
+ntpstats dataset data/interop --trend         # each server over the runs
 ntpstats stability data/interop --peer time.google.com -k oadev
 ```
 
