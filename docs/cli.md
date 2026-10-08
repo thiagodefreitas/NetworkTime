@@ -17,7 +17,7 @@
 | `info` | summary statistics (percentiles, trend, gaps, auxiliary columns) |
 | `timeerror` | max\|TE\|, cTE, dTE_L/dTE_H, max\|TEL\|, MTIE/TDEV of dTE_L; `--limits`, `--mask` (exit code 3 on failure), `--input-is-te`, `--units` ([PTP & time error](ptp.md)) |
 | `convert` | write a log as a Stable32 phase/frequency file, plain CSV, Parquet, an OMNeT++ vector file or ns-3 `time value` text (`--to`, `--no-timetags`) |
-| `stability` | ADEV/OADEV/MDEV/TDEV/HDEV/TOTDEV/MTOT/TTOT/HTOT/Theo1/TheoBR/TheoH/MTIE/TIErms with CIs; `--mask FILE` (exit code 3 on failure), `--exact`, `--raw-mtot`, `--csv`, `--json` |
+| `stability` | ADEV/OADEV/MDEV/TDEV/HDEV/TOTDEV/MTOT/TTOT/HTOT/Theo1/TheoBR/TheoH/MTIE/TIErms with CIs; `--mask FILE` (exit code 3 on failure), `--exact`, `--raw-totals`, `--csv`, `--json` |
 | `dynamic` | sliding-window stability matrix (time × τ) |
 | `network` | delay floor, queueing, asymmetry indicator, floor packet percentage |
 | `filter` | Kalman / RTS smoother / min-delay filter, output CSV |

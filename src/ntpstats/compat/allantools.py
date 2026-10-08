@@ -19,8 +19,8 @@ returns ``(taus_used, devs, errs, ns)`` as allantools does:
 
 Deliberate differences:
 
-* ``mtotdev``/``ttotdev`` return the raw NIST SP 1065 eq. (27) value, like
-  allantools; :func:`ntpstats.stability.compute` bias-corrects by default.
+* ``totdev``, ``mtotdev`` and ``ttotdev`` return the raw NIST SP 1065 values, like
+  allantools; :func:`ntpstats.stability.compute` bias-corrects them by default.
 * ``theo1`` returns taus of ``0.75 * m / rate`` (the effective tau).
 * ``htotdev`` is raw (no bias correction), like ``mtotdev``; ``m = 1`` is the overlapping HDEV.
 
@@ -121,8 +121,8 @@ def hdev(data, rate=1.0, data_type="phase", taus=None) -> Result:
 
 
 def totdev(data, rate=1.0, data_type="phase", taus=None) -> Result:
-    """Total deviation."""
-    return _run("totdev", data, rate, data_type, taus)
+    """Total deviation (raw, like allantools)."""
+    return _run("totdev", data, rate, data_type, taus, bias_correction=False)
 
 
 def mtotdev(data, rate=1.0, data_type="phase", taus=None) -> Result:

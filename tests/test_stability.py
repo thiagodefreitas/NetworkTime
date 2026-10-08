@@ -322,12 +322,20 @@ def test_mtot_theo1_gaps_skip_subsequences(phase):
 
 
 def test_theobr_ratio_sampled_once_per_grid():
-    x = powerlaw_phase(1200, 0, 1.0, rng=13)
+    x = powerlaw_phase(2400, 0, 1.0, rng=13)
     r = st.compute(x, 1.0, "theobr", [16, 64, 256], ci=None)
-    assert r.meta["theobr_ratio_terms"] == [st.THEOBR_RATIO_TERMS, 1200 // 6 - 2]
+    assert r.meta["theobr_ratio_terms"] == [st.THEOBR_RATIO_TERMS, 2400 // 6 - 2]
     exact = st.compute(x, 1.0, "theobr", [16, 64, 256], ci=None, max_work=0)
-    assert exact.meta["theobr_ratio_terms"] == [1200 // 6 - 2] * 2
+    assert exact.meta["theobr_ratio_terms"] == [2400 // 6 - 2] * 2
     np.testing.assert_allclose(r.dev, exact.dev, rtol=0.02)
+
+
+def test_theobr_ratio_is_exact_by_default_for_short_records():
+    x = powerlaw_phase(1200, 0, 1.0, rng=13)
+    r = st.compute(x, 1.0, "theobr", [16, 64], ci=None)
+    assert r.meta["theobr_ratio_terms"] == [1200 // 6 - 2] * 2
+    exact = st.compute(x, 1.0, "theobr", [16, 64], ci=None, max_work=0)
+    np.testing.assert_allclose(r.dev, exact.dev, rtol=1e-12)
 
 
 def test_noise_id_survives_perfectly_anticorrelated_data():

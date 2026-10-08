@@ -1560,8 +1560,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--mask-kind", choices=KINDS, help="statistic the mask applies to (default: header, else tdev)")
     s.add_argument("--exact", action="store_true",
                    help="MTOT/Theo1/TheoBR/TheoH: use every subsequence and ratio term, however long it takes")
-    s.add_argument("--raw-mtot", action="store_true",
-                   help="MTOT/TTOT without the noise-type bias correction that Stable32 and NIST SP 1065 apply")
+    s.add_argument("--raw-totals", "--raw-mtot", dest="raw_mtot", action="store_true",
+                   help="TOTDEV, MTOT, TTOT and HTOT without the noise-type bias correction of NIST SP 1065")
     g = s.add_mutually_exclusive_group()
     g.add_argument("--json", action="store_true")
     g.add_argument("--csv", action="store_true")

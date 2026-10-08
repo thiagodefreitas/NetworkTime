@@ -23,7 +23,7 @@ them need network access.
 
   The published MTOT values include Stable32's noise-type bias correction (white FM: variance
   ÷ 0.73). ntpstats applies the same correction by default; `bias_correction=False` or
-  `--raw-mtot` gives the raw SP 1065 eq. (27) value. On simulated noise, the raw MTOT/MVAR ratio
+  `--raw-totals` gives the raw SP 1065 eq. (27) value. On simulated noise, the raw MTOT/MVAR ratio
   measured here is 0.99, 0.85, 0.77, 0.72 and 0.68 for white PM to random-walk FM, which matches
   the factors used (0.94, 0.83, 0.73, 0.70, 0.69).
 - **EDF and confidence intervals**: closed forms (white FM at m = 1: EDF = 2n/3), Monte Carlo
@@ -59,6 +59,24 @@ inputs (16 runs, 160 rows):
 | confidence intervals | agree to four digits wherever the two programs use the same EDF |
 | EDF at small τ for FM noise | differ: white FM, OADEV, m = 1: Stable32 782, ntpstats 666. Stable32 uses Greenhall's algorithm for phase averaged over each sample interval, ntpstats the exact value for instantaneous samples ([statistics](statistics.md#confidence-intervals)); the difference shrinks with m and is gone by m = 64 |
 | noise identification at long τ | differ when fewer than about 30 averaged points remain: Stable32 switches to its B1 ratio method and on these records reports white FM where the data say white PM or random-walk FM. Its EDF is then ntpstats' EDF for that other noise type, to the printed digits: the same formula, a different identification |
+
+Stable32's batch command offers only those four statistics. Its Auto1 automation script, run the
+same way, computes the others; 28 more runs give TOTDEV, MTOT, TTOT, HTOT, Théo1, TIE rms and MTIE
+on the same four files (`tests/test_stable32.py`, 77 tests in all):
+
+| Statistic | Result |
+|---|---|
+| TIE rms, MTIE | agree to the printed digits on every row |
+| TOTDEV, HTOT | Stable32 bias-corrects both for the noise type it identifies (TOTDEV by SP 1065 eq. (52), 1 − a·τ/T). Where the two programs identify the same noise type, they agree to the printed digits; on the rows where they do not (fewer than about 30 averaged points), Stable32's value is ntpstats' raw sum with the bias factor of another noise type |
+| MTOT, TTOT | Stable32 1.62 writes them raw, without the SP 1065 table 11 factor its manual describes; ntpstats with `bias_correction=False` agrees to the printed digits |
+| Théo1 | the Théo1 run writes the bias-removed TheoBR, not Théo1. ntpstats' `theobr` agrees to the printed digits on the 1000-point files; on the 4096-point ones the bias-removal ratio differs by 0.1–0.2 % while the Théo1 sums it scales agree at every τ |
+
+Two changes in ntpstats came out of it. TOTDEV was not bias-corrected for flicker and random-walk
+FM although SP 1065 section 5.11 says the correction "should be used to correct all reported
+TOTVAR results"; it now is (a deviation larger by up to 11 % at τ = T/4 for random-walk FM), and the raw
+value is `bias_correction=False`. And the TheoBR ratio, which averaged 64 of its terms to save
+time, is exact for records up to about 1550 points; the subset had moved it by 0.2 % on 1000
+points.
 
 The cross-check also found that ntpstats' χ² quantile, a Wilson–Hilferty approximation until 3.6.0,
 was off by 0.2 % at 5 degrees of freedom and by half at 2 degrees of freedom for the 2.5 % tail (the

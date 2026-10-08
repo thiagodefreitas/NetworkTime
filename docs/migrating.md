@@ -33,8 +33,10 @@ Conventions:
 
 **Comparing numbers.** ADEV, OADEV, MDEV, TDEV, HDEV, TOTDEV, MTOT and TTOT reproduce the
 NIST SP 1065 test suites (which come from Stable32) to 7 digits; see [Validation](validation.md).
-MTOT and TTOT include Stable32's noise-type bias correction. Use `--raw-mtot` (CLI) or
-`bias_correction=False` (API) for the uncorrected eq. (27) value. Confidence intervals can
+TOTDEV, MTOT, TTOT and HTOT include the noise-type bias corrections of SP 1065. Stable32 1.62
+applies them to TOTDEV and HTOT but writes MTOT and TTOT raw in its `SIGMA.TAU` files; use
+`--raw-totals` (CLI) or `bias_correction=False` (API) to compare with those. Stable32's Théo1
+run writes the bias-removed TheoBR, which ntpstats computes as `theobr`. Confidence intervals can
 differ: for ADEV-family statistics ntpstats computes the EDF exactly for the discrete noise
 model, where Stable32 uses published approximations.
 
@@ -67,10 +69,9 @@ Available functions:
 
 The values match allantools to 1e-9 on the frozen comparison table in the tests. There are
 three differences:
-- `mtotdev` and `ttotdev` stay raw, as in allantools, while `stability.compute` bias-corrects
-  them.
+- `totdev`, `mtotdev`, `ttotdev` and `htotdev` stay raw, as in allantools, while
+  `stability.compute` bias-corrects them.
 - `theo1` returns the effective τ = 0.75·m/rate.
-- `htotdev` is not implemented yet.
 
 For confidence intervals, noise identification and gap handling, use the native API:
 

@@ -74,6 +74,9 @@ MTOT_BIAS = {2: 0.94, 1: 0.83, 0: 0.73, -1: 0.70, -2: 0.69}
 #: HTOT bias: expected HTOT/HVAR ratio (1 + a) per FM noise type (Howe, Beard, Greenhall, Vernotte &
 #: Riley, "Total Hadamard variance", 2001); 1 for PM noise. NIST SP 1065 tables 30-31 list corrected values.
 HTOT_BIAS = {2: 1.0, 1: 1.0, 0: 0.995, -1: 0.851, -2: 0.771}
+#: TOTVAR bias ``B = 1 - a * tau / T`` (NIST SP 1065 section 5.11, eq. (52)): ``a`` per alpha; zero for PM and
+#: white FM noise, 1/(3 ln 2) for flicker FM and 3/4 for random-walk FM. T is the record length.
+TOTVAR_BIAS_A = {2: 0.0, 1: 0.0, 0: 0.0, -1: 1.0 / (3.0 * math.log(2.0)), -2: 0.75}
 #: MTOT EDF ``b * T/tau - c`` (NIST SP 1065 table 8), per alpha.
 MTOT_EDF = {2: (1.90, 2.10), 1: (1.20, 1.40), 0: (1.10, 1.20), -1: (0.85, 0.50), -2: (0.75, 0.31)}
 
@@ -262,8 +265,13 @@ def _totdev(x, m, tau0):
 #: with a stride of at most ``m``.
 MAX_WORK = 1 << 22
 #: TheoBR bias ratio: at most this many terms of the average are evaluated
-#: (evenly spaced) when ``max_work`` is not 0.
+#: (evenly spaced) when ``max_work`` is not 0 ...
 THEOBR_RATIO_TERMS = 64
+#: ... unless the full average has no more than this many terms (records of up
+#: to about 1550 points), which costs well under a second: subsampling 64 of
+#: about 160 terms moved TheoBR by 0.2 % on 1000-point records, against
+#: Stable32's exact values.
+THEOBR_EXACT_TERMS = 256
 _CHUNK = 1 << 21  # elements per block in the vectorised loops
 
 
@@ -399,7 +407,7 @@ def _theobr_ratio(x, tau0, opts=None):
     if n >= 0:
         idx = np.arange(n + 1)
         exact = opts is not None and opts.get("max_work", MAX_WORK) == 0
-        if idx.size > THEOBR_RATIO_TERMS and not exact:
+        if idx.size > max(THEOBR_RATIO_TERMS, THEOBR_EXACT_TERMS) and not exact:
             idx = np.unique(np.round(np.linspace(0, n, THEOBR_RATIO_TERMS)).astype(int))
         # each ratio term is one of many averaged: give it a smaller share
         budget = MAX_WORK if opts is None else opts.get("max_work", MAX_WORK)
@@ -498,16 +506,20 @@ def compute(
     MTOT and Theo1/TheoBR/TheoH cost O(N·m) per tau (TheoBR's bias ratio
     even more). ``max_work`` bounds the element operations per tau
     (default :data:`MAX_WORK`); above it the subsequences are sampled with
-    an even stride of at most ``m`` and the TheoBR ratio averages
+    an even stride of at most ``m`` and, for records longer than about 1550
+    points (:data:`THEOBR_EXACT_TERMS`), the TheoBR ratio averages
     :data:`THEOBR_RATIO_TERMS` evenly spaced terms. ``max_work=0`` always
     computes the full definitions. What was sampled is reported in
     ``meta["stride"]`` (per tau, 1 = every subsequence) and
     ``meta["theobr_ratio_terms"]``.
 
-    MTOT and TTOT are divided by the MTOT bias factor of the noise type
-    identified at each tau (:data:`MTOT_BIAS`), HTOT by :data:`HTOT_BIAS`,
-    which is what Stable32 and NIST SP 1065 report; ``bias_correction=False``
-    returns the raw values. The factors used are in ``meta["bias_factor"]``.
+    The total deviations are bias-corrected for the noise type identified at
+    each tau, as NIST SP 1065 prescribes: TOTDEV by ``1 - a tau / T``
+    (:data:`TOTVAR_BIAS_A`, SP 1065 eq. (52)), MTOT and TTOT by the MTOT
+    bias factor (:data:`MTOT_BIAS`), HTOT by :data:`HTOT_BIAS`.
+    ``bias_correction=False`` returns the raw values. The factors used are in
+    ``meta["bias_factor"]``. Stable32 1.62 applies the TOTDEV and HTOT
+    corrections and writes MTOT and TTOT raw (``tests/test_stable32.py``).
     """
     kind = kind.lower()
     if kind not in KINDS:
@@ -551,6 +563,13 @@ def compute(
         res.meta["theobr_ratio_terms"] = [opts["kf_terms"], opts["kf_total_terms"]]
     if kind in ("mtot", "ttot") and dev.size:
         return _finish_mtot(res, x, ms, ci, bias_correction)
+    if kind == "totdev" and dev.size and bias_correction:
+        a = _fill_nan(np.array([noise_alpha(x, max(int(m), 1)) for m in ms], dtype=float))
+        record = float(np.isfinite(x).sum() - 1) * tau0  # T
+        coef = np.array([TOTVAR_BIAS_A[int(np.clip(round(v), -2, 2))] if np.isfinite(v) else 0.0 for v in a])
+        factor = np.clip(1.0 - coef * res.taus / record, 0.5, 1.0)
+        res.dev, res.err = res.dev / np.sqrt(factor), res.err / np.sqrt(factor)
+        res.meta["bias_factor"] = factor.tolist()
     if kind == "htot" and dev.size and bias_correction:
         a = _fill_nan(np.array([noise_alpha(x, max(int(m), 1)) for m in ms], dtype=float))
         factor = np.array([1.0 if m == 1 else HTOT_BIAS[int(np.clip(round(v), -2, 2))] for m, v in zip(ms, a)])

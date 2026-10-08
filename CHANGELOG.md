@@ -15,6 +15,12 @@ uploads to PyPI.
 ## [Unreleased]
 
 ### Added
+- Stable32 cross-check extended to TOTDEV, MTOT, TTOT, HTOT, Théo1/TheoBR, TIE rms and MTIE: 28 more
+  Stable32 1.62 runs (its Auto1 automation script under Wine) on the same four files, in
+  `tests/data/stable32/` and `tests/test_stable32.py`. TIE rms and MTIE agree to the printed digits;
+  TOTDEV, HTOT and TheoBR wherever both programs identify the same noise type; Stable32 writes MTOT
+  and TTOT raw and its Théo1 run writes TheoBR (`docs/validation.md`)
+  ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)).
 - `ntpstats validate` and `ntpstats.refcheck`: a disciplined clock against an independent reference,
   typically a GNSS PPS that chrony logs as a `noselect` refclock. Reports the clock's error (bias,
   RMS, TDEV, MTIE; chrony's raw refclock column, the system clock as applications read it), whether
@@ -30,6 +36,13 @@ uploads to PyPI.
   `new` when it disappears or appears. `--strict` returns exit code 3 on a shift or a lost server.
 
 ### Changed
+- TOTDEV is bias-corrected for flicker and random-walk FM noise by `1 - a tau/T` (NIST SP 1065
+  section 5.11, eq. (52)), as SP 1065 prescribes and Stable32 does; deviations at long τ grow by up
+  to 11 % (random-walk FM, τ = T/4). `bias_correction=False` and `--raw-totals` (alias of
+  `--raw-mtot`, which now covers all total deviations) give the raw value; the allantools-compatible
+  `totdev` stays raw. Found by the Stable32 cross-check.
+- TheoBR: the bias-removal ratio uses all its terms for records up to about 1550 points
+  (`THEOBR_EXACT_TERMS`); averaging 64 of them had moved TheoBR by 0.2 % on 1000 points.
 - `ntpd` estimator: the model now has ntpd's popcorn spike suppressor (`ntp_proto.c`), the 500 ppm
   bound on the total slew (`adj_host_clock()`), the unsorted clock filter of the startup clamp and
   dispersion-weighted ranking of samples older than the Allan intercept. `popcorn=False` turns the
