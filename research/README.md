@@ -6,8 +6,9 @@ every version.
 
 | Folder | Paper | Release |
 |---|---|---|
-| [`preprint-2026/`](preprint-2026/) | *ntpstats: an open toolkit for validating, evaluating and studying network time synchronisation* ([PDF](preprint-2026/ntpstats-preprint-2026.pdf)) | 3.6.0 |
-| [`thesis-2012/`](thesis-2012/) | The 2012 undergraduate thesis (UFCG) that started the project, assessed and its experiments re-run ([thesis](https://dspace.sti.ufcg.edu.br/handle/riufcg/18226)) | 3.6.0 |
+| [`preprint-2026/`](preprint-2026/) | *ntpstats: an open toolkit for validating, evaluating and studying network time synchronisation* ([PDF](preprint-2026/ntpstats-preprint-2026.pdf)) | 3.7.0 |
+| [`rfc5905-errata/`](rfc5905-errata/) | Three errata to the example code of RFC 5905 (loop constants, spike-suppressor units, jitter averaging), with the evidence and a reproduction script | 3.7.0 |
+| [`thesis-2012/`](thesis-2012/) | The 2012 undergraduate thesis (UFCG) that started the project, assessed and its experiments re-run ([thesis](https://dspace.sti.ufcg.edu.br/handle/riufcg/18226)) | 3.7.0 |
 
 The short software paper for the Journal of Open Source Software is in [`paper/`](../paper/).
 
@@ -15,7 +16,7 @@ The short software paper for the Journal of Open Source Software is in [`paper/`
 
 ```bash
 cd research/preprint-2026
-pip install ntpstats==3.6.0 matplotlib
+pip install ntpstats==3.7.0 matplotlib
 make data        # rerun the experiments (about ten minutes) and regenerate data/ and tables/
 make             # pdflatex + bibtex -> ntpstats-preprint-2026.pdf
 ```

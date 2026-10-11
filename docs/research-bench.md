@@ -272,7 +272,9 @@ What the numbers show:
   at poll 6, against 17 minutes with ntpd's PLL gain of 16. A 10 ms phase step of the reference is
   still 9.9 ms off after 10 hours with the appendix's constants and below 1 ms after 35 minutes
   with ntpd's ([research/thesis-2012](https://github.com/thiagodefreitas/NetworkTime/tree/master/research/thesis-2012), R6).
-  Implementations follow ntpd, not the printed constants.
+  Implementations follow ntpd, not the printed constants. With the RFC's own Figure 27 values
+  (16 and 8) the appendix loop behaves exactly like ntpd's; the errata, with this evidence, are in
+  [research/rfc5905-errata](https://github.com/thiagodefreitas/NetworkTime/tree/master/research/rfc5905-errata).
 - **ntpd's loop is a type II loop**: it removes a frequency offset completely (tested), but slowly
   at the shortest time constants; its RMS depends on the start (no drift file), hence the large
   spread between seeds.
