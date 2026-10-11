@@ -2,7 +2,7 @@
 # as recipes/ntpstats/recipe.yaml; see README.md in this folder.
 context:
   name: ntpstats
-  version: "3.6.1"
+  version: "3.7.0"
 
 package:
   name: ${{ name }}
@@ -10,7 +10,7 @@ package:
 
 source:
   url: https://pypi.org/packages/source/${{ name[0] }}/${{ name }}/${{ name }}-${{ version }}.tar.gz
-  sha256: 092bcd6c311eb31fe4e142f2f97c1fe95a50273fcf59e13796f9772db0cf104d
+  sha256: e900e60a89bdd5d62d4fa56b60774487496f46164e5818bea530fed6a4c5ed5c
 
 build:
   number: 0
