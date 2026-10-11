@@ -14,6 +14,13 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-10-11
+
+Validation against an independent reference (`ntpstats validate`), trends in the open interop
+dataset, a more faithful ntpd model and a wider Stable32 cross-check. Two numerical changes:
+TOTDEV is now bias-corrected by default for flicker and random-walk FM noise, and TheoBR is exact on
+records up to about 1550 points. The stable API only gains optional parameters.
+
 ### Added
 - Stable32 cross-check extended to TOTDEV, MTOT, TTOT, HTOT, Théo1/TheoBR, TIE rms and MTIE: 28 more
   Stable32 1.62 runs (its Auto1 automation script under Wine) on the same four files, in
