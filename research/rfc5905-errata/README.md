@@ -1,12 +1,13 @@
 # RFC 5905 errata: drafts and evidence
 
-Three places where the C code of RFC 5905's Appendix A contradicts the RFC's own normative text and the
-reference implementation. They were found while modelling NTP's clock discipline in the ntpstats research
+Three places where the C code of RFC 5905's Appendix A contradicts the RFC's own normative text (as
+corrected by its errata) and the reference implementation. They were found while modelling NTP's clock discipline in the ntpstats research
 bench ([docs/research-bench.md](../../docs/research-bench.md)).
 
 None of the 37 errata on record for RFC 5905 (15 verified, 17 held for document update, 2 reported,
-3 rejected; checked 11 October 2026) covers them. Erratum 6550 changes the same loop in A.5.2 as
-erratum 3 below, but only replaces `2 ^ (i + 1)` with `1 << (i + 1)`. None of the RFCs that update
+3 rejected; checked 12 October 2026) covers them. Two are related: erratum 5600 (verified) corrected
+the jitter formula in Section 10, and erratum 3 below asks for the appendix code to follow it;
+erratum 6550 (verified) changed another term of the same A.5.2 loop. None of the RFCs that update
 RFC 5905 (7822, 8573, 9109, 9748, 9769) touches the appendix code.
 
 Each section below is laid out as the RFC Editor's errata form asks: section, original text,
@@ -116,54 +117,34 @@ apart, Section 13.2), never across polls as the comment and the reference implem
 
 ---
 
-## Erratum 3 (optional): jitter averaging in Section 10 and A.5.2
+## Erratum 3 (optional): jitter computed without averaging in A.5.2
 
-**Section:** 10 (and A.5.2)
+**Section:** A.5.2
 
-**Original Text (Section 10):**
-
-```
-   Let the first stage offset in the sorted list be theta_0; then, for
-   the other stages in any order, the jitter is the RMS average
-
-                          +-----                 -----+^1/2
-                          |  n-1                      |
-                          |  ---                      |
-                  1       |  \                     2  |
-      psi   =  -------- * |  /    (theta_0-theta_j)   |
-                (n-1)     |  ---                      |
-                          |  j=1                      |
-                          +-----                 -----+
-```
-
-**Corrected Text (Section 10):**
+**Original Text:**
 
 ```
-                          +-----                         -----+^1/2
-                          |     1     n-1                     |
-                          |  -------  ---                     |
-                          |           \                    2  |
-      psi   =             |  (n-1)    /    (theta_0-theta_j)  |
-                          |           ---                     |
-                          |           j=1                     |
-                          +-----                         -----+
+        p->jitter = max(SQRT(p->jitter), LOG2D(s.precision));
 ```
 
-and in A.5.2, after the loop that accumulates p->jitter (as corrected by erratum 6550):
+**Corrected Text:**
 
 ```
-        p->jitter = max(SQRT(p->jitter / (NSTAGE - 1)), LOG2D(s.precision));
+        p->jitter = max(SQRT(p->jitter / (NSTAGE - 1)),
+            LOG2D(s.precision));
 ```
 
 **Notes:**
 
-The text calls psi "the RMS average" of the offset differences, but the formula places 1/(n-1)
-outside the square root, which is not an RMS and scales as 1/sqrt(n-1) times it. The appendix code
-(A.5.2) takes the square root of the sum without dividing at all, so the three disagree. The
-reference implementation computes the RMS: ntpd 4.2.8, ntpd/ntp_proto.c, clock_filter(), divides the
-sum by m - 1 (the number of valid stages less one) before the square root. With eight valid stages the
-formula as printed gives psi smaller than the RMS by sqrt(7), about 2.6, and the code larger by
-sqrt(7). The peer jitter enters the popcorn gate (SGATE * p->jitter, A.5.2), the cluster algorithm
-(A.5.5.1), the root distance (root_dist(), A.5.5.2) and the system jitter (clock_update(), A.5.5.4), so all of them
-differ by these factors from the reference implementation. The A.5.2 correction above assumes all stages are valid, as
-the appendix does elsewhere; a closer match to ntpd counts the valid stages.
+Section 10 defines the peer jitter psi as "the RMS average" of the offset differences
+theta_0 - theta_j over the n - 1 other stages, and verified erratum 5600 corrected its formula so that
+1/(n-1) is inside the square root. The code skeleton in A.5.2 still takes the square root of the sum
+of squares without dividing by n - 1 (verified erratum 6550 corrected the dispersion term of the
+same loop and left this line unchanged), so the code does not implement the corrected Section 10.
+The reference implementation computes the RMS: ntpd 4.2.8, ntpd/ntp_proto.c, clock_filter(), divides
+the sum by m - 1, the number of valid stages less one, before the square root. With eight stages the
+code as printed gives a jitter sqrt(7), about 2.6, times the RMS. The peer jitter enters the popcorn
+gate (SGATE * p->jitter, A.5.2), the cluster algorithm (A.5.5.1), the root distance (root_dist(),
+A.5.5.2) and the system jitter (clock_update(), A.5.5.4), so all of them are inflated by that factor.
+The correction divides by NSTAGE - 1, consistent with the appendix, which fills all NSTAGE stages;
+counting only valid stages, as ntpd does, would match the reference implementation exactly.
