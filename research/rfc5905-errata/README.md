@@ -10,6 +10,9 @@ the jitter formula in Section 10, and erratum 3 below asks for the appendix code
 erratum 6550 (verified) changed another term of the same A.5.2 loop. None of the RFCs that update
 RFC 5905 (7822, 8573, 9109, 9748, 9769) touches the appendix code.
 
+**Status:** all three submitted to the RFC Editor on 12 October 2026 (erratum IDs to be added when
+they are listed).
+
 Each section below is laid out as the RFC Editor's errata form asks: section, original text,
 corrected text, notes. Submit at <https://www.rfc-editor.org/errata.php>, one erratum per submission,
 type **Technical** for errata 1 and 2. Erratum 3 can be Technical or Editorial.
