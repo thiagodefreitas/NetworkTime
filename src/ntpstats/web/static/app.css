@@ -232,6 +232,18 @@ dialog { border: 1px solid var(--border); border-radius: 14px; background: var(-
 dialog::backdrop { background: #0005; backdrop-filter: blur(2px); }
 dialog h3 { margin-top: 0; color: var(--text); text-transform: none; font-size: 16px; letter-spacing: 0; }
 dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; margin: 14px 0 0; }
+dialog.colmap { width: min(760px, 94vw); }
+.cm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 14px; }
+.cm-grid label { justify-content: space-between; }
+.cm-grid select, .cm-grid input { width: 60%; min-width: 0; }
+#cm-notes { padding-left: 18px; }
+.cm-preview { overflow-x: auto; max-height: 180px; border: 1px solid var(--border); border-radius: 8px; }
+.cm-preview table { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; width: 100%; }
+.cm-preview th, .cm-preview td { padding: 3px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+.cm-preview th small { color: var(--muted); font-weight: normal; }
+.cm-preview .cm-v { background: var(--accent-soft); }
+.cm-preview .cm-t { outline: 1px dashed var(--accent); outline-offset: -1px; }
+#cm-spec { word-break: break-all; }
 .keys { border: 0; }
 .keys td { border: 0; padding: 4px 8px; text-align: left; }
 .palette { padding: 0; width: min(620px, 94vw); margin-top: 12vh; overflow: hidden; }

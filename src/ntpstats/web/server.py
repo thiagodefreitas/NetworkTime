@@ -747,6 +747,15 @@ def _dispatch_post(route, params, headers, raw: bytes) -> ApiResponse:
         series = load(src, fmt=fmt, tau0=tau0, name=name)
         ids = [STORE.add(s) for s in series]
         return _json_response([STORE.describe(i) for i in ids])
+    if route == ["columns"]:  # propose a column mapping for a file the detector does not know
+        from ..profiles import columns_profile, guess_columns
+
+        lines = raw[:1 << 20].decode("utf-8", errors="replace").splitlines()[:-1 if len(raw) > 1 << 20 else None]
+        g = guess_columns(lines)
+        spec = _q(params, "spec", None)
+        if spec:  # check a mapping the user edited
+            g["profile"], g["spec"] = columns_profile(spec), spec
+        return _json_response(g)
     if route == ["mask"]:
         name = unquote(headers.get("x-filename") or "mask")
         mask = load_mask(io.StringIO(raw.decode("utf-8", errors="replace")), name=name, kind=_q(params, "kind", None))

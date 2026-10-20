@@ -614,6 +614,9 @@ def parse_gsoc2012(lines, name="estimators.log") -> List[TimeSeries]:
     return [_finish(t, off, name, "gsoc2012")]
 
 
+COLUMNS_HINT = "map the columns with --columns ('ntpstats columns FILE' proposes a mapping)"
+
+
 def parse_csv(lines, name="data", tau0: Optional[float] = None) -> List[TimeSeries]:
     rows = _data_lines(lines)
     if not rows:
@@ -660,7 +663,7 @@ def parse_csv(lines, name="data", tau0: Optional[float] = None) -> List[TimeSeri
         if not tis:
             if tau0 is None:
                 raise ParseError("CSV header has no time column (unix_time/time/timestamp); pass tau0 for "
-                                 "uniformly sampled offsets")
+                                 "uniformly sampled offsets, or " + COLUMNS_HINT)
             oi = next((i for i, h in enumerate(header) if h in ("offset", "offset_s", "theta", "phase", "x")), 0)
             t = np.arange(a.shape[0]) * float(tau0)
             extra = {h: a[:, i] for i, h in enumerate(header) if i != oi}
@@ -677,6 +680,8 @@ def parse_csv(lines, name="data", tau0: Optional[float] = None) -> List[TimeSeri
             if i not in (ti, oi) and np.isfinite(a[:, i]).any():
                 extra[h] = a[:, i]
     ok = np.isfinite(a[:, ti]) & np.isfinite(a[:, oi])
+    if not ok.any():
+        raise ParseError("no rows with a numeric time and offset in this CSV; " + COLUMNS_HINT)
     s = TimeSeries(
         t=a[ok, ti], offset=a[ok, oi], name=name, source_format="csv",
         extra={k: v[ok] for k, v in extra.items()}, meta={"skipped_lines": skipped},
@@ -919,11 +924,13 @@ def load(source, fmt: str = "auto", tau0: Optional[float] = None, name: Optional
         from .bounds import parse_bounds
 
         series = parse_bounds(lines, label)
-    elif fmt.startswith("profile:"):
-        from .profiles import load_profile, parse_with_profile
+    elif fmt.startswith(("profile:", "columns:")):
+        from .profiles import columns_profile, load_profile, parse_with_profile
 
         try:
-            series = [parse_with_profile(lines, load_profile(fmt.split(":", 1)[1]), label, tau0=tau0)]
+            kind, ref = fmt.split(":", 1)
+            prof = load_profile(ref) if kind == "profile" else columns_profile(ref)
+            series = [parse_with_profile(lines, prof, label, tau0=tau0)]
         except ValueError as exc:
             raise ParseError(str(exc)) from exc
     elif fmt in ("stable32-phase", "stable32-freq"):

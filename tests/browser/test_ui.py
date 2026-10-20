@@ -125,3 +125,19 @@ def test_narrow_screen_and_degenerate_data(ui):
         assert ui.evaluate("() => document.querySelectorAll('.page:not(.active) .chart.loading').length") == 0
     finally:
         ui.set_viewport_size({"width": 1400, "height": 900})
+
+
+def test_column_mapping_dialog(ui, tmp_path):
+    f = tmp_path / "instrument.csv"
+    f.write_text("Time,TIE (ns),Delay (ns),Status\n"
+                 + "".join(f"2026-10-20T10:00:{k:02d}Z,{12 + k % 3},{1520 + k},OK\n" for k in range(30)))
+    ui.goto(ui.base + "#/analyze/overview")
+    n = ui.evaluate("document.querySelectorAll('#datasets li').length")
+    ui.set_input_files("#file-input", [str(f)])
+    ui.wait_for_selector("#colmap[open]", timeout=20000)  # auto-detection fails, so the mapping dialog opens
+    assert ui.input_value("#cm-units") == "ns" and ui.input_value("#cm-qty") == "te"
+    assert "time=Time:iso" in ui.text_content("#cm-spec")
+    ui.click("#colmap button[value=load]")
+    ui.wait_for_function(f"document.querySelectorAll('#datasets li').length === {n + 1}", timeout=20000)
+    assert "instrument.csv" in ui.text_content("#datasets")
+    assert not ui.errors, ui.errors

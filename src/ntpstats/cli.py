@@ -40,6 +40,10 @@ def _parse_time(v: Optional[str]) -> Optional[float]:
 
 def _load_args(args) -> List[TimeSeries]:
     out = []
+    if getattr(args, "columns", None):
+        if args.format != "auto":
+            raise SystemExit("--columns and -f/--format are exclusive")
+        args.format = "columns:" + args.columns
     for path in args.files:
         if args.peer or not args.all_peers:
             try:
@@ -75,17 +79,33 @@ def _utc(t: float) -> str:
 def _fmt(v: str) -> str:
     from .parsers import all_formats
 
-    if v == "auto" or v.startswith("profile:") or v in all_formats():
+    if v == "auto" or v.startswith(("profile:", "columns:")) or v in all_formats():
         return v
-    raise argparse.ArgumentTypeError(f"invalid format {v!r}; choose auto, {', '.join(all_formats())} or profile:NAME|FILE")
+    raise argparse.ArgumentTypeError(f"invalid format {v!r}; choose auto, {', '.join(all_formats())}, "
+                                     "profile:NAME|FILE or columns:SPEC")
 
 
-FORMAT_HELP = "input format (default: auto-detect); profile:NAME or profile:FILE.toml for instrument exports"
+def _columns(v: str) -> str:
+    from .profiles import columns_profile
+
+    try:
+        columns_profile(v)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
+    return v
+
+
+FORMAT_HELP = ("input format (default: auto-detect); profile:NAME or profile:FILE.toml for instrument exports, "
+               "columns:SPEC as --columns")
+COLUMNS_HELP = ("map the columns of a CSV/TSV file without a profile, e.g. 'time=Time:iso,te=TIE,units=ns' "
+                "(keys: time[:unix|iso|mjd|elapsed], te= or offset=, units, tau0, delimiter, skip, extra=A+B); "
+                "'ntpstats columns FILE' proposes one")
 
 
 def _common(p: argparse.ArgumentParser):
     p.add_argument("files", nargs="+", help="log files (loopstats, peerstats, rawstats, chrony logs, CSV...)")
     p.add_argument("-f", "--format", default="auto", type=_fmt, help=FORMAT_HELP)
+    p.add_argument("--columns", type=_columns, metavar="SPEC", help=COLUMNS_HELP)
     p.add_argument("--negate", action="store_true", help="flip the sign of the offsets (for sources that log "
                                                           "local - reference)")
     p.add_argument("--peer", help="select a peer/source (substring of its address) in multi-peer logs")
@@ -546,6 +566,47 @@ def cmd_plugins(args):
         if not rows:
             print("  (none)")
     return 1 if data.get("errors") else 0
+
+
+def cmd_columns(args):
+    from .profiles import check_profile, columns_profile, columns_spec, guess_columns, parse_with_profile, profile_toml
+
+    with open(args.file, encoding="utf-8", errors="replace") as fh:
+        lines = fh.read().splitlines()
+    try:
+        g = guess_columns(lines)
+    except ValueError as exc:
+        raise SystemExit(f"{args.file}: {exc}") from None
+    prof = columns_profile(args.columns) if args.columns else g["profile"]
+    if args.name:
+        prof["name"] = args.name
+    check_profile(prof)
+    try:
+        s = parse_with_profile(lines, prof, os.path.basename(args.file), tau0=args.tau0)
+    except ValueError as exc:
+        s, err = None, str(exc)
+    if args.json:
+        print(json.dumps({"columns": g["columns"], "profile": prof, "spec": columns_spec(prof), "notes": g["notes"],
+                          "samples": len(s) if s is not None else 0}, indent=2, default=str))
+    else:
+        print(f"{args.file}: {len(g['columns'])} columns" + (", with a header" if g["header"] else ", no header"))
+        for c in g["columns"]:
+            print(f"  {c['index']:>3}  {str(c['name'])[:28]:28} {c['kind']:8} {c['example']}")
+        print(f"\nproposed mapping: --columns '{columns_spec(prof)}'")
+        if not args.columns:
+            for n in g["notes"]:
+                print(f"  - {n}")
+        if s is not None:
+            print(f"\n{len(s)} samples, {format_seconds(float(s.t[-1] - s.t[0]))} span; offset (reference - local) "
+                  f"first {format_seconds(float(s.offset[0]))}, median {format_seconds(float(np.median(s.offset)))}"
+                  + (f"; {s.meta['skipped_lines']} lines skipped" if s.meta.get("skipped_lines") else ""))
+        else:
+            print(f"\nthe mapping does not read the file: {err}")
+    if args.save:
+        with open(args.save, "w", encoding="utf-8") as fh:
+            fh.write(profile_toml(prof))
+        print(f"profile written to {args.save}; use it with -f profile:{args.save}", file=sys.stderr)
+    return 0 if s is not None else 1
 
 
 def cmd_dataset(args):
@@ -1470,6 +1531,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--all", action="store_true", help="also list the built-ins")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_plugins)
+
+    s = sub.add_parser("columns", help="propose a column mapping for a CSV/TSV export (instruments, scripts) and "
+                       "save it as a profile")
+    s.add_argument("file")
+    s.add_argument("--columns", type=_columns, metavar="SPEC", help="try this mapping instead of the proposed one")
+    s.add_argument("--save", metavar="FILE.toml", help="write the mapping as a profile for -f profile:FILE.toml")
+    s.add_argument("--name", help="profile name (default: columns)")
+    s.add_argument("--tau0", type=float, help="sample interval when there is no time column")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_columns)
 
     s = sub.add_parser("dataset", help="summarise the open interop dataset (data/interop): availability, "
                        "offsets, protocol support per server")

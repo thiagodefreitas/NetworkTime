@@ -302,12 +302,26 @@ function renderStatus() {
 async function uploadFiles(files) {
   const fmt = $("#format").value;
   let last = null;
+  const send = (f, buf, format) => api(`/api/upload?format=${encodeURIComponent(format)}`, {
+    method: "POST", body: buf,
+    headers: { "X-Filename": encodeURIComponent(f.name), "Content-Type": "application/octet-stream" },
+  });
   for (const f of files) {
+    const buf = await f.arrayBuffer();
     try {
-      const res = await api(`/api/upload?format=${encodeURIComponent(fmt)}`, {
-        method: "POST", body: await f.arrayBuffer(),
-        headers: { "X-Filename": encodeURIComponent(f.name), "Content-Type": "application/octet-stream" },
-      });
+      let res;
+      if (fmt === "columns") {
+        const spec = await mapColumns(f, buf);
+        if (!spec) continue;
+        res = await send(f, buf, `columns:${spec}`);
+      } else {
+        try { res = await send(f, buf, fmt); } catch (e) {
+          if (!["auto", "csv"].includes(fmt) || !looksLikeText(buf)) throw e;
+          const spec = await mapColumns(f, buf, true);  // an unknown column layout: offer to map it
+          if (!spec) continue;
+          res = await send(f, buf, `columns:${spec}`);
+        }
+      }
       last = res[0]?.id ?? last;
       toast(`Loaded ${f.name}: ${res.length} series, ${res.reduce((a, r) => a + r.samples, 0).toLocaleString()} samples`);
     } catch (e) { toast(`${f.name}: ${e.message}`, true); }
@@ -318,6 +332,60 @@ async function uploadFiles(files) {
     else render();
   }
 }
+function looksLikeText(buf) {
+  const b = new Uint8Array(buf, 0, Math.min(buf.byteLength, 4096));
+  return b.length > 0 && !b.some((c) => c === 0) && !(b[0] === 0xb5 && b[1] === 0x62);
+}
+
+// Column mapping for CSV/TSV exports the detector does not know (instruments, scripts).
+async function mapColumns(f, buf, unknown = false) {
+  let g;
+  try {
+    g = await api("/api/columns", { method: "POST", body: buf.slice(0, 1 << 20), headers: { "Content-Type": "application/octet-stream" } });
+  } catch (e) { toast(`${f.name}: ${e.message}`, true); return null; }
+  const dlg = $("#colmap"), p = g.profile, cols = g.columns;
+  const ref = (c) => (g.header && !/[,=+:]/.test(String(c.name)) ? String(c.name) : String(c.index));
+  const byRef = (r) => cols.find((c) => ref(c) === String(r) || String(c.index) === String(r));
+  const opt = (c) => `<option value="${c.index}">${esc(c.name)} · ${esc(c.kind)}</option>`;
+  $("#cm-file").textContent = `${f.name}: ${unknown ? "not a format ntpstats recognises by itself; " : ""}${cols.length} columns${g.header ? ", with a header" : ", no header"}. Check the proposed mapping, then load.`;
+  $("#cm-time").innerHTML = `<option value="">none: evenly spaced</option>` + cols.filter((c) => c.kind !== "text").map(opt).join("");
+  $("#cm-value").innerHTML = cols.filter((c) => c.kind !== "text").map(opt).join("");
+  $("#cm-time").value = "time_column" in p ? String(byRef(p.time_column).index) : "";
+  $("#cm-tfmt").value = p.time_format || "unix";
+  $("#cm-value").value = String(byRef(p.value_column).index);
+  $("#cm-units").value = p.units || "s";
+  $("#cm-qty").value = p.quantity || "te";
+  $("#cm-tau0").value = p.tau0 || 1;
+  $("#cm-notes").innerHTML = g.notes.map((n) => `<li>${esc(n)}</li>`).join("");
+  const spec = () => {
+    const ti = $("#cm-time").value, vi = +$("#cm-value").value;
+    const out = [];
+    if (ti !== "") out.push(`time=${ref(cols[+ti])}:${$("#cm-tfmt").value}`);
+    out.push(`${$("#cm-qty").value}=${ref(cols[vi])}`);
+    if ($("#cm-units").value !== "s") out.push(`units=${$("#cm-units").value}`);
+    if (ti === "") out.push(`tau0=${+$("#cm-tau0").value || 1}`);
+    if (p.delimiter) out.push(`delimiter=${{ ",": "comma", ";": "semicolon", "\t": "tab" }[p.delimiter] || p.delimiter}`);
+    const extra = cols.filter((c) => c.kind === "number" && c.index !== vi && String(c.index) !== ti).slice(0, 8).map(ref);
+    if (extra.length) out.push(`extra=${extra.join("+")}`);
+    return out.join(",");
+  };
+  const draw = () => {
+    const ti = $("#cm-time").value, vi = $("#cm-value").value;
+    $("#cm-tfmt").disabled = ti === "";
+    $("#cm-tau0-l").hidden = ti !== "";
+    const cls = (i) => (String(i) === vi ? "cm-v" : String(i) === ti ? "cm-t" : "");
+    $("#cm-table").innerHTML = `<tr>${cols.map((c) => `<th class="${cls(c.index)}">${esc(c.name)}<br><small>${esc(c.kind)}</small></th>`).join("")}</tr>` +
+      g.rows.map((r) => `<tr>${cols.map((c) => `<td class="${cls(c.index)}">${esc(r[c.index] ?? "")}</td>`).join("")}</tr>`).join("");
+    $("#cm-spec").textContent = `--columns '${spec()}'`;
+  };
+  for (const id of ["#cm-time", "#cm-tfmt", "#cm-value", "#cm-units", "#cm-qty", "#cm-tau0"]) $(id).oninput = draw;
+  draw();
+  dlg.returnValue = "";
+  dlg.showModal();
+  await new Promise((ok) => dlg.addEventListener("close", ok, { once: true }));
+  return dlg.returnValue === "load" ? spec() : null;
+}
+
 async function simulate(preset, hours = 24, seed = 1) {
   try {
     const res = await api("/api/simulate", { method: "POST", body: { preset, duration: hours * 3600, seed } });
@@ -1085,7 +1153,7 @@ function init() {
     $("#version").textContent = "v" + i.version;
     $("#edition").textContent = i.live === false ? "in your browser" : "";
     $("#live-unavailable").hidden = i.live !== false;
-    if (i.formats) $("#format").innerHTML = `<option value="auto">auto-detect</option>` + i.formats.map((f) => `<option value="${esc(f.name)}">${esc(f.description)}</option>`).join("");
+    if (i.formats) $("#format").innerHTML = `<option value="auto">auto-detect</option><option value="columns">map columns (CSV/TSV export)…</option>` + i.formats.map((f) => `<option value="${esc(f.name)}">${esc(f.description)}</option>`).join("");
     $("#kinds").innerHTML = Object.keys(i.kinds).map((k) => `<button data-kind="${k}" title="${esc(i.kinds[k])}" class="${state.kinds.has(k) ? "on" : ""}">${KIND_LABEL[k] || k}</button>`).join("");
   });
 

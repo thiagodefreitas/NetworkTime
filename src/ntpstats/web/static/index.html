@@ -442,6 +442,23 @@
   <form method="dialog"><menu><button class="btn">Close</button></menu></form>
 </dialog>
 
+<dialog id="colmap" class="colmap" aria-labelledby="cm-title">
+  <h3 id="cm-title">Map columns</h3>
+  <p class="note" id="cm-file"></p>
+  <div class="cm-grid">
+    <label>Time <select id="cm-time"></select></label>
+    <label>Time format <select id="cm-tfmt"><option value="unix">POSIX seconds</option><option value="iso">ISO 8601</option><option value="mjd">MJD</option><option value="elapsed">seconds from start</option></select></label>
+    <label>Value <select id="cm-value"></select></label>
+    <label>Units <select id="cm-units"><option>s</option><option>ms</option><option>us</option><option>ns</option><option>ps</option></select></label>
+    <label>The value is <select id="cm-qty"><option value="te">time error: local − reference</option><option value="offset">offset: reference − local</option></select></label>
+    <label id="cm-tau0-l">Interval (s) <input id="cm-tau0" type="number" min="0" step="any" value="1"></label>
+  </div>
+  <ul class="note" id="cm-notes"></ul>
+  <div class="cm-preview"><table id="cm-table"></table></div>
+  <p class="note">Command line: <code id="cm-spec"></code></p>
+  <form method="dialog"><menu><button class="btn" value="cancel">Cancel</button><button class="btn primary" value="load">Load</button></menu></form>
+</dialog>
+
 <div id="toast" class="toast" hidden role="status"></div>
 <div id="drop" class="drop" hidden>Drop logs or captures to load them</div>
 
