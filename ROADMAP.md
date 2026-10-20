@@ -150,19 +150,23 @@ missing is a long record of a real client checked against a reference it does no
   (Stable32's Auto1 script); TOTDEV is now bias-corrected as SP 1065 prescribes. TimeLab `.tim`
   round trips once a sample file arrives ([#42](https://github.com/thiagodefreitas/NetworkTime/issues/42)).
 
-### 3.8: Operators: fleets, alerts and instruments
+### 3.8: Operators: fleets, alerts and instruments (code done, on master)
 The operator audience has the exporter and dashboard; the next layer is many hosts and the
 instruments people already own.
-- Fleet view: many logs or exporters at once, one table ranking hosts by offset, jitter, bound
-  and mask verdict, in the CLI and the web UI; the Prometheus exporter emits alert rules for the
+- ✅ Fleet view: `ntpstats fleet` and *Compare → Fleet* rank many logs or an exporter query by
+  offset, jitter, bound, age and mask verdict; `--rules` writes Prometheus alert rules for the
   same thresholds ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)).
-- Remaining sources of [#21](https://github.com/thiagodefreitas/NetworkTime/issues/21): OCP Time
-  Card sysfs and `phc2sys` logs, Meta `fbclock` and AWS ClockBound as live samplers (the bound
-  formats are already read), `pmc` watch for several ports.
-- Instrument exports ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)): a
-  column-mapping wizard in the UI and CLI (`--columns`) that turns any CSV or TSV into a series,
-  saved as a profile; built-in profiles for Calnex, VIAVI, Keysight and Microchip as sample
-  files arrive. Sample files are the blocker, not code.
+- ✅ Remaining sources of [#21](https://github.com/thiagodefreitas/NetworkTime/issues/21): any PHC
+  against the system clock and the OCP Time Card (sysfs status and its PHC), Meta `fbclock` and
+  AWS ClockBound as live samplers, every port of a boundary clock through `pmc`. phc2sys logs
+  were already read. Still wanted: real Time Card and ClockBound samples
+  ([#45](https://github.com/thiagodefreitas/NetworkTime/issues/45)).
+- ✅ Instrument exports ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)):
+  `--columns`, `ntpstats columns` (proposes a mapping and saves it as a profile) and a mapping
+  dialog in the UI turn any CSV or TSV into a series. Built-in profiles for Calnex, VIAVI,
+  Keysight and Microchip follow as sample files arrive
+  ([#43](https://github.com/thiagodefreitas/NetworkTime/issues/43)); sample files are the
+  blocker, not code.
 
 ### 3.9: Research bench, part 3: closed loops
 3.6 put clock disciplines in the bench with a fixed poll interval. The next step is the full
@@ -176,8 +180,8 @@ loop as the daemons run it.
 - Closed-loop scenarios: the discipline's corrections feed back into the simulated local clock,
   so transients (steps, frequency jumps, route changes) are measured as the user sees them, not
   on an open-loop record.
-- Preprint v2 with the real-data campaign of 3.7 and the closed-loop results, and the RFC 5905
-  erratum (appendix A.5.5.6 `PLL`/`AVG` constants) filed and tracked.
+- Preprint v2 with the real-data campaign of 3.7 and the closed-loop results, and the status of
+  the three RFC 5905 errata filed on 12 October 2026 (IDs 9215–9217).
 
 ### 4.0: only when forced
 The 3.x API is final and nothing is scheduled to break it. A 4.0 happens only for a floor

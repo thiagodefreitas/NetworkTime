@@ -45,6 +45,8 @@ directory has:
   Kiss-o'-Death, and unauthenticated samples.
 - `docker-compose.yml`: ntpstats, Prometheus and Grafana, with the dashboard and rules
   provisioned.
+- `ntpstats fleet --rules FILE` writes alert rules for your own limits (offset, jitter, bound,
+  stale), the same limits the [fleet view](fleet.md) ranks hosts by.
 
 ```bash
 cd contrib && docker compose up --build

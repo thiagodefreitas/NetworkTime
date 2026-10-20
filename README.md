@@ -60,12 +60,17 @@ are as valuable as code. Look for issues labelled
     exchanges, NTP over PTP (RFC 10030, with transparent-clock corrections), CSPTP
     (client-server PTP) and **PTP flows** (one-/two-step, E2E/P2P, UDP or Ethernet) are
     measured from the capture host's clock;
-  - **live**: chrony, ntpd/NTPsec, ntpd-rs (`ntp-ctl`), linuxptp (`pmc`) and facebook/time
-    `ptpcheck`; Windows `w32tm /stripchart`; Prometheus range queries (ntpd-rs, chrony_exporter);
+  - **live**: chrony, ntpd/NTPsec, ntpd-rs (`ntp-ctl`), linuxptp (`pmc`, every port of a
+    boundary clock) and facebook/time `ptpcheck`; any **PTP hardware clock** against the system
+    clock (the kernel's `PTP_SYS_OFFSET_EXTENDED`, as phc2sys reads it) and the **OCP Time Card**;
+    **AWS ClockBound** and **Meta fbclock** windows; Windows `w32tm /stripchart`; Prometheus range
+    queries (ntpd-rs, chrony_exporter);
   - **GNSS receivers and PPS**: u-blox UBX logs (clock bias and drift, accuracy estimates,
     time-pulse `qErr`), gpsd PPS/TOFF (recorded or live), TAPR TICC counter output, and
     `ntpstats sawtooth` to remove the PPS quantization sawtooth;
-  - **instrument exports** via small TOML profiles (time-interval counters, PTP testers);
+  - **instrument exports** via small TOML profiles (time-interval counters, PTP testers), or any
+    CSV/TSV mapped on the command line (`--columns`; `ntpstats columns FILE` proposes the mapping
+    and the web UI opens a mapping dialog);
   - **research and laboratory data**: CGGTTS GNSS time transfer (with common view), IGS RINEX
     clock files, BIPM Circular T (UTC − UTC(k)), RIPE Atlas NTP results and NTP Pool monitor logs;
   - generic CSV and the 2012 `estimators.log`.
@@ -104,6 +109,9 @@ are as valuable as code. Look for issues labelled
   coverage and an archivable HTML/JSON report with input hashes (MiFID II RTS 25, DORA, NIS2
   evidence). `ntpstats events` finds steps, spikes, frequency and route changes and leap smears.
   Timing checks run in CI through a **GitHub Action** or **pytest** assertions.
+- **Fleet view**: `ntpstats fleet` ranks many hosts (logs, one directory per host, or an
+  exporter query) by the nearest of their offset, jitter, error-bound, age and mask limits, and
+  `--rules` writes Prometheus alert rules with the same limits; also *Compare → Fleet* in the UI.
 - **Clock-error bounds checked, not trusted**: `ntpstats bounds` measures how often AWS
   ClockBound, fbclock or any `[earliest, latest]` window really contains true time.
 - **Validation against a real reference**: `ntpstats validate` reads a chrony host that logs a
@@ -217,6 +225,13 @@ ntpstats validate refclocks.log --tracking tracking.log --measurements measureme
 # Longest poll interval that keeps the error below 10 ms
 ntpstats poll /var/log/chrony/measurements.log --target 10ms
 
+# Many hosts: rank them against the same limits, and write matching alert rules
+ntpstats fleet /var/lib/timelogs --max-offset 1ms --max-bound 5ms --max-age 10m --rules fleet-rules.yml
+
+# An instrument export ntpstats does not know: propose a column mapping, then use it
+ntpstats columns export.csv
+ntpstats timeerror export.csv --columns 'time=Time:iso,te=TIE (ns),units=ns'
+
 # Sliding-window stability matrix (time x tau) as CSV
 ntpstats dynamic peerstats --peer 192.0.2.10 -k mdev
 
@@ -256,6 +271,8 @@ ntpstats query pool.ntp.org --probe-v5              # does the server offer NTPv
 ntpstats query time.example.net --interleaved       # RFC 9769: precise server transmit time
 ntpstats roughtime --check-local                    # signed time; exit 3 if servers or this clock disagree
 ntpstats watch chrony -i 16 -o chrony-live.csv      # local daemon, no log files needed (also ntpd, ntpd-rs, ptp4l)
+ntpstats watch phc -i 1 -o phc.csv                  # a PTP hardware clock against the system clock (also timecard)
+ntpstats watch clockbound -i 1 -o cb.csv            # AWS ClockBound's window, then: ntpstats bounds cb.csv ref.csv
 ntpstats info capture.pcapng                        # NTP exchanges from a packet capture
 ntpstats stability /var/log/ptp4l.log -k tdev,mtie  # PTP servo offsets
 ```
@@ -402,11 +419,11 @@ their logs).
 
 ```
 src/ntpstats/     api (stable surface), parsers, stream, pcap, ptp, research, stability, edf,
-                  masks, timeerror, audit, events, bounds, refcheck, analysis, network,
-                  filters, spectrum, noisefit, hat, holdover, polladvice, simulate,
+                  masks, timeerror, audit, events, bounds, refcheck, fleet, analysis,
+                  network, filters, spectrum, noisefit, hat, holdover, polladvice, simulate,
                   estimators, disciplines, bench, trace, ptpsim, simio, report, sntp (v4/v5),
-                  nts, roughtime, sources, monitor, metrics, otlp, adapters, plugins, cli,
-                  plotting
+                  nts, roughtime, sources, hwclocks, profiles, monitor, metrics, otlp,
+                  adapters, plugins, cli, plotting
 src/ntpstats/web  stdlib HTTP server + static UI (plain JS, uPlot vendored), also run by Pyodide
 tests/            pytest suite (+ frozen reference data, API snapshot, browser tests)
 examples/         scripts, notebooks, scenarios, an example plugin and sample logs

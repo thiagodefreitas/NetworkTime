@@ -14,6 +14,43 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+The 3.8 operator release: many hosts at once, instruments without code, and the hardware clocks
+and bound services that remained from #21. The stable API is unchanged.
+
+### Added
+- **Fleet view** (`ntpstats fleet`, `ntpstats.fleet`, *Compare → Fleet* in the UI): many hosts
+  (log files, one directory per host, or a Prometheus range query of the exporter) checked over
+  their most recent window against the same limits: largest |offset|, jitter (standard deviation,
+  as the exporter publishes it), error bound (the audit's terms), age and a TDEV/MTIE mask. Hosts
+  are ranked by the nearest limit; `--json`, `--csv`, `--strict` (exit code 3). `--rules` writes
+  Prometheus alerting rules for the exporter's metrics with the same limits
+  ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)).
+- **Column mapping without a profile file**: `--columns SPEC` (and `-f columns:SPEC`) on every
+  command that reads a log; `ntpstats columns FILE` proposes the mapping from the file (time
+  format, units from the column name or the magnitude, sign) and `--save` writes it as a TOML
+  profile. The web UI opens a *Map columns* dialog with a preview for text files no format
+  recognises, or from the format menu
+  ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)).
+- Live sources ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)), module
+  `ntpstats.hwclocks`:
+  - `watch phc`: any PTP hardware clock against the system clock with the kernel's
+    `PTP_SYS_OFFSET_EXTENDED` ioctl, as phc2sys reads it (shortest of nine read windows,
+    TAI − UTC removed);
+  - `watch timecard`: the OCP Time Card's PHC plus the `ptp_ocp` sysfs status (GNSS sync, clock
+    source, firmware offset and drift);
+  - `watch clockbound` (libclockbound's `clockbound_now()`, in process) and `watch fbclock`
+    (`ptpcheck fbclock`): the windows' half-width and centre, with `earliest`/`latest` kept to
+    the nanosecond so the log is a bounds file for `ntpstats bounds`; the exporter publishes
+    their own bound;
+  - `watch ptp4l` also reads `PORT_DATA_SET` of every port of a boundary clock (`ports`,
+    `slave_port`, `faulty_ports`, `port_states`).
+
+### Fixed
+- The bounds reader computed a window's centre as a float of about 3.5×10¹⁸ ns, which loses up
+  to 256 ns; it now uses integer nanoseconds.
+- The generic CSV reader returned an empty series when the time column was not numeric (for
+  example ISO 8601); it now fails with a hint to `--columns`.
+
 ## [3.7.1] - 2026-10-20
 
 Packaging fix and documentation refresh. No changes to results or to the API.

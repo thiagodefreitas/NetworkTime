@@ -1,5 +1,5 @@
 ---
-description: "Live and offline sources: chrony, ntpd/NTPsec, ntpd-rs, linuxptp pmc, facebook/time ptpcheck, Windows w32tm, Prometheus, and validation of AWS ClockBound and fbclock error bounds."
+description: "Live and offline sources: chrony, ntpd/NTPsec, ntpd-rs, linuxptp pmc, PTP hardware clocks, the OCP Time Card, facebook/time ptpcheck and fbclock, AWS ClockBound, Windows w32tm, Prometheus, instrument exports and column mapping."
 ---
 
 # More sources, instruments and clock-error bounds
@@ -16,11 +16,36 @@ ntpstats watch ptp4l --metrics-port 9124        # and serve it to Prometheus
 
 Recorded columns:
 - **ptp4l**: `offsetFromMaster`, then `meanPathDelay`, `master_offset`, `stepsRemoved` and
-  `gmPresent`.
+  `gmPresent`, and from `GET PORT_DATA_SET` the state of every port: `ports`, `slave_port`,
+  `faulty_ports` and, on the console, `port_states` such as `1:SLAVE 2:MASTER` for a boundary
+  clock.
 - **ptpcheck**: `ptp.offset_ns` and `ptp.mean_path_delay_ns`.
 
 Both tools report local − master, so the offsets are negated into the ntpstats convention
 (reference − local). The web UI's *Live* workspace offers the same sources.
+
+## PTP hardware clocks and the OCP Time Card
+
+```bash
+ntpstats watch phc -i 1 -o phc.csv                                        # /dev/ptp0 against the system clock
+ntpstats watch phc --command-override "/dev/ptp1 37"                      # another PHC, TAI - UTC given
+ntpstats watch timecard -i 1 -o timecard.csv                              # /sys/class/timecard/ocp0
+```
+
+`watch phc` reads a PTP hardware clock against the system clock with the kernel's
+`PTP_SYS_OFFSET_EXTENDED` ioctl, as linuxptp's phc2sys does: of nine readings
+[system, PHC, system] the one with the shortest system window is kept, and the PHC is compared
+with its midpoint. The offset is PHC − system (reference − local); a PHC on TAI is reduced by the
+whole seconds between the two clocks (`whole_seconds`, or the TAI − UTC you give), and
+`read_window` records the system window, which bounds the error of the reading. It needs read
+access to `/dev/ptpN`, nothing else.
+
+`watch timecard` does the same for an [OCP Time Card](https://github.com/opencomputeproject/Time-Appliance-Project)
+through its `ptp` link and adds the status of the Linux `ptp_ocp` driver
+(`Documentation/ABI/testing/sysfs-timecard`): `gnss_sync` (1 for `SYNC`, 0 once `LOST`),
+`clock_source`, `utc_tai_offset` (used as TAI − UTC) and the firmware's `clock_status_offset`
+and `clock_status_drift`, kept in the firmware's own units. Logs of phc2sys itself are read like
+any linuxptp log.
 
 ## gpsd
 
@@ -108,6 +133,22 @@ bound).
 Try it on the bundled examples:
 `ntpstats bounds examples/data/clockbound.txt examples/data/clockbound-reference.csv`.
 
+The bounds can also be recorded live:
+
+```bash
+ntpstats watch clockbound -i 1 -o clockbound.csv     # libclockbound's clockbound_now(), in process
+ntpstats watch fbclock -i 1 -o fbclock.csv           # ptpcheck fbclock --utc (facebook/time)
+ntpstats bounds clockbound.csv phc.csv               # then check them against a reference
+```
+
+`watch clockbound` loads the ClockBound client library (`clock-bound-ffi`; set
+`NTPSTATS_LIBCLOCKBOUND` to its path if it is not on the library path) and calls
+`clockbound_now()`, reading the system clock just before and after; `watch fbclock` runs
+`ptpcheck fbclock --utc`, so its `read_window` is the time the command took. Both logs keep
+`earliest` and `latest` to the nanosecond and are read back as bounds files; the exporter
+(`--metrics-port`) publishes `ntpstats_offset_bound_seconds` as |offset| plus the service's own
+half-width.
+
 ## Instrument export profiles
 
 Time-interval counters and PTP/SyncE testers export CSV files whose layout varies by vendor. A
@@ -138,3 +179,35 @@ Built-in profiles:
 
 Vendor profiles are added from sample exports that users share, via the *Share a sample log*
 issue form or [issue #35](https://github.com/thiagodefreitas/NetworkTime/issues/35).
+
+### Mapping columns without a profile
+
+`--columns` (or `-f columns:SPEC`) maps the columns of any CSV or TSV export on the command
+line, and `ntpstats columns FILE` proposes the mapping from the file itself:
+
+```text
+$ ntpstats columns export.csv --save my-counter.toml
+export.csv: 4 columns, with a header
+    0  Time                         iso      2026-10-20T10:00:00Z
+    1  TIE (ns)                     number   12.5
+    2  Delay (ns)                   number   1520
+    3  Status                       text     OK
+
+proposed mapping: --columns 'time=Time:iso,te=TIE (ns),units=ns,delimiter=comma,extra=Delay (ns)'
+  - units ns from the column name 'TIE (ns)'
+  - sign: taken as time error, local (DUT) - reference, as instruments report it; ...
+```
+
+```bash
+ntpstats timeerror export.csv --columns 'time=Time:iso,te=TIE (ns),units=ns'
+ntpstats stability export.csv -f profile:my-counter.toml        # the saved mapping
+```
+
+Keys: `time` (a column, optionally `:unix`, `:iso`, `:mjd` or `:elapsed`), `te=` (local −
+reference) or `offset=` (reference − local) for the value, `units`, `time_units`, `tau0` (when
+there is no time column), `delimiter` (`comma`, `semicolon`, `tab`, `space`), `skip`, `header`
+and `extra` (more columns joined with `+`). Columns are 0-based indices or header names. The
+units and the sign are what a guess cannot know for sure: check them before trusting a result.
+
+In the web UI, a text file that no format recognises opens a **Map columns** dialog with the
+proposed mapping and a preview, and *map columns* in the format menu opens it on purpose.

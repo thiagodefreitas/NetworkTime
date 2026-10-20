@@ -46,7 +46,7 @@ ntpstats stability tracking.log -k oadev,tdev --ci 0.95
 | [Statistics](statistics.md) | ADEV … TheoH, MTIE, EDF and confidence intervals, masks, dynamic views |
 | [Network & estimators](network.md) | delay floor, wedge, FPP, filters and estimators |
 | [PTP captures & time error](ptp.md) | PTP and NTP over PTP from captures, max\|TE\|, cTE, dTE, limits and masks |
-| [Sources, instruments & bounds](sources.md) | live daemons, instrument profiles, clock-error bound validation |
+| [Sources, instruments & bounds](sources.md) | live daemons, PTP hardware clocks and the OCP Time Card, instrument profiles and column mapping, ClockBound and fbclock bounds |
 | [Metrology](metrology.md) | power-law noise model, spectra, cornered hat, holdover, poll-interval advice |
 | [Research data](research-data.md) | CGGTTS, RINEX clock, Circular T, RIPE Atlas, NTP Pool, the interop dataset |
 
@@ -55,6 +55,7 @@ ntpstats stability tracking.log -k oadev,tdev --ci 0.95
 | Page | What it covers |
 |---|---|
 | [Audit, events & CI checks](assurance.md) | UTC traceability audit, change detection, GitHub Action, pytest assertions |
+| [Fleet view](fleet.md) | many hosts ranked against the same limits, and matching alert rules |
 | [Monitoring](monitoring.md) | Prometheus/OpenMetrics, OpenTelemetry, Grafana |
 | [Protocols](protocols.md) | NTS, NTS pools, NTPv5, Roughtime, RFC 9769 interleaved mode |
 

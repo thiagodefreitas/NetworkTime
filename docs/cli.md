@@ -12,6 +12,7 @@ that reads a log (`info`, `stability`, `dynamic`, `plot`, `network`, `filter`, `
 | `--start`, `--end` | time window (POSIX seconds or ISO 8601 UTC) |
 | `--outliers K` | drop samples beyond K·MAD of the detrended median |
 | `--tau0 S` | sample interval of single-column files; also the stability grid |
+| `--columns SPEC` | map the columns of a CSV/TSV export without a profile, e.g. `time=Time:iso,te=TIE,units=ns` ([column mapping](sources.md#mapping-columns-without-a-profile)) |
 
 | Command | Purpose |
 |---|---|
@@ -34,7 +35,7 @@ that reads a log (`info`, `stability`, `dynamic`, `plot`, `network`, `filter`, `
 | `query` | one-shot measurement: NTPv4, `--nts`, `--pool N` (NTS pool), `--interleaved` (RFC 9769), `--ntpv5`, `--probe-v5`, `-4/-6` ([Protocols](protocols.md)) |
 | `roughtime` | signed coarse time from several Roughtime servers, chained nonces, causal check; `--report` writes a malfeasance report, `--verify-report`, `--check-local`; exit code 3 on malfeasance |
 | `monitor` | periodic SNTP/NTS/NTPv5 measurements to CSV (polite polling); `--metrics-port` serves OpenMetrics, `--otlp` pushes to OpenTelemetry ([Monitoring](monitoring.md)) |
-| `watch` | sample the local chrony (`chronyc -c tracking`), ntpd (`ntpq -c rv`), ntpd-rs (`ntp-ctl`), ptp4l (`pmc`), `ptpcheck` or gpsd (PPS); `--metrics-port` as for `monitor` |
+| `watch` | sample the local chrony (`chronyc -c tracking`), ntpd (`ntpq -c rv`), ntpd-rs (`ntp-ctl`), ptp4l (`pmc`, with every port's state), `ptpcheck`, gpsd (PPS), a PHC against the system clock (`phc`), an OCP Time Card (`timecard`), AWS ClockBound (`clockbound`) or Meta fbclock (`fbclock`) ([sources](sources.md)); `--metrics-port` as for `monitor` |
 | `audit` | UTC traceability evidence: per-sample error bound with stated assumptions, windows, coverage; HTML/JSON with input hashes; exit code 3 on failure ([Assurance](assurance.md)) |
 | `events` | phase steps, spikes, frequency changes, delay-floor (route) changes and leap smears |
 | `prom` | fetch a Prometheus range query (ntpd-rs, chrony_exporter, …) to a JSON file every command reads |
@@ -45,6 +46,8 @@ that reads a log (`info`, `stability`, `dynamic`, `plot`, `network`, `filter`, `
 | `poll` | predicted error just before the next poll for each candidate poll interval; `--target` gives the longest interval within it (exit code 3 if none) ([Metrology](metrology.md#poll-interval)) |
 | `plugins` | installed plugins (parsers, estimators, detectors, masks, profiles) and load errors ([Writing a plugin](plugins.md)) |
 | `dataset` | summary of the open interop dataset (`data/interop/`): availability, median offset and delay, protocol support per server; `--trend` follows each server over the runs (offset relative to the run's consensus, delay, availability) and flags servers that shifted, appeared or disappeared (`--strict`: exit code 3) |
+| `fleet` | many hosts at once (files, one directory per host, or an exporter query): ranked by the nearest of `--max-offset`, `--max-jitter`, `--max-bound`, `--max-age` and `--mask`; `--json`, `--csv`, `--strict` (exit code 3); `--rules` writes Prometheus alert rules with the same limits ([Fleet view](fleet.md)) |
+| `columns` | propose a column mapping for a CSV/TSV export and `--save` it as a profile ([column mapping](sources.md#mapping-columns-without-a-profile)) |
 | `cv` | GNSS time transfer between two CGGTTS files: common view or all in view ([Research data](research-data.md)) |
 | `bounds` | validate clock-error bounds (ClockBound, fbclock, CSV) against a reference; exit code 3 on violations |
 | `ui` | start the local web UI |

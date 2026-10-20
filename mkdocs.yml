@@ -44,6 +44,7 @@ nav:
   - PTP captures & time error: ptp.md
   - Sources, instruments & bounds: sources.md
   - Audit, events & CI checks: assurance.md
+  - Fleet view: fleet.md
   - Monitoring (Prometheus/Grafana): monitoring.md
   - Protocols (Roughtime, NTS pools, RFC 9769): protocols.md
   - Metrology (noise model, hat, holdover, poll): metrology.md
@@ -89,8 +90,10 @@ nav:
       - gnsslab: api/gnsslab.md
       - timeerror: api/timeerror.md
       - sources: api/sources.md
+      - hwclocks: api/hwclocks.md
       - bounds: api/bounds.md
       - profiles: api/profiles.md
+      - fleet: api/fleet.md
       - audit: api/audit.md
       - events: api/events.md
       - testing: api/testing.md
