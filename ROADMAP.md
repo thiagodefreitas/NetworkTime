@@ -127,7 +127,7 @@ is assessed, with its experiments re-run against truth and on the original 2012 
   variant, PTTI 2011);
 - ✅ a poll-interval advisor, `ntpstats poll` (the thesis's first objective).
 
-### 3.7: Real logs against an independent reference (completes [#28](https://github.com/thiagodefreitas/NetworkTime/issues/28))
+### 3.7: Real logs against an independent reference ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28) ✅, campaign in [#41](https://github.com/thiagodefreitas/NetworkTime/issues/41))
 Everything so far is validated on test vectors, simulations and Stable32 output. What is still
 missing is a long record of a real client checked against a reference it does not use.
 - ✅ A validation protocol, documented and scripted ([validation campaign](docs/validation-campaign.md)):
@@ -136,7 +136,7 @@ missing is a long record of a real client checked against a reference it does no
   over every update interval, each server's RFC 5905 correctness interval, and every bench
   estimator scored on the real exchanges. `examples/validation/` has the chrony configuration and a
   daily cron script, so anyone with a Raspberry Pi and a GNSS module can repeat it.
-- First campaign on the maintainer's own hardware, published as a dataset next to the interop
+- First campaign ([#41](https://github.com/thiagodefreitas/NetworkTime/issues/41)) on the maintainer's own hardware, published as a dataset next to the interop
   dataset, with a notebook in the gallery and a results section in the preprint (v2). Needs the
   hardware running for a few weeks.
 - ✅ Trends in the open interop dataset: `ntpstats dataset --trend` follows each server over the
@@ -148,7 +148,7 @@ missing is a long record of a real client checked against a reference it does no
   clock filter of the startup clamp; the last raises its error by 20 to 70 % on the NTP presets.
 - ✅ Stable32 cross-check extended to TOTDEV, MTOT, TTOT, HTOT, Théo1/TheoBR, TIE rms and MTIE
   (Stable32's Auto1 script); TOTDEV is now bias-corrected as SP 1065 prescribes. TimeLab `.tim`
-  round trips once a sample file arrives ([#33](https://github.com/thiagodefreitas/NetworkTime/issues/33)).
+  round trips once a sample file arrives ([#42](https://github.com/thiagodefreitas/NetworkTime/issues/42)).
 
 ### 3.8: Operators: fleets, alerts and instruments
 The operator audience has the exporter and dashboard; the next layer is many hosts and the

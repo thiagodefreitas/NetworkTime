@@ -181,7 +181,7 @@ conda install -c conda-forge ntpstats   # conda-forge (also pixi, mamba)
 pip install -e ".[test,plot,nts,docs]" && pytest
 ```
 
-Python ≥ 3.9.
+Python ≥ 3.9. Packaging ntpstats for a distribution? See [packaging/README.md](packaging/README.md).
 
 ## Quick start
 

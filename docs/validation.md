@@ -2,7 +2,7 @@
 
 ## What the test suite checks
 
-Around 340 tests run in CI on Python 3.9, 3.11 and 3.13, together with ruff and mypy. None of
+About 600 tests run in CI on Python 3.9, 3.11 and 3.13, together with ruff and mypy. None of
 them need network access.
 
 - **Estimators**: literal implementations of the NIST SP 1065 sums (ADEV, OADEV, MDEV, TDEV,
@@ -44,6 +44,29 @@ them need network access.
 - **Clients**: SNTP, NTPv5 and NTS against local test servers, including Kiss-o'-Death, spoofed
   replies, forged NTS responses, certificate mismatch, TAI timescale and the 2036 era rollover.
 - **Web UI**: API, CSRF and Host-header checks, header injection, path traversal.
+
+## Reference values per statistic
+
+Every stability statistic is checked against at least one externally published or independently
+computed value. "Digits" means agreement to all the digits the reference prints.
+
+| Statistic | NIST SP 1065 tables 30, 31 | Stable32 1.62 output files | allantools (frozen) |
+|---|---|---|---|
+| ADEV | 7 digits | | ✓ |
+| OADEV, MDEV, TDEV, HDEV | 7 digits | 4 digits, with intervals where the EDF agrees | ✓ |
+| TOTDEV | 7 digits | 4 digits where both identify the same noise type | |
+| MTOT, TTOT | 7 digits (bias-corrected) | 4 digits against the raw value, which Stable32 writes | |
+| HTOT | within 0.3 % | 4 digits where both identify the same noise type | |
+| Theo1 | | the sums agree at every τ (Stable32 reports them bias-removed) | |
+| TheoBR | | 4 digits on 1000-point records, within 0.25 % on 4096 points | |
+| TheoH | | composed of OADEV and TheoBR, both checked | |
+| MTIE | | 4 digits | ✓ |
+| TIE rms | | 4 digits | |
+
+Where Stable32 identifies a different noise type (fewer than about 30 averaged points remain), its
+value is ntpstats' same sum with the bias factor or EDF of that other type, and the tests check
+exactly that. Confidence intervals are also checked by Monte Carlo coverage, and the χ² quantile
+against scipy to 10⁻¹⁰.
 
 ## Stable32 cross-check
 
@@ -92,7 +115,7 @@ servers every week from GitHub-hosted runners, and records one run per month in 
 
 - Long-term real logs against an independent reference. The protocol and the analysis are ready
   ([validation campaign](validation-campaign.md), `ntpstats validate`); the first campaign on real
-  hardware is the next step.
+  hardware is tracked in [#41](https://github.com/thiagodefreitas/NetworkTime/issues/41).
 
 Contributions of reference datasets and Stable32 outputs are welcome.
 

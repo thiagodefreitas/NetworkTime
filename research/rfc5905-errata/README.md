@@ -10,8 +10,10 @@ the jitter formula in Section 10, and erratum 3 below asks for the appendix code
 erratum 6550 (verified) changed another term of the same A.5.2 loop. None of the RFCs that update
 RFC 5905 (7822, 8573, 9109, 9748, 9769) touches the appendix code.
 
-**Status:** all three submitted to the RFC Editor on 12 October 2026 (erratum IDs to be added when
-they are listed).
+**Status:** submitted to the RFC Editor on 12 October 2026 and listed as reported:
+[Errata ID 9215](https://errata.rfc-editor.org/eid9215/) (erratum 1),
+[9216](https://errata.rfc-editor.org/eid9216/) (erratum 2) and
+[9217](https://errata.rfc-editor.org/eid9217/) (erratum 3).
 
 Each section below is laid out as the RFC Editor's errata form asks: section, original text,
 corrected text, notes. Submit at <https://www.rfc-editor.org/errata.php>, one erratum per submission,
@@ -26,7 +28,7 @@ python research/rfc5905-errata/reproduce.py
 
 ---
 
-## Erratum 1: loop constants PLL and AVG (A.5.5.6)
+## Erratum 1 (ID 9215): loop constants PLL and AVG (A.5.5.6)
 
 **Section:** A.5.5.6
 
@@ -79,7 +81,7 @@ offset.
 
 ---
 
-## Erratum 2: popcorn spike suppressor compares seconds with a poll exponent (A.5.2)
+## Erratum 2 (ID 9216): popcorn spike suppressor compares seconds with a poll exponent (A.5.2)
 
 **Section:** A.5.2
 
@@ -120,7 +122,7 @@ apart, Section 13.2), never across polls as the comment and the reference implem
 
 ---
 
-## Erratum 3 (optional): jitter computed without averaging in A.5.2
+## Erratum 3 (ID 9217): jitter computed without averaging in A.5.2
 
 **Section:** A.5.2
 

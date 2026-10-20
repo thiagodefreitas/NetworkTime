@@ -14,6 +14,15 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+### Fixed
+- The sdist now includes the test data, helper modules and example files the test suite reads
+  (`MANIFEST.in`); from the 3.7.0 sdist seven test modules could not be imported. CI runs the suite
+  from the built sdist.
+
+### Added
+- `GOVERNANCE.md`; `packaging/README.md` with the publication channels and notes for distribution
+  packagers; a per-statistic table of reference values in `docs/validation.md`.
+
 ## [3.7.0] - 2026-10-11
 
 Validation against an independent reference (`ntpstats validate`), trends in the open interop

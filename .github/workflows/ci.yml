@@ -29,6 +29,15 @@ jobs:
           ntpstats stability examples/data/peerstats.example --peer 192.0.2.10
           ntpstats simulate --preset lan --duration 3600 --benchmark
           ntpstats bench examples/scenarios/replay-chrony.toml --seeds 1 --duration 7200 --warmup 600
+      - name: Test suite from the sdist (what distribution packagers run)
+        if: matrix.python-version == '3.13'
+        run: |
+          pip install build
+          python -m build --sdist --outdir "$RUNNER_TEMP/sdist" .
+          mkdir "$RUNNER_TEMP/unpacked"
+          tar xzf "$RUNNER_TEMP"/sdist/ntpstats-*.tar.gz -C "$RUNNER_TEMP/unpacked"
+          cd "$RUNNER_TEMP"/unpacked/ntpstats-*
+          python -m pytest -q -p no:cacheprovider
 
   action:
     # The repository's own GitHub Action (action.yml), installed from this checkout

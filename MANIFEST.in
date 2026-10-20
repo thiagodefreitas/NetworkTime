@@ -1,0 +1,9 @@
+# The sdist carries the full test suite and the files it reads, so packagers can run it offline.
+graft tests
+graft examples/data
+graft examples/plugins
+graft examples/scenarios
+include docs/interop.py docs/api/stable.md
+include CHANGELOG.md CITATION.cff action.yml
+graft contrib
+global-exclude __pycache__ *.py[cod] .DS_Store

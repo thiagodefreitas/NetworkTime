@@ -17,7 +17,7 @@ phase-based statistics.
 **TimeLab** (J. Miles, KE5FX): its native ``.tim`` format is not publicly
 documented, so it is not read yet. Plain phase or frequency columns, which
 :func:`write_stable32` writes with ``timetags=False``, are the usual way to
-move data into it. Sample ``.tim`` files are welcome in issue #33.
+move data into it. Sample ``.tim`` files are welcome in issue #42.
 """
 
 from __future__ import annotations

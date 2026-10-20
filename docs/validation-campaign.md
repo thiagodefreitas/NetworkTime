@@ -121,7 +121,8 @@ ntpstats validate demo/refclocks.log --tracking demo/tracking.log --measurements
 ## Sending results
 
 Please share `result.json` and, if you can, the logs (the server addresses are public NTP servers;
-nothing else in them identifies the host) through the
+nothing else in them identifies the host) in
+[issue #41](https://github.com/thiagodefreitas/NetworkTime/issues/41), through the
 [Share a sample log](https://github.com/thiagodefreitas/NetworkTime/issues/new/choose) form or in
 [Discussions](https://github.com/thiagodefreitas/NetworkTime/discussions). Note the receiver,
 how the PPS reaches the kernel, and the network. Results from several hosts are what turn this into

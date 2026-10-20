@@ -2,7 +2,8 @@
 
 Issues and pull requests are welcome, from industry and research alike. See
 [ROADMAP.md](ROADMAP.md) for planned work and the [Code of Conduct](CODE_OF_CONDUCT.md) for how we
-work together. Report security issues privately ([SECURITY.md](SECURITY.md)).
+work together, and [GOVERNANCE.md](GOVERNANCE.md) for how decisions are made. Report security
+issues privately ([SECURITY.md](SECURITY.md)).
 
 ## Ways to contribute
 
