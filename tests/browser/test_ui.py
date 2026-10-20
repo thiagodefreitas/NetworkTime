@@ -16,7 +16,8 @@ EX = os.path.join(ROOT, "examples", "data")
 pytestmark = pytest.mark.skipif(os.environ.get("NTPSTATS_BROWSER_TEST") != "1",
                                 reason="set NTPSTATS_BROWSER_TEST=1 (needs Playwright and Chromium)")
 PAGES = ["analyze/overview", "analyze/offset", "analyze/stability", "analyze/distribution", "analyze/network",
-         "analyze/spectrum", "analyze/holdover", "analyze/events", "compare/table", "compare/reference", "compare/hat",
+         "analyze/spectrum", "analyze/holdover", "analyze/events", "compare/table", "compare/fleet", "compare/reference",
+         "compare/hat",
          "comply/timeerror", "comply/audit", "lab/simulate", "lab/bench", "lab/chain", "live/monitor"]
 
 

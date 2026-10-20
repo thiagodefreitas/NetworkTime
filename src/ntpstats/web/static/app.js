@@ -17,7 +17,7 @@ const NOISE = { "2": "white PM", "1": "flicker PM", "0": "white FM", "-1": "flic
 
 const WORKSPACES = {
   analyze: { label: "Analyze", pages: [["overview", "Overview"], ["offset", "Offset"], ["stability", "Stability"], ["distribution", "Distribution"], ["network", "Network"], ["spectrum", "Spectrum"], ["holdover", "Holdover"], ["events", "Events"]] },
-  compare: { label: "Compare", pages: [["table", "Side by side"], ["reference", "Against a reference"], ["hat", "Cornered hat"]] },
+  compare: { label: "Compare", pages: [["table", "Side by side"], ["fleet", "Fleet"], ["reference", "Against a reference"], ["hat", "Cornered hat"]] },
   comply: { label: "Comply", pages: [["timeerror", "Time error"], ["audit", "Audit"]] },
   lab: { label: "Lab", pages: [["simulate", "Simulate"], ["bench", "Bench"], ["chain", "PTP chain"]] },
   live: { label: "Live", pages: [["monitor", "Monitor"]] },
@@ -427,7 +427,7 @@ const RENDER = {
   "analyze/overview": renderOverview, "analyze/offset": renderOffset, "analyze/stability": renderStability,
   "analyze/distribution": renderDistribution, "analyze/network": renderNetwork, "analyze/spectrum": renderSpectrum,
   "analyze/holdover": renderHoldover, "analyze/events": renderEventsPage,
-  "compare/table": renderCompareTable, "compare/reference": renderReference, "compare/hat": renderHat,
+  "compare/table": renderCompareTable, "compare/fleet": renderFleet, "compare/reference": renderReference, "compare/hat": renderHat,
   "comply/timeerror": renderTimeErrorPage, "comply/audit": renderAudit,
   "lab/simulate": () => {}, "lab/bench": renderBenchForm, "lab/chain": () => {}, "live/monitor": renderLive,
 };
@@ -841,6 +841,39 @@ async function renderCompareTable(fresh) {
   });
 }
 
+function fleetQuery() {
+  const v = (id) => $(id).value.trim();
+  const p = new URLSearchParams();
+  for (const [k, id] of [["max_offset", "#fl-offset"], ["max_jitter", "#fl-jitter"], ["max_bound", "#fl-bound"], ["max_age", "#fl-age"], ["window", "#fl-window"]]) {
+    if (v(id)) p.set(k, v(id));
+  }
+  if ($("#fl-mask").checked && state.mask) p.set("mask", state.mask.id);
+  p.set("now", Date.now() / 1000);
+  return p.toString();
+}
+async function renderFleet(fresh) {
+  $("#fl-mask").disabled = !state.mask;
+  if (!state.datasets.length) { $("#fl-cards").innerHTML = ""; $("#fleet-table").innerHTML = `<p class="note">Load one log per host to rank them.</p>`; return; }
+  const r = await tryApi(`/api/fleet?${fleetQuery()}`);
+  if (!fresh()) return;
+  if (r.__error) { $("#fl-cards").innerHTML = card("Fleet", "–", esc(r.__error)); $("#fleet-table").innerHTML = ""; return; }
+  const s = r.summary;
+  $("#fl-cards").innerHTML = [card("Hosts", s.hosts), card("Fail", s.fail, "a limit exceeded", s.fail ? "fail" : "pass"),
+    card("Stale", s.stale, "no recent sample"), card("OK", s.ok, "within every limit", s.ok === s.hosts ? "pass" : "")].join("");
+  const age = (a) => (a == null ? "–" : a >= 2 * 31557600 ? `${(a / 31557600).toFixed(1)} y` : a >= 172800 ? `${Math.round(a / 86400)} d`
+    : a >= 7200 ? `${(a / 3600).toPrecision(2)} h` : a >= 120 ? `${Math.round(a / 60)} min` : `${Math.round(a)} s`);
+  const use = (x) => (x >= 2 ? `${x.toPrecision(2)}×` : `${Math.round(100 * x)} %`);
+  $("#fleet-table").innerHTML = `<table class="fleet"><tr><th>#</th><th class="nm">Host</th><th>Verdict</th><th>Nearest limit</th><th>|offset| max</th><th>Median</th><th>Jitter</th><th>Bound max</th><th>Last sample</th></tr>${r.hosts.map((h) => {
+    const u = h.usage == null ? "–" : `${h.worst} ${use(h.usage)}`;
+    const bar = h.usage == null ? "" : `<span class="usebar ${h.usage > 1 ? "over" : h.usage > 0.8 ? "near" : ""}"><i style="width:${Math.min(100, 100 * h.usage)}%"></i></span>`;
+    const why = (h.reasons || []).length ? `<small class="why">${esc(h.reasons.join("; "))}</small>` : "";
+    return `<tr class="click" data-id="${h.id}"><td>${h.rank}</td><td class="nm">${swatch(h.id)}${esc(h.host)}${why}</td>
+      <td><span class="vb ${h.verdict}">${h.verdict}</span></td><td>${bar}${u}</td><td>${fmtSec(h.offset_max_abs)}</td><td>${fmtSec(h.offset_median)}</td>
+      <td>${fmtSec(h.jitter)}</td><td>${h.bound_max == null ? "–" : fmtSec(h.bound_max)}</td><td>${h.age == null ? "–" : age(h.age) + " ago"}</td></tr>`;
+  }).join("")}</table>`;
+  $$("#fleet-table tr.click").forEach((tr) => tr.addEventListener("click", () => { selectDataset(tr.dataset.id); go("analyze/overview"); }));
+}
+
 async function renderReference(fresh) {
   const me = dsById(state.active);
   const overlaps = (d) => me && d.start < me.end && d.end > me.start;
@@ -1167,7 +1200,9 @@ function init() {
     render();
   });
   for (const id of ["detrend", "outliers", "overlay", "aux", "taus", "ci", "slopes", "bins", "dyn", "noisefit", "sp-kind", "sp-method", "sp-carrier", "ho-horizon", "ho-limits", "ho-model", "ho-source",
-    "ref-select", "hat-method", "te-lpf", "te-win", "au-limit", "au-window", "au-ref", "au-asym"]) $(`#${id}`).addEventListener("change", render);
+    "ref-select", "hat-method", "te-lpf", "te-win", "au-limit", "au-window", "au-ref", "au-asym",
+    "fl-offset", "fl-jitter", "fl-bound", "fl-age", "fl-window", "fl-mask"]) $(`#${id}`).addEventListener("change", render);
+  $("#fl-rules").addEventListener("click", () => download(`/api/fleet/rules.yml?${fleetQuery()}`));
   $("#mask-chip").addEventListener("click", () => { state.mask = null; $("#mask-label").textContent = "Mask…"; render(); });
   $("#mask-input").addEventListener("change", async (e) => {
     const f = e.target.files[0];

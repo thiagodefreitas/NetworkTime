@@ -568,6 +568,90 @@ def cmd_plugins(args):
     return 1 if data.get("errors") else 0
 
 
+def _fleet_paths(paths: List[str]) -> List[str]:
+    out: List[str] = []
+    for p in paths:
+        if os.path.isdir(p):
+            for root, dirs, files in os.walk(p):
+                dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+                out += [os.path.join(root, f) for f in sorted(files) if not f.startswith(".")]
+        else:
+            out.append(p)
+    return out
+
+
+def cmd_fleet(args):
+    from .analysis import format_seconds as fs
+    from .fleet import Thresholds, alert_rules, fleet, format_age, host_of, hosts_of_paths, summary
+    from .masks import load_mask
+    from .timeerror import _value
+
+    th = Thresholds(max_offset=_value(args.max_offset) if args.max_offset else None,
+                    max_jitter=_value(args.max_jitter) if args.max_jitter else None,
+                    max_bound=_value(args.max_bound) if args.max_bound else None,
+                    max_age=_duration(args.max_age) if args.max_age else None,
+                    mask=load_mask(args.mask) if args.mask else None,
+                    window=_duration(args.window) if args.window else None)
+    if args.rules:
+        with open(args.rules, "w", encoding="utf-8") as fh:
+            fh.write(alert_rules(th))
+        print(f"alert rules with the same thresholds -> {args.rules}", file=sys.stderr)
+        if not args.files:
+            return 0
+    if not args.files:
+        raise SystemExit("give log files or directories (one directory per host), or only --rules")
+    paths = _fleet_paths(args.files)
+    fmt = "columns:" + args.columns if args.columns else args.format
+    series, hosts, skipped = [], [], []
+    for path, host in zip(paths, hosts_of_paths(paths)):
+        try:
+            ss = load(path, fmt=fmt) if args.all_peers else [load_one(path, fmt=fmt, peer=args.peer)]
+        except (ParseError, ValueError, OSError) as exc:
+            skipped.append((path, str(exc)))
+            continue
+        for s in ss:
+            series.append(s)
+            hosts.append(host_of(s) if s.meta.get("labels") else host)  # exporter queries name their instance
+    if not series:
+        raise SystemExit("no host could be read" + "".join(f"\n  {p}: {e}" for p, e in skipped))
+    rows = fleet(series, th, now=_parse_time(args.now) if args.now else None, hosts=hosts)
+    if args.csv:
+        cols = ["rank", "host", "source", "verdict", "worst", "usage", "samples", "offset_median", "offset_max_abs",
+                "jitter", "bound_max", "age", "reasons"]
+        with open(args.csv, "w", encoding="utf-8") as fh:
+            fh.write(",".join(cols) + "\n")
+            for r in rows:
+                fh.write(",".join('"' + "; ".join(r.get(c) or []) + '"' if c == "reasons" else
+                                  ("" if r.get(c) is None else str(r.get(c))) for c in cols) + "\n")
+    if args.json:
+        print(json.dumps({"thresholds": th.limits, "summary": summary(rows), "hosts": rows,
+                          "skipped": [{"path": p, "error": e} for p, e in skipped]}, indent=2, default=str))
+    else:
+        sm = summary(rows)
+        lim = ", ".join(f"{k} {format_age(v) if k == 'age' else fs(v)}" for k, v in th.limits.items())
+        print(f"{sm['hosts']} hosts: {sm['fail']} fail, {sm['stale']} stale, {sm['ok']} ok"
+              + (f", {sm['unchecked']} unchecked" if sm["unchecked"] else "")
+              + (f"; limits {lim}" if lim else "; no limits set (--max-offset, --max-jitter, ...)")
+              + (f"; last {format_age(th.window)} of each log" if th.window else ""))
+        print(f"{'#':>3}  {'host':24} {'verdict':8} {'usage':>6}  {'|offset| max':>12} {'jitter':>9} "
+              f"{'bound max':>10} {'age':>9}  {'source'}")
+        def g(r, k):
+            return fs(r[k]) if r.get(k) is not None else "-"
+
+        for r in rows:
+            u = f"{100 * r['usage']:.0f}%" if r.get("usage") is not None else "-"
+            age = format_age(r["age"]) if r.get("age") is not None else "-"
+            print(f"{r['rank']:>3}  {str(r['host'])[:24]:24} {r['verdict']:8} {u:>6}  {g(r, 'offset_max_abs'):>12} "
+                  f"{g(r, 'jitter'):>9} {g(r, 'bound_max'):>10} {age:>9}  {str(r['source'])[:40]}")
+            for why in r.get("reasons", []):
+                print(f"{'':5}- {why}")
+        for p, e in skipped:
+            print(f"skipped {p}: {e}", file=sys.stderr)
+    if args.strict and any(r["verdict"] in ("fail", "stale") for r in rows):
+        return 3
+    return 0
+
+
 def cmd_columns(args):
     from .profiles import check_profile, columns_profile, columns_spec, guess_columns, parse_with_profile, profile_toml
 
@@ -1531,6 +1615,27 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--all", action="store_true", help="also list the built-ins")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_plugins)
+
+    s = sub.add_parser("fleet", help="many hosts at once: rank logs or exporter queries by offset, jitter, error "
+                       "bound, age and mask verdict; --rules writes matching Prometheus alert rules")
+    s.add_argument("files", nargs="*", help="log files, or directories with one sub-directory per host")
+    s.add_argument("-f", "--format", default="auto", type=_fmt, help=FORMAT_HELP)
+    s.add_argument("--columns", type=_columns, metavar="SPEC", help=COLUMNS_HELP)
+    s.add_argument("--peer", help="select a peer/source in multi-peer logs")
+    s.add_argument("--all-peers", action="store_true",
+                   help="one row per series of each file (e.g. every instance of a Prometheus range query)")
+    s.add_argument("--max-offset", default="1ms", help="largest |offset| in the window (default 1ms; '' to skip)")
+    s.add_argument("--max-jitter", help="largest standard deviation of the offset in the window, e.g. 100us")
+    s.add_argument("--max-bound", help="largest error bound |offset| + delay/2 + root delay/2 + root dispersion")
+    s.add_argument("--max-age", help="stale when the last sample is older than this, e.g. 10m (relative to --now)")
+    s.add_argument("--mask", help="TDEV or MTIE limit mask CSV checked on each host's window")
+    s.add_argument("--window", default="24h", help="assess the last WINDOW of each log (default 24h; '' = all)")
+    s.add_argument("--now", help="reference time for --max-age (POSIX s or ISO 8601; default: now)")
+    s.add_argument("--rules", metavar="FILE.yml", help="write Prometheus alerting rules with the same thresholds")
+    s.add_argument("--csv", metavar="FILE", help="write the ranked table as CSV")
+    s.add_argument("--json", action="store_true")
+    s.add_argument("--strict", action="store_true", help="exit code 3 if a host fails or is stale")
+    s.set_defaults(func=cmd_fleet)
 
     s = sub.add_parser("columns", help="propose a column mapping for a CSV/TSV export (instruments, scripts) and "
                        "save it as a profile")

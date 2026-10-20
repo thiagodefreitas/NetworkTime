@@ -252,6 +252,21 @@
       <div id="compare-table" class="table-wrap"></div>
     </section>
 
+    <section class="page" data-page="compare/fleet" data-title="Fleet">
+      <div class="subcontrols">
+        <label>Max |offset| <input id="fl-offset" value="1ms" size="7" aria-label="Largest absolute offset"></label>
+        <label>Max jitter <input id="fl-jitter" placeholder="e.g. 100us" size="8" aria-label="Largest standard deviation of the offset"></label>
+        <label>Max bound <input id="fl-bound" placeholder="e.g. 5ms" size="8" aria-label="Largest error bound"></label>
+        <label>Stale after <select id="fl-age"><option value="">never</option><option value="600">10 min</option><option value="3600">1 h</option><option value="86400">1 day</option></select></label>
+        <label>Window <select id="fl-window"><option value="3600">last hour</option><option value="86400" selected>last day</option><option value="604800">last week</option><option value="">whole log</option></select></label>
+        <label class="check" title="Check the stability mask loaded on the Stability page"><input id="fl-mask" type="checkbox"> mask</label>
+        <button class="btn" id="fl-rules" title="Prometheus alerting rules with these thresholds, for the ntpstats exporter">Alert rules</button>
+      </div>
+      <p class="note">Every loaded dataset as one host, ranked by how close it is to the nearest limit. Load one log per host (or a Prometheus range query of the exporter with one series per instance); click a row to analyse it.</p>
+      <div id="fl-cards" class="cards"></div>
+      <div id="fleet-table" class="table-wrap"></div>
+    </section>
+
     <section class="page" data-page="compare/reference" data-title="Against a reference">
       <div class="subcontrols">
         <label>Reference <select id="ref-select"></select></label>

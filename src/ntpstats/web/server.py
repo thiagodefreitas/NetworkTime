@@ -515,6 +515,32 @@ def api_simulate(body):
     return [STORE.describe(STORE.add(meas))]
 
 
+def _fleet_thresholds(params):
+    from ..fleet import Thresholds
+    from ..timeerror import _value
+
+    def val(key, parse=_value):
+        v = _q(params, key, "")
+        return parse(v) if v else None
+    mid = _q(params, "mask", None)
+    return Thresholds(max_offset=val("max_offset"), max_jitter=val("max_jitter"), max_bound=val("max_bound"),
+                      max_age=val("max_age", float), window=val("window", float),
+                      mask=STORE.masks.get(mid) if mid else None)
+
+
+def api_fleet(params):
+    """Every loaded dataset as a host, ranked against the same thresholds (``ntpstats fleet``)."""
+    from ..fleet import fleet, summary
+
+    with STORE.lock:
+        items = list(STORE.datasets.items())
+    th = _fleet_thresholds(params)
+    rows = fleet([s for _, s in items], th, now=_q(params, "now", None, float), hosts=[s.name for _, s in items])
+    for r in rows:
+        r["id"] = items[r.pop("index")][0]
+    return {"thresholds": th.limits, "summary": summary(rows), "hosts": rows}
+
+
 def export_csv(sid, params) -> str:
     s = _prepare(sid, params)
     det = _q(params, "detrend", None)
@@ -700,6 +726,13 @@ def _dispatch_get(route, params) -> ApiResponse:
         return _json_response(api_hat(params))
     if route == ["estimators"]:
         return _json_response(api_estimators())
+    if route == ["fleet"]:
+        return _json_response(api_fleet(params))
+    if route == ["fleet", "rules.yml"]:
+        from ..fleet import alert_rules
+
+        return ApiResponse(200, alert_rules(_fleet_thresholds(params)).encode(), "text/yaml; charset=utf-8",
+                           {"Content-Disposition": _disposition("ntpstats-fleet-rules.yml")})
     if len(route) == 2 and route[0] in _GET_ROUTES:
         return _json_response(_GET_ROUTES[route[0]](route[1], params))
     if len(route) == 3 and route[0] == "export":
