@@ -154,9 +154,15 @@ PMC_PORTS = """sending: GET PORT_DATA_SET
 """
 
 
-def test_ptp4l_port_states(monkeypatch):
-    from tests.test_sources29 import PMC
+PMC = """sending: GET CURRENT_DATA_SET
+\t001122.fffe.334455-1 seq 0 RESPONSE MANAGEMENT CURRENT_DATA_SET
+\t\tstepsRemoved     1
+\t\toffsetFromMaster -12.0
+\t\tmeanPathDelay    597.0
+"""
 
+
+def test_ptp4l_port_states(monkeypatch):
     assert H.parse_port_states(PMC_PORTS) == [(1, "SLAVE"), (2, "MASTER"), (3, "FAULTY")]
     monkeypatch.setattr(sources, "_run", lambda cmd: PMC + PMC_PORTS)
     d = sources.sample_pmc()
