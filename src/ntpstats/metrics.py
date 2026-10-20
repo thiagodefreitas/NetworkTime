@@ -84,7 +84,9 @@ class Registry:
         g = {k: float(v) for k, v in values.items() if v is not None}
         g["offset"] = float(offset)
         g["last_sample_timestamp"] = float(t)
-        if "delay" in g or "root_delay" in g:
+        if "bound" in g:  # a clock-error-bound service (ClockBound, fbclock): its own half-width
+            g["offset_bound"] = abs(g["offset"]) + g.pop("bound")
+        elif "delay" in g or "root_delay" in g:
             g["offset_bound"] = (abs(g["offset"]) + g.get("delay", 0.0) / 2 + g.get("root_delay", 0.0) / 2
                                  + g.get("root_dispersion", 0.0))
         with self._lock:
@@ -117,7 +119,7 @@ class Registry:
 
         self.observe(daemon, float(d["time"]), float(d["offset"]), frequency_ppm=f("frequency_ppm"),
                      root_delay=f("root_delay", "rootdelay"), root_dispersion=f("root_dispersion", "rootdisp"),
-                     stratum=f("stratum"))
+                     stratum=f("stratum"), bound=f("bound"))
 
     # ------------------------------------------------------------ rendering
     def _rolling(self, hist: List[Tuple[float, float]]) -> Dict[str, Any]:

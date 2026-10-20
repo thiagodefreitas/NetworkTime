@@ -59,7 +59,7 @@ def parse_bounds(lines: List[str], name: str = "bounds") -> List[TimeSeries]:
             except (ValueError, IndexError):
                 continue
             t.append(local / 1e9)
-            off.append(((e + la) / 2 - local) / 1e9)
+            off.append(((e + la) // 2 - local) / 1e9)  # integer ns: a float of 3.5e18 ns is off by 256 ns
             half.append((la - e) / 2e9)
             status.append(parts[ix["status"]] if "status" in ix and ix["status"] < len(parts) else "")
         source = "csv"

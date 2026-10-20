@@ -20,6 +20,9 @@
 * **gpsd**: the PPS (or, without PPS, TOFF) messages of a running gpsd
   (``host:port``, default ``localhost:2947``): GNSS time minus the system
   clock's time stamp of the edge, with ``precision`` and ``qErr``.
+* **PHC, OCP Time Card, AWS ClockBound, Meta fbclock**: see
+  :mod:`ntpstats.hwclocks` (``watch phc``, ``timecard``, ``clockbound``,
+  ``fbclock``).
 * **ntpd-rs**: ``ntp-ctl -f prometheus status``, or the metrics exporter's
   HTTP endpoint (give its URL as the command). ntpd-rs 1.x exports per-source
   ``ntp_source_offset_seconds`` (source - local, the ntpd convention),
@@ -164,7 +167,14 @@ def parse_pmc(text: str) -> Dict[str, object]:
 
 
 def sample_pmc(cmd: Sequence[str] = ("pmc", "-u", "-b", "0")) -> Dict[str, object]:
-    d = parse_pmc(_run([*cmd, "GET CURRENT_DATA_SET", "GET TIME_STATUS_NP"]))
+    """CURRENT_DATA_SET and TIME_STATUS_NP, plus PORT_DATA_SET of every port (the
+    state of each port of a boundary clock: ``ports``, ``slave_port``,
+    ``faulty_ports`` and ``port_states`` such as ``1:SLAVE 2:MASTER``)."""
+    from .hwclocks import parse_port_states, port_summary
+
+    text = _run([*cmd, "GET CURRENT_DATA_SET", "GET TIME_STATUS_NP", "GET PORT_DATA_SET"])
+    d = parse_pmc(text)
+    d.update(port_summary(parse_port_states(text)))
     d["time"] = time.time()
     return d
 
@@ -278,6 +288,34 @@ def sample_gpsd(cmd: Sequence[str] = ("localhost:2947",)) -> Dict[str, object]:
     return _sample(cmd)
 
 
+def sample_phc(cmd: Sequence[str] = ("/dev/ptp0",)) -> Dict[str, object]:
+    """PHC - system clock (``cmd`` = ``[device]`` or ``[device, TAI-UTC]``); see :mod:`ntpstats.hwclocks`."""
+    from .hwclocks import sample_phc as _sample
+
+    return _sample(cmd)
+
+
+def sample_timecard(cmd: Sequence[str] = ("/sys/class/timecard/ocp0",)) -> Dict[str, object]:
+    """OCP Time Card status and its PHC - system clock; see :mod:`ntpstats.hwclocks`."""
+    from .hwclocks import sample_timecard as _sample
+
+    return _sample(cmd)
+
+
+def sample_clockbound(cmd: Sequence[str] = ()) -> Dict[str, object]:
+    """AWS ClockBound window via libclockbound; see :mod:`ntpstats.hwclocks`."""
+    from .hwclocks import sample_clockbound as _sample
+
+    return _sample(cmd)
+
+
+def sample_fbclock(cmd: Sequence[str] = ("ptpcheck",)) -> Dict[str, object]:
+    """Meta fbclock window via ``ptpcheck fbclock``; see :mod:`ntpstats.hwclocks`."""
+    from .hwclocks import sample_fbclock as _sample
+
+    return _sample(cmd)
+
+
 def prometheus_query_range(url: str, query: str, start: float, end: float, step="60",
                            timeout: float = 30.0) -> dict:
     """Run a Prometheus ``/api/v1/query_range`` request and return the JSON document."""
@@ -301,14 +339,21 @@ def prometheus_query_range(url: str, query: str, start: float, end: float, step=
 
 #: daemon -> sampler function name (resolved at call time so it can be patched/replaced)
 SAMPLERS: Dict[str, str] = {"chrony": "sample_chrony", "ntpd": "sample_ntpq", "ptp4l": "sample_pmc",
-                            "ptpcheck": "sample_ptpcheck", "ntpd-rs": "sample_ntpdrs", "gpsd": "sample_gpsd"}
+                            "ptpcheck": "sample_ptpcheck", "ntpd-rs": "sample_ntpdrs", "gpsd": "sample_gpsd",
+                            "phc": "sample_phc", "timecard": "sample_timecard", "clockbound": "sample_clockbound",
+                            "fbclock": "sample_fbclock"}
 NUMERIC_EXTRAS = {
     "chrony": ("last_offset", "rms_offset", "frequency_ppm", "skew_ppm", "root_delay", "root_dispersion", "stratum"),
     "ntpd": ("frequency_ppm", "sys_jitter", "clk_jitter", "clk_wander_ppm", "rootdelay", "rootdisp", "stratum"),
-    "ptp4l": ("mean_path_delay", "master_offset", "steps_removed", "gm_present"),
+    "ptp4l": ("mean_path_delay", "master_offset", "steps_removed", "gm_present", "ports", "slave_port",
+              "faulty_ports"),
     "ptpcheck": ("mean_path_delay", "steps_removed", "gm_present"),
     "ntpd-rs": ("sources", "min_uncertainty", "delay", "root_delay", "root_dispersion", "stratum"),
     "gpsd": ("precision", "qerr"),
+    "phc": ("read_window", "whole_seconds"),
+    "timecard": ("read_window", "whole_seconds", "gnss_sync", "fw_offset", "fw_drift"),
+    "clockbound": ("earliest", "latest", "bound", "read_window", "synchronized"),
+    "fbclock": ("earliest", "latest", "bound", "read_window"),
 }
 
 

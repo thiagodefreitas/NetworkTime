@@ -1279,6 +1279,14 @@ def cmd_watch(args):
         elif d.get("source") in ("PPS", "TOFF"):
             tail = f"{d['source']} {d['device']}" + ("" if d.get("qerr") != d.get("qerr") else
                                                      f", qErr {format_seconds(d['qerr'])}")
+        elif "bound" in d:
+            tail = f"bound ±{format_seconds(d['bound'])}" + (f", {d['status']}" if d.get("status") else "")
+        elif "whole_seconds" in d:
+            tail = (f"PHC {d.get('device')}, {int(d['whole_seconds'])} s removed, read "
+                    f"{format_seconds(d['read_window'])}" + ("" if d.get("gnss_sync") is None else
+                                                             f", GNSS {'sync' if d['gnss_sync'] == 1 else 'lost'}"))
+        elif d.get("port_states"):
+            tail = f"path delay {format_seconds(d.get('mean_path_delay', float('nan')))}, ports {d['port_states']}"
         elif "min_uncertainty" in d:
             tail = f"{int(d['sources'])} sources, best ±{format_seconds(d['min_uncertainty'])}"
         else:
@@ -1892,11 +1900,15 @@ def build_parser() -> argparse.ArgumentParser:
     _metrics_args(s)
     s.set_defaults(func=cmd_monitor)
 
-    s = sub.add_parser("watch", help="log the local chrony, ntpd/NTPsec, ntpd-rs, ptp4l, ptpcheck or gpsd (no log files needed)")
-    s.add_argument("daemon", choices=("chrony", "ntpd", "ntpd-rs", "ptp4l", "ptpcheck", "gpsd"),
+    s = sub.add_parser("watch", help="log the local chrony, ntpd/NTPsec, ntpd-rs, ptp4l, ptpcheck, gpsd, a PHC, "
+                       "an OCP Time Card, ClockBound or fbclock (no log files needed)")
+    s.add_argument("daemon", choices=("chrony", "ntpd", "ntpd-rs", "ptp4l", "ptpcheck", "gpsd", "phc", "timecard",
+                                      "clockbound", "fbclock"),
                    help="chrony (chronyc), ntpd/NTPsec (ntpq), ntpd-rs (ntp-ctl, or --command-override URL of "
-                        "its metrics exporter), ptp4l (linuxptp pmc), ptpcheck (facebook/time) or gpsd (PPS; "
-                        "--command-override host:port)")
+                        "its metrics exporter), ptp4l (linuxptp pmc, every port's state), ptpcheck (facebook/time), "
+                        "gpsd (PPS; --command-override host:port), phc (PHC - system clock; --command-override "
+                        "'/dev/ptp1 [TAI-UTC]'), timecard (OCP Time Card; --command-override "
+                        "/sys/class/timecard/ocp1), clockbound (libclockbound) or fbclock (ptpcheck fbclock)")
     s.add_argument("-o", "--output", default="ntpstats-watch.csv")
     s.add_argument("-i", "--interval", type=float, default=16.0)
     s.add_argument("-n", "--count", type=int, help="stop after N samples")
