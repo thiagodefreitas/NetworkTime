@@ -1,3 +1,3 @@
-# sources
+# ntpstats.sources
 
 ::: ntpstats.sources

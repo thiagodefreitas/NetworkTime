@@ -28,8 +28,9 @@ MTOT and Theo1 cost O(N·m) per τ, and TheoBR's bias ratio averages about N/6 T
 are computed with vectorised block operations, and when one τ would exceed a work limit
 (`stability.MAX_WORK` element operations) ntpstats averages every *k*-th subsequence, with *k*
 never larger than *m*. Adjacent subsequences share all but one sample, so this changes the
-estimate by well under 1 % in the tests. The TheoBR ratio uses 64 evenly spaced terms instead
-of all of them. A million-sample log takes a few seconds per statistic.
+estimate by well under 1 % in the tests. The TheoBR ratio uses all its terms on records of up to
+about 1550 points (`stability.THEOBR_EXACT_TERMS`) and 64 evenly spaced ones on longer records
+(`THEOBR_RATIO_TERMS`). A million-sample log takes a few seconds per statistic.
 
 What was sampled is reported in the result: `meta["stride"]` per τ (1 = every subsequence) and
 `meta["theobr_ratio_terms"]` (used, total). `compute(..., max_work=0)` or `ntpstats stability

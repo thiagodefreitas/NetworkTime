@@ -15,7 +15,7 @@ authors:
 affiliations:
   - name: Independent researcher
     index: 1
-date: 3 October 2026
+date: 20 October 2026
 bibliography: paper.bib
 ---
 
@@ -27,7 +27,7 @@ packet networks with the Network Time Protocol (NTP) [@rfc5905], its authenticat
 measurement question: how far is this clock from UTC, how stable is it, how much error does the
 network add, and would a different algorithm do better? `ntpstats` answers these questions from
 the data people already have. It reads the logs of today's time daemons (ntpd, NTPsec, chrony,
-linuxptp), packet captures of NTP and PTP, GNSS time-transfer and laboratory files, and the
+ntpd-rs, linuxptp, gpsd), packet captures of NTP and PTP, GNSS time-transfer and laboratory files, and the
 results of network simulators, and turns them into the statistics used in timing research and
 in telecom standards, each with a stated uncertainty. It runs as a command-line tool, a Python
 library with a stable API, a local web interface and, through WebAssembly, in the browser
@@ -85,7 +85,7 @@ through Python entry points without changing `ntpstats`. Text logs larger than 2
 in blocks with bounded memory.
 
 The statistics follow NIST SP 1065 [@riley2008]: overlapping and modified Allan, time, Hadamard,
-total, Theo and MTIE deviations, with confidence intervals from the exact equivalent degrees of
+total and Theo deviations and MTIE, with confidence intervals from the exact equivalent degrees of
 freedom of the discrete power-law model [@greenhall2003] and per-τ noise identification from the
 lag-1 autocorrelation [@riley2004]. Irregular logs are placed on a grid without interpolating
 across gaps, because interpolation would invent the very noise being measured. Further modules
@@ -97,7 +97,8 @@ frequency changes and route changes.
 The research bench separates three parts: a simulator with ground truth built on power-law noise
 generation [@kasdin1992]; an estimator interface with reference implementations (Kalman and RTS
 filters, the NTP clock filter and combining algorithms [@rfc5905], chrony-style regression, a
-feed-forward estimator and a Huygens-style convex-hull estimator [@geng2018]); and a scorer that
+feed-forward estimator and a Huygens-style convex-hull estimator [@geng2018], and closed-loop
+clock disciplines: ntpd's and NIST's LOCKCLOCK [@levine2020]); and a scorer that
 reports error statistics for every estimator on the same scenarios. Scenarios can replay the
 per-direction delays extracted from a real capture under a simulated clock, and a PTP module
 simulates chains of boundary clocks with linuxptp-style servos against time-error budgets.
@@ -118,7 +119,11 @@ written for a paper keep working.
 comparable. Concretely, it provides:
 
 - statistics that reproduce the published test suites of NIST SP 1065 [@riley2008] to the seven
-  digits printed there, so values can be cited with confidence;
+  digits printed there, and agree with Stable32 [@stable32], the field's reference program, on
+  eleven statistics computed from the same files, so values can be cited with confidence;
+- a validation protocol for real clients: `ntpstats validate` compares a chrony host with an
+  independent GNSS PPS reference that it logs but does not use, and checks the clock's error,
+  the daemon's own error bound and each server's correctness interval;
 - an open dataset: a monthly interoperability run from GitHub-hosted runners measures public
   NTP, NTS, NTPv5 and Roughtime servers, and each release, archived on Zenodo with this data, is
   citable;

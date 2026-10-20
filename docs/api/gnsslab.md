@@ -1,3 +1,3 @@
-# gnsslab
+# ntpstats.gnsslab
 
 ::: ntpstats.gnsslab

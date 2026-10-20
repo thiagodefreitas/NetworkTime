@@ -1,3 +1,3 @@
-# ptp
+# ntpstats.ptp
 
 ::: ntpstats.ptp

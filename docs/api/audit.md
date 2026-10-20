@@ -1,3 +1,3 @@
-# audit
+# ntpstats.audit
 
 ::: ntpstats.audit

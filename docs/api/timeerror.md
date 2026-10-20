@@ -1,3 +1,3 @@
-# timeerror
+# ntpstats.timeerror
 
 ::: ntpstats.timeerror

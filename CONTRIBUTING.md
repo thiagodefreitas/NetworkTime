@@ -71,7 +71,7 @@ The project follows [Semantic Versioning](https://semver.org/) and keeps a
 
 1. Move the `[Unreleased]` notes into a new `## [X.Y.Z] - YYYY-MM-DD` section.
 2. Bump `__version__` in `src/ntpstats/__init__.py` and `version:` in `CITATION.cff`
-   (`tests/test_version.py` checks that the three agree), and merge to `master`.
+   (`tests/test_version.py` checks that both agree with the newest CHANGELOG heading), and merge to `master`.
    The release also pushes the container image to `ghcr.io/thiagodefreitas/ntpstats`.
 3. Tag the release: `git tag vX.Y.Z && git push origin vX.Y.Z`, or run *Actions → Release →
    Run workflow* with `tag = vX.Y.Z`, which creates the tag at the selected commit.

@@ -246,8 +246,8 @@ free-running clock like the PTP servos above ([#40](https://github.com/thiagodef
 | `levine-kalman` | LOCKCLOCK with the scalar Kalman time estimate of J. Levine, PTTI 2011 (Eq. 5): the correction is the fraction σ_o²/(σ_o² + σ_t²) of the residual |
 
 The time constant (poll exponent) is fixed at the scenario's measurement interval, as with
-`minpoll = maxpoll`. Not modelled: LOCKCLOCK's automatic re-evaluation of its parameters. (Until
-3.6 the ntpd model also lacked the popcorn suppressor, the slew bound and the unsorted filter of
+`minpoll = maxpoll`. Not modelled: LOCKCLOCK's automatic re-evaluation of its parameters. (Up to
+3.6.1 the ntpd model also lacked the popcorn suppressor, the slew bound and the unsorted filter of
 the startup clamp; adding them in 3.7 raised its RMS error by 20 to 70 % on these presets, all of
 it from the startup filter order.) In time-adjustment mode the
 paper adjusts every second; with the bench's longer intervals the model also estimates the

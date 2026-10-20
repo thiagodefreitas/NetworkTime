@@ -14,12 +14,28 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.7.1] - 2026-10-20
+
+Packaging fix and documentation refresh. No changes to results or to the API.
+
 ### Fixed
 - The sdist now includes the test data, helper modules and example files the test suite reads
   (`MANIFEST.in`); from the 3.7.0 sdist seven test modules could not be imported. CI runs the suite
   from the built sdist.
+- The NTS test server no longer leaves an unhandled thread exception when a test's client rejects
+  its certificate on purpose.
+- Docstrings and `docs/statistics.md` still described the TheoBR ratio as always subsampled; since
+  3.7.0 it uses every term on records of up to about 1550 points.
 
-### Added
+### Documentation
+- README: `ntpstats validate`, the open interop dataset and its trends, the Stable32 cross-check,
+  the poll advisor, the current test count, the preprint on 3.7.0 and the updated project layout.
+- Site home and getting-started page: ntpd-rs, gpsd and receiver logs, conda-forge install, the
+  validation campaign, poll and dataset commands.
+- CLI reference: every command that takes the common input options, the `te` and `adev` aliases,
+  PTP presets of `simulate`.
+- API reference: an index row for every module, a new `ntpstats.pcap` page, consistent page titles.
+- JOSS draft: Stable32 cross-check, validation protocol, clock disciplines.
 - `GOVERNANCE.md`; `packaging/README.md` with the publication channels and notes for distribution
   packagers; a per-statistic table of reference values in `docs/validation.md`.
 
@@ -774,7 +790,29 @@ First release of the rewrite. The 2012 Google Summer of Code prototype is kept u
 - Allan deviation τ₀ was hard-coded to 32 s (≈33× error on loopstats data); irregular sampling
   and gaps were ignored. See `docs/STATE_OF_THE_ART.md`.
 
-[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.7.1...HEAD
+[3.7.1]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.7.0...v3.7.1
+[3.7.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.6.1...v3.7.0
+[3.6.1]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.6.0...v3.6.1
+[3.6.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.5.0...v3.6.0
+[3.5.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.4.0...v3.5.0
+[3.4.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.3.0...v3.4.0
+[3.3.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.2.0...v3.3.0
+[3.2.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.1.0...v3.2.0
+[3.1.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.0.0...v3.1.0
+[3.0.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.17.0...v3.0.0
+[2.17.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.16.0...v2.17.0
+[2.16.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.15.0...v2.16.0
+[2.15.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.14.0...v2.15.0
+[2.14.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.13.0...v2.14.0
+[2.13.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.12.0...v2.13.0
+[2.12.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.11.0...v2.12.0
+[2.11.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.10.0...v2.11.0
+[2.10.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.9.0...v2.10.0
+[2.9.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.8.0...v2.9.0
+[2.8.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.7.0...v2.8.0
+[2.7.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.6.0...v2.7.0
+[2.6.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v2.2.0...v2.3.0

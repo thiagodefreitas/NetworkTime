@@ -1,3 +1,3 @@
-# profiles
+# ntpstats.profiles
 
 ::: ntpstats.profiles

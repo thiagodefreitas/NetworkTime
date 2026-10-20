@@ -1,3 +1,3 @@
-# testing
+# ntpstats.testing
 
 ::: ntpstats.testing

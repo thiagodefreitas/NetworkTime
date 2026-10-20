@@ -30,7 +30,7 @@ works offline. The left rail has five workspaces:
 | **Compare** | every dataset side by side, a dataset against a reference (PPS, GNSS, a better server), the N-cornered hat |
 | **Comply** | time error (TE/TEL, MTIE/TDEV of dTE_L), UTC audit with a verdict and an evidence report |
 | **Lab** | simulator presets, the estimator bench (presets or the delays of a loaded dataset), PTP boundary-clock chains against a budget |
-| **Live** | SNTP/NTPv5 queries and monitoring, local chrony, ntpd, ptp4l |
+| **Live** | SNTP/NTPv5 queries and monitoring, local chrony, ntpd, ntpd-rs, ptp4l, gpsd |
 
 Drop files anywhere. The dataset list shows a sparkline of each dataset; tick datasets to overlay
 them, double-click a name to rename it. Drag on a time chart to zoom, then *Analyse zoomed range*.
@@ -57,7 +57,12 @@ ntpstats network /var/log/ntpstats/peerstats --peer 192.0.2.10
 ntpstats report peerstats --all-peers -o report.html          # offline HTML report
 ntpstats query time.cloudflare.com --nts                      # authenticated measurement
 ntpstats simulate --preset internet --benchmark               # estimators vs ground truth
+ntpstats poll /var/log/chrony/measurements.log --target 10ms  # longest poll interval within 10 ms
+ntpstats dataset --trend                                      # public servers over the monthly runs (in a checkout)
 ```
+
+To check a real client against an independent reference (a GNSS PPS logged by chrony), see the
+[validation campaign](validation-campaign.md) and `ntpstats validate`.
 
 Sample data for every format is in
 [`examples/data`](https://github.com/thiagodefreitas/NetworkTime/tree/master/examples/data).

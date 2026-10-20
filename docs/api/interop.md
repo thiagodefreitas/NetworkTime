@@ -1,3 +1,3 @@
-# interop
+# ntpstats.interop
 
 ::: ntpstats.interop

@@ -1,3 +1,3 @@
-# events
+# ntpstats.events
 
 ::: ntpstats.events

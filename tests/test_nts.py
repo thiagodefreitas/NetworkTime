@@ -77,7 +77,11 @@ class FakeNTS:
                 return
             c = SSL.Connection(self.ctx, s)
             c.set_accept_state()
-            c.do_handshake()
+            try:
+                c.do_handshake()
+            except SSL.Error:  # the client refused the certificate, as some tests intend
+                s.close()
+                continue
             buf = b""
             while not any(t == nts.REC_END for t, _, _ in nts._parse_records(buf)):
                 buf += c.recv(4096)

@@ -1,3 +1,3 @@
-# bounds
+# ntpstats.bounds
 
 ::: ntpstats.bounds

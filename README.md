@@ -1,13 +1,15 @@
 # ntpstats — NetworkTime analysis toolkit
 
 **Validate, evaluate and study network time synchronisation.** `ntpstats` reads what time
-systems already produce: logs of **ntpd, NTPsec, chrony and linuxptp**, packet captures of
+systems already produce: logs of **ntpd, NTPsec, chrony, ntpd-rs, linuxptp and gpsd**, packet captures of
 **NTP and PTP**, GNSS time-transfer and laboratory files, and the results of network simulators.
 From them it computes the statistics used in timing research and telecom standards, each with a
 stated uncertainty:
 - frequency stability (ADEV … TheoH, MTIE) with confidence intervals and noise identification;
 - time error (max|TE|, cTE, dTE) with limits and masks;
-- an audited error bound to UTC.
+- an audited error bound to UTC;
+- the true error of a disciplined clock against an independent GNSS PPS reference
+  (`ntpstats validate`).
 
 It measures servers itself with NTPv4, NTS, NTPv5 and Roughtime clients. A simulator with
 **ground truth** turns it into a test bench for synchronisation algorithms, on modelled or
@@ -104,6 +106,14 @@ are as valuable as code. Look for issues labelled
   Timing checks run in CI through a **GitHub Action** or **pytest** assertions.
 - **Clock-error bounds checked, not trusted**: `ntpstats bounds` measures how often AWS
   ClockBound, fbclock or any `[earliest, latest]` window really contains true time.
+- **Validation against a real reference**: `ntpstats validate` reads a chrony host that logs a
+  GNSS PPS as a `noselect` refclock and reports the clock's true error, whether chrony's maximum
+  error held over every update, which servers left their RFC 5905 root distance (falsetickers),
+  and how every bench estimator does on the real exchanges
+  ([protocol](https://thiagodefreitas.github.io/NetworkTime/validation-campaign/)).
+- **Open interop dataset**: monthly runs against public NTP, NTS, NTPv5 and Roughtime servers in
+  [`data/interop/`](data/interop/); `ntpstats dataset --trend` flags servers that moved, appeared
+  or disappeared between runs.
 - **Works with the tools you have**:
   - Stable32 data files in and out (`ntpstats convert`);
   - **pandas, xarray and Parquet** (`series.to_pandas()`, `convert --to parquet`);
@@ -200,6 +210,12 @@ ntpstats stability ptp.log -k tdev,mtie --mask my-tdev-mask.csv
 
 # Validate a client against a reference (e.g. chrony vs a PPS refclock or GNSS host)
 ntpstats compare /var/log/chrony/tracking.log /var/log/chrony/refclocks.log --ref-peer PPS0
+
+# Full validation campaign: clock error, chrony's bound, falsetickers, estimators; exit 3 if the bound failed
+ntpstats validate refclocks.log --tracking tracking.log --measurements measurements.log --warmup 1h
+
+# Longest poll interval that keeps the error below 10 ms
+ntpstats poll /var/log/chrony/measurements.log --target 10ms
 
 # Sliding-window stability matrix (time x tau) as CSV
 ntpstats dynamic peerstats --peer 192.0.2.10 -k mdev
@@ -345,12 +361,17 @@ regenerates the sample logs in `examples/data/` in each native format.
 
 ## Validation
 
-`pytest` runs about 480 tests (plus `ruff` lint, `mypy` and coverage in CI), and none of them need
-network access; the example notebooks and a browser test of the web UI run in CI as well:
+`pytest` runs about 600 tests (plus `ruff` lint, `mypy` and coverage in CI), and none of them need
+network access; the example notebooks, a browser test of the web UI and the test suite of the
+built sdist run in CI as well
+([details](https://thiagodefreitas.github.io/NetworkTime/validation/)):
 
 - every estimator is checked against a literal implementation of the NIST SP 1065 sums, against
   the analytic log-log slopes of the five power-law noise types, and against a frozen table of
   values from an independent implementation (no third-party stability library is needed);
+- **Stable32 1.62**, the reference program of the field, was run on four phase files for eleven
+  statistics: OADEV, MDEV, TDEV, HDEV, MTOT, TTOT, TIE rms and MTIE agree to its printed digits,
+  TOTDEV, HTOT and TheoBR wherever both programs identify the same noise type (77 tests);
 - the confidence-interval coverage is checked by Monte Carlo;
 - noise identification is checked for α = +2 … −2;
 - parsers are checked on the line layouts from the ntpd and chrony documentation, and by
@@ -381,15 +402,19 @@ their logs).
 
 ```
 src/ntpstats/     api (stable surface), parsers, stream, pcap, ptp, research, stability, edf,
-                  masks, timeerror, audit, events, bounds, analysis, network, filters,
-                  spectrum, noisefit, hat, holdover, simulate, estimators, bench, trace,
-                  ptpsim, simio, report, sntp (v4/v5), nts, roughtime, sources, monitor,
-                  metrics, otlp, adapters, plugins, cli, plotting
+                  masks, timeerror, audit, events, bounds, refcheck, analysis, network,
+                  filters, spectrum, noisefit, hat, holdover, polladvice, simulate,
+                  estimators, disciplines, bench, trace, ptpsim, simio, report, sntp (v4/v5),
+                  nts, roughtime, sources, monitor, metrics, otlp, adapters, plugins, cli,
+                  plotting
 src/ntpstats/web  stdlib HTTP server + static UI (plain JS, uPlot vendored), also run by Pyodide
 tests/            pytest suite (+ frozen reference data, API snapshot, browser tests)
 examples/         scripts, notebooks, scenarios, an example plugin and sample logs
 docs/             state of the art, live interop results, example reports, screenshots
-research/         papers (LaTeX, experiment scripts, data, PDF): the 2026 preprint, the 2012 thesis revisited
+research/         papers (LaTeX, experiment scripts, data, PDF): the 2026 preprint, the 2012 thesis
+                  revisited, RFC 5905 errata with evidence
+data/interop/     the open interop dataset (monthly runs against public servers)
+packaging/        conda-forge recipe and notes for distribution packagers
 paper/            the short JOSS software paper (draft)
 legacy/           the original 2012 GSoC code and data of the 2012 thesis, untouched
 ```
@@ -400,7 +425,7 @@ MIT License. © 2012–2026 **Thiago de Freitas** ([@thiagodefreitas](https://gi
 and non-commercial use; please keep the copyright notice and credit the author (see
 [NOTICE](NOTICE)). If you use it in research, please cite it via [CITATION.cff](CITATION.cff)
 (DOI [10.5281/zenodo.23070521](https://doi.org/10.5281/zenodo.23070521), all versions).
-A preprint describing the design, validation and experiments of 3.6.0 is in
+A preprint describing the design, validation and experiments of 3.7.0 is in
 [research/preprint-2026](research/preprint-2026/ntpstats-preprint-2026.pdf).
 The bundled uPlot is MIT-licensed © Leon Sorokin. The code under `legacy/` keeps its original
 2012 license.

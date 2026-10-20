@@ -46,7 +46,7 @@ nav:
   - Audit, events & CI checks: assurance.md
   - Monitoring (Prometheus/Grafana): monitoring.md
   - Protocols (Roughtime, NTS pools, RFC 9769): protocols.md
-  - Metrology (noise model, hat, holdover): metrology.md
+  - Metrology (noise model, hat, holdover, poll): metrology.md
   - Research data (CGGTTS, Circular T, Atlas): research-data.md
   - Dataframes & Parquet: dataframes.md
   - Writing a plugin: plugins.md
@@ -83,6 +83,7 @@ nav:
       - research: api/research.md
       - masks: api/masks.md
       - report: api/report.md
+      - pcap: api/pcap.md
       - ptp: api/ptp.md
       - ubx: api/ubx.md
       - gnsslab: api/gnsslab.md

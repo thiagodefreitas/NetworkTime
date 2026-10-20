@@ -42,3 +42,16 @@ A [`TimeSeries`](series.md) has `t` (POSIX seconds), `offset` (seconds, referenc
 | [`ntpstats.adapters`](adapters.md) | pandas, xarray, Parquet/Arrow |
 | [`ntpstats.api`](stable.md), `ntpstats.stream`, `ntpstats.deprecation` | stable surface, large files, deprecation helpers |
 | [`ntpstats.masks`](masks.md), [`ntpstats.report`](report.md) | masks, HTML reports |
+| [`ntpstats.pcap`](pcap.md), [`ntpstats.ptp`](ptp.md) | NTP, NTP over PTP and CSPTP exchanges from pcap/pcapng captures; PTP flows |
+| [`ntpstats.timeerror`](timeerror.md) | max\|TE\|, cTE, dTE, TEL, limits and masks |
+| [`ntpstats.ubx`](ubx.md), [`ntpstats.gnsslab`](gnsslab.md) | u-blox UBX, gpsd PPS, TAPR TICC, PPS sawtooth correction |
+| [`ntpstats.sources`](sources.md), [`ntpstats.profiles`](profiles.md) | live samples from the local daemon (chrony, ntpd, ntpd-rs, ptp4l, ptpcheck, gpsd); instrument profiles |
+| [`ntpstats.bounds`](bounds.md) | validation of clock-error bounds (ClockBound, fbclock) |
+| [`ntpstats.audit`](audit.md), [`ntpstats.events`](events.md) | UTC traceability audit; steps, spikes, route changes, leap smears |
+| [`ntpstats.disciplines`](disciplines.md) | clock disciplines in closed loop: ntpd (reference or RFC 5905 constants), LOCKCLOCK, Levine's Kalman |
+| [`ntpstats.polladvice`](polladvice.md) | poll-interval advice: the longest interval that meets an accuracy target |
+| [`ntpstats.refcheck`](refcheck.md) | validation against an independent reference (`ntpstats validate`), synthetic campaigns |
+| [`ntpstats.testing`](testing.md) | pytest assertions for timing checks in CI |
+| [`ntpstats.interop`](interop.md) | data exchange with Stable32, TimeLab and other stability tools |
+| [`ntpstats.metrics`](metrics.md) | Prometheus/OpenMetrics exporter |
+| [`ntpstats.compat.allantools`](compat.md) | allantools-compatible functions |

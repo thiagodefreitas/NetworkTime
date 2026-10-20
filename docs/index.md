@@ -8,20 +8,21 @@ description: "Open-source Python toolkit to validate, evaluate and study network
 **Validate, evaluate and study network time synchronisation.**
 
 ntpstats reads what time systems already produce:
-- logs of ntpd, NTPsec, chrony and linuxptp;
+- logs of ntpd, NTPsec, chrony, ntpd-rs, linuxptp and gpsd, u-blox receivers and TAPR TICC counters;
 - packet captures of NTP, NTP over PTP (RFC 10030) and PTP;
 - GNSS time-transfer and laboratory files;
 - network-simulator results.
 
 It computes the statistics used in timing research and telecom standards, each with a stated
 uncertainty: frequency stability with confidence intervals and noise identification, time
-error, and an audited error bound to UTC. It measures servers itself with NTPv4, NTS, NTPv5 and
+error, an audited error bound to UTC, and the true error of a clock against an independent GNSS
+PPS reference. It measures servers itself with NTPv4, NTS, NTPv5 and
 Roughtime clients, and its simulator with ground truth is a test bench for synchronisation
 algorithms. Use it as a command-line tool, a Python library with a [stable API](api/stable.md),
 a local web UI, or [in your browser](browser.md).
 
 ```bash
-pip install ntpstats
+pip install ntpstats                              # or: conda install -c conda-forge ntpstats
 ntpstats ui /var/log/chrony/measurements.log      # local web UI
 ntpstats stability tracking.log -k oadev,tdev --ci 0.95
 ```
@@ -46,7 +47,7 @@ ntpstats stability tracking.log -k oadev,tdev --ci 0.95
 | [Network & estimators](network.md) | delay floor, wedge, FPP, filters and estimators |
 | [PTP captures & time error](ptp.md) | PTP and NTP over PTP from captures, max\|TE\|, cTE, dTE, limits and masks |
 | [Sources, instruments & bounds](sources.md) | live daemons, instrument profiles, clock-error bound validation |
-| [Metrology](metrology.md) | power-law noise model, spectra, cornered hat, holdover |
+| [Metrology](metrology.md) | power-law noise model, spectra, cornered hat, holdover, poll-interval advice |
 | [Research data](research-data.md) | CGGTTS, RINEX clock, Circular T, RIPE Atlas, NTP Pool, the interop dataset |
 
 ## Operate and comply
@@ -61,7 +62,7 @@ ntpstats stability tracking.log -k oadev,tdev --ci 0.95
 
 | Page | What it covers |
 |---|---|
-| [Trace replay & PTP chains](research-bench.md) | real network delays in the bench, PTP exchanges and transparent clocks, boundary-clock chains, OMNeT++/INET and ns-3, reference algorithms |
+| [Trace replay & PTP chains](research-bench.md) | the estimator bench and clock disciplines (ntpd, LOCKCLOCK), real network delays, PTP exchanges and transparent clocks, boundary-clock chains, OMNeT++/INET and ns-3, reference algorithms |
 | [Dataframes & Parquet](dataframes.md) | pandas, xarray, Parquet/Arrow |
 | [Writing a plugin](plugins.md) | add formats, estimators, detectors, masks and profiles from your own package |
 | [Stable32, TimeLab, allantools](migrating.md) | moving data and code over, and checking the numbers agree |
@@ -71,7 +72,8 @@ ntpstats stability tracking.log -k oadev,tdev --ci 0.95
 
 | Page | What it covers |
 |---|---|
-| [Validation](validation.md) | how correctness is established, and how to validate your own setup |
+| [Validation](validation.md) | how correctness is established: NIST SP 1065, Stable32 cross-check, simulations |
+| [Validation campaign](validation-campaign.md) | a real chrony client against a GNSS PPS with `ntpstats validate` |
 | [Live interop](INTEROP.md) | monthly results against public NTP/NTS/NTPv5/Roughtime servers |
 | [State of the art](STATE_OF_THE_ART.md) and [Tools landscape](LANDSCAPE.md) | where network time is in 2026, and how ntpstats relates to other tools |
 

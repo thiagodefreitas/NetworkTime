@@ -1,7 +1,8 @@
 # CLI reference
 
-`ntpstats <command> --help` shows every option. Common input options (`info`, `stability`,
-`dynamic`, `plot`, `network`, `filter`, `report`):
+`ntpstats <command> --help` shows every option. Common input options, accepted by every command
+that reads a log (`info`, `stability`, `dynamic`, `plot`, `network`, `filter`, `report`,
+`timeerror`, `audit`, `events`, `convert`, `noise`, `spectrum`, `hat`, `holdover`, `poll`):
 
 | Option | Meaning |
 |---|---|
@@ -15,9 +16,9 @@
 | Command | Purpose |
 |---|---|
 | `info` | summary statistics (percentiles, trend, gaps, auxiliary columns) |
-| `timeerror` | max\|TE\|, cTE, dTE_L/dTE_H, max\|TEL\|, MTIE/TDEV of dTE_L; `--limits`, `--mask` (exit code 3 on failure), `--input-is-te`, `--units` ([PTP & time error](ptp.md)) |
+| `timeerror` (`te`) | max\|TE\|, cTE, dTE_L/dTE_H, max\|TEL\|, MTIE/TDEV of dTE_L; `--limits`, `--mask` (exit code 3 on failure), `--input-is-te`, `--units` ([PTP & time error](ptp.md)) |
 | `convert` | write a log as a Stable32 phase/frequency file, plain CSV, Parquet, an OMNeT++ vector file or ns-3 `time value` text (`--to`, `--no-timetags`) |
-| `stability` | ADEV/OADEV/MDEV/TDEV/HDEV/TOTDEV/MTOT/TTOT/HTOT/Theo1/TheoBR/TheoH/MTIE/TIErms with CIs; `--mask FILE` (exit code 3 on failure), `--exact`, `--raw-totals`, `--csv`, `--json` |
+| `stability` (`adev`) | ADEV/OADEV/MDEV/TDEV/HDEV/TOTDEV/MTOT/TTOT/HTOT/Theo1/TheoBR/TheoH/MTIE/TIErms with CIs; `--mask FILE` (exit code 3 on failure), `--exact`, `--raw-totals`, `--csv`, `--json` |
 | `dynamic` | sliding-window stability matrix (time × τ) |
 | `network` | delay floor, queueing, asymmetry indicator, floor packet percentage |
 | `filter` | Kalman / RTS smoother / min-delay filter, output CSV |
@@ -25,7 +26,7 @@
 | `validate REF` | a disciplined clock against an independent reference ([campaign](validation-campaign.md)): clock error, the daemon's maximum error over each update interval, each server's correctness interval and every estimator on the real exchanges; exit code 3 if the daemon's bound fails |
 | `plot` | static report figure (matplotlib) |
 | `report` | self-contained HTML report; `--time-error` adds time-error cards and a TE/TEL chart |
-| `simulate` | simulate NTP exchanges with ground truth; `--benchmark` |
+| `simulate` | simulate NTP or PTP exchanges with ground truth (`--preset`, e.g. `internet`, `ptp-lan`, `ptp-tc`); `--benchmark` |
 | `bench` | estimators × scenarios × seeds against ground truth; `--html`, `--csv`, `--list`; `trace:FILE` replays a capture or log |
 | `sawtooth` | remove the GNSS PPS quantization sawtooth from a time-interval-counter log with a u-blox receiver's `qErr` (UBX-TIM-TP), or from a gpsd PPS log with its own `qErr`; prints TDEV before and after ([Research data](research-data.md)) |
 | `trace` | per-direction delays of a capture or log (floors, PDV, loss), `--csv` to replay it ([Trace replay](research-bench.md)) |

@@ -1716,7 +1716,7 @@ def build_parser() -> argparse.ArgumentParser:
     _metrics_args(s)
     s.set_defaults(func=cmd_monitor)
 
-    s = sub.add_parser("watch", help="log the local chrony, ntpd/NTPsec, ntpd-rs, ptp4l or ptpcheck (no log files needed)")
+    s = sub.add_parser("watch", help="log the local chrony, ntpd/NTPsec, ntpd-rs, ptp4l, ptpcheck or gpsd (no log files needed)")
     s.add_argument("daemon", choices=("chrony", "ntpd", "ntpd-rs", "ptp4l", "ptpcheck", "gpsd"),
                    help="chrony (chronyc), ntpd/NTPsec (ntpq), ntpd-rs (ntp-ctl, or --command-override URL of "
                         "its metrics exporter), ptp4l (linuxptp pmc), ptpcheck (facebook/time) or gpsd (PPS; "

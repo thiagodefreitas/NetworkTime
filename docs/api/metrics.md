@@ -1,3 +1,3 @@
-# metrics
+# ntpstats.metrics
 
 ::: ntpstats.metrics

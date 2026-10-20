@@ -1,3 +1,3 @@
-# ubx
+# ntpstats.ubx
 
 ::: ntpstats.ubx

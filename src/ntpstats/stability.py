@@ -395,9 +395,9 @@ def _theobr_ratio(x, tau0, opts=None):
     """TheoBR bias-removal factor kf (average AVAR/THEO1 variance ratio).
 
     Cached in ``opts`` so a whole tau grid pays for it once. With more than
-    :data:`THEOBR_RATIO_TERMS` terms (records longer than about 400
-    samples) and ``max_work`` not 0, an evenly spaced subset of the terms is
-    averaged.
+    :data:`THEOBR_EXACT_TERMS` terms (records longer than about 1550
+    samples) and ``max_work`` not 0, :data:`THEOBR_RATIO_TERMS` evenly
+    spaced terms are averaged.
     """
     if opts is not None and "kf" in opts:
         return opts["kf"]
