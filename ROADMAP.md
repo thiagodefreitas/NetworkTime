@@ -150,7 +150,7 @@ missing is a long record of a real client checked against a reference it does no
   (Stable32's Auto1 script); TOTDEV is now bias-corrected as SP 1065 prescribes. TimeLab `.tim`
   round trips once a sample file arrives ([#42](https://github.com/thiagodefreitas/NetworkTime/issues/42)).
 
-### 3.8: Operators: fleets, alerts and instruments (code done, on master)
+### 3.8: Operators: fleets, alerts and instruments ✅
 The operator audience has the exporter and dashboard; the next layer is many hosts and the
 instruments people already own.
 - ✅ Fleet view: `ntpstats fleet` and *Compare → Fleet* rank many logs or an exporter query by
@@ -243,3 +243,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 3.6.1 | Exact χ² quantile for confidence intervals; Stable32 cross-check with its output files in the test suite ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)) |
 | 3.7 | `ntpstats validate` against a PPS reference and the validation campaign protocol; interop dataset trends; ntpd popcorn suppressor, slew bound and startup filter; Stable32 cross-check of the total, Théo and time-error statistics; TOTDEV bias correction ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)) |
 | 3.7.1 | Documentation refresh (README, site home, CLI and API reference), complete sdist test suite, governance and packaging notes |
+| 3.8 | Fleet view and matching alert rules ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)); column mapping without a profile ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); PHC, OCP Time Card, ClockBound and fbclock live sources, ptp4l port states ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |

@@ -14,6 +14,8 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.8.0] - 2026-10-21
+
 The 3.8 operator release: many hosts at once, instruments without code, and the hardware clocks
 and bound services that remained from #21. The stable API is unchanged.
 
@@ -827,7 +829,8 @@ First release of the rewrite. The 2012 Google Summer of Code prototype is kept u
 - Allan deviation τ₀ was hard-coded to 32 s (≈33× error on loopstats data); irregular sampling
   and gaps were ignored. See `docs/STATE_OF_THE_ART.md`.
 
-[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.7.1...HEAD
+[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.8.0...HEAD
+[3.8.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.7.1...v3.8.0
 [3.7.1]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.7.0...v3.7.1
 [3.7.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.6.1...v3.7.0
 [3.6.1]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.6.0...v3.6.1
