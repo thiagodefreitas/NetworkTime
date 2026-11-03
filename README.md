@@ -168,7 +168,7 @@ are as valuable as code. Look for issues labelled
   - **NTS pools** (NTS-KE server deny records) and the **RFC 9769 interleaved mode**;
   - experimental **NTPv5** (draft-ietf-ntp-ntpv5-09): v5 header with cookies, timescale and
     era, plus the NTPv4→v5 upgrade probe;
-  - **Roughtime** (draft-19): signed time from several servers, chained so that a lying server
+  - **Roughtime** (RFC 10049, and the drafts still deployed): signed time from several servers, chained so that a lying server
     is provable (malfeasance reports), and an authenticated bound on the local clock's error;
   - a polite `monitor` (RATE back-off, jitter), and `watch`, which samples the local
     **chrony** (`chronyc -c tracking`), **ntpd/NTPsec** (`ntpq -c rv`), **ntpd-rs**

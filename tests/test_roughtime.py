@@ -27,7 +27,8 @@ def raw(pk):
 class FakeServer:
     """Signs batches of requests the way draft-19 describes; knobs to misbehave."""
 
-    def __init__(self, now=T0, radi=3, leaf="request", seconds=True):
+    def __init__(self, now=T0, radi=3, leaf="request", seconds=True, rfc=False):
+        self.rfc = rfc  # RFC 10049: version 1 and the "Roughtime v1" context strings
         self.lt = Ed25519PrivateKey.generate()
         self.online = Ed25519PrivateKey.generate()
         self.now, self.radi, self.leaf, self.seconds = now, radi, leaf, seconds
@@ -40,7 +41,8 @@ class FakeServer:
         c = self.now if self.dele_center is None else self.dele_center
         dele = rt.encode({rt.tag("PUBK"): raw(self.online), rt.tag("MINT"): struct.pack("<Q", (c - 86400) * u),
                           rt.tag("MAXT"): struct.pack("<Q", (c + 86400) * u)})
-        return rt.encode({rt.tag("SIG"): self.lt.sign(rt.CTX_DELEGATION + dele), rt.tag("DELE"): dele})
+        ctx = rt.CTX_DELEGATION_RFC if self.rfc else rt.CTX_DELEGATION
+        return rt.encode({rt.tag("SIG"): self.lt.sign(ctx + dele), rt.tag("DELE"): dele})
 
     def respond(self, requests):
         leaves = []
@@ -53,10 +55,11 @@ class FakeServer:
             levels.append([rt.H(b"\x01" + cur[i] + cur[i + 1]) for i in range(0, len(cur), 2)])
         root = levels[-1][0]
         u = 1 if self.seconds else 10 ** 6
-        srep = rt.encode({rt.tag("VER"): struct.pack("<I", rt.VERSION_DRAFT), rt.tag("RADI"): struct.pack("<I", self.radi * u),
+        ver = rt.VERSION_1 if self.rfc else rt.VERSION_DRAFT
+        srep = rt.encode({rt.tag("VER"): struct.pack("<I", ver), rt.tag("RADI"): struct.pack("<I", self.radi * u),
                           rt.tag("MIDP"): struct.pack("<Q", self.now * u), rt.tag("VERS"): struct.pack("<2I", 1, rt.VERSION_DRAFT),
                           rt.tag("ROOT"): root})
-        sig = self.online.sign(rt.CTX_RESPONSE + srep)
+        sig = self.online.sign((rt.CTX_RESPONSE_RFC if self.rfc else rt.CTX_RESPONSE) + srep)
         cert = self._dele()
         out = []
         for idx, req in enumerate(requests):
@@ -97,6 +100,30 @@ def test_verify_single_and_batched(n):
         r = rt.verify(reqs[k], resp, srv.public_key, "fake", T0 - 0.01, T0 + 0.03)
         assert r.midp == T0 and r.radi == 3 and r.leaf == "request" and r.version == rt.VERSION_DRAFT
         assert r.offset == pytest.approx(-0.01) and r.bound == pytest.approx(3.02)
+
+
+def test_rfc10049_response():
+    """RFC 10049: version 1 and context strings spelled "Roughtime v1" (the drafts: "RoughTime v1"),
+    as time.txryan.com answers since its upgrade (its draft-only verification failed in the 2026-11 run)."""
+    srv = FakeServer(rfc=True)
+    req = rt.build_request(b"\x0a" * 32, srv.public_key)
+    r = rt.verify(req, srv.respond([req])[0], srv.public_key, "rfc", T0, T0)
+    assert r.version == rt.VERSION_1 and r.context == "rfc10049" and r.midp == T0 and r.as_dict()["context"] == "rfc10049"
+    drafted = FakeServer()
+    req = rt.build_request(b"\x0b" * 32, drafted.public_key)
+    assert rt.verify(req, drafted.respond([req])[0], drafted.public_key).context == "draft"
+
+
+def test_mixed_context_strings_are_rejected():
+    """The delegation and the response must use the same spelling."""
+    srv = FakeServer(rfc=True)
+    req = rt.build_request(b"\x0c" * 32, srv.public_key)
+
+    def resign(msg):  # SREP signed with the draft string under an RFC delegation
+        msg[rt.tag("SIG")] = srv.online.sign(rt.CTX_RESPONSE + msg[rt.tag("SREP")])
+    srv.tamper = resign
+    with pytest.raises(rt.RoughtimeError, match="SREP"):
+        rt.verify(req, srv.respond([req])[0], srv.public_key)
 
 
 def test_draft08_response_as_cloudflare_sends_it():

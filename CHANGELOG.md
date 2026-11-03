@@ -14,6 +14,14 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+### Fixed
+- Roughtime: responses in the format of **RFC 10049** (published October 2026: version 1, context
+  strings spelled `Roughtime v1 …` instead of the drafts' `RoughTime v1 …`) failed with "delegation
+  (CERT) signature does not verify". Both spellings are now accepted, the chosen version's own first,
+  and a response that mixes them is still rejected. `Response.context` and the interop dataset record
+  which one a server used. Found in the 2026-11-02 interop run, where time.txryan.com, upgraded to
+  the RFC, failed both requests.
+
 ## [3.8.0] - 2026-10-21
 
 The 3.8 operator release: many hosts at once, instruments without code, and the hardware clocks

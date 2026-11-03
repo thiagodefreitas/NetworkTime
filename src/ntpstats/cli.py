@@ -1873,9 +1873,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_query)
 
     s = sub.add_parser("roughtime", help="signed coarse time from several Roughtime servers, "
-                       "with chained nonces and malfeasance reports (draft-ietf-ntp-roughtime-19)")
+                       "with chained nonces and malfeasance reports (RFC 10049)")
     s.add_argument("servers", nargs="*", help="names from the list, or host:port=BASE64KEY (default: all listed)")
-    s.add_argument("--list", metavar="JSON", help="server list (draft-19 format; default: bundled list)")
+    s.add_argument("--list", metavar="JSON", help="server list (RFC 10049 JSON format; default: bundled list)")
     s.add_argument("--rounds", type=int, default=2, help="query sequence repetitions (default 2, per the draft)")
     s.add_argument("--timeout", type=float, default=3.0)
     s.add_argument("--retries", type=int, default=0, help="retries with exponential backoff (1.5^n s)")

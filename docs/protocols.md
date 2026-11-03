@@ -10,7 +10,7 @@ them against public servers from GitHub runners.
 
 | Protocol | Status | In ntpstats |
 |---|---|---|
-| Roughtime | draft-ietf-ntp-roughtime-19 | `ntpstats roughtime`, `ntpstats.roughtime` |
+| Roughtime | RFC 10049 (and the drafts and Google-Roughtime still deployed) | `ntpstats roughtime`, `ntpstats.roughtime` |
 | NTS pools | draft-ietf-ntp-nts-keyexchange-pool-01 | `ntpstats query --nts --pool N`, `nts.pool_sessions` |
 | Interleaved mode | RFC 9769 | `ntpstats query --interleaved`, and detected in captures |
 | NTPv5 | draft-ietf-ntp-ntpv5-09 | `ntpstats query --ntpv5`, `--probe-v5` |
@@ -45,12 +45,18 @@ That is enough to catch a clock that NTP, PTP or GNSS has led astray: an NTP-dis
 outside that interval is wrong, whatever its own statistics say. `--check-local` exits with code 3
 in that case.
 
-The server list follows the draft's JSON format (section 8.3). The bundled list comes from the
+The server list follows the JSON format of RFC 10049 section 8.3. The bundled list comes from the
 [Roughtime ecosystem list](https://github.com/cloudflare/roughtime/blob/master/ecosystem.json).
 Check the keys against the operators' own publications before relying on them. Servers are
 added with `host:port=BASE64KEY`.
 
-Compatibility: ntpstats offers versions 1, draft-08, draft-11 and draft-12+ (0x8000000c).
+Compatibility: ntpstats offers versions 1 (RFC 10049), draft-08, draft-11 and draft-12+
+(0x8000000c). On the wire, RFC 10049 differs from draft-19 in its version number and in the
+spelling of the two signature context strings (`Roughtime v1 …`, where the drafts have
+`RoughTime v1 …`); both spellings are accepted, the chosen version's own first, and the JSON
+output reports which one a server used (`context`). time.txryan.com moved to the RFC in
+October 2026, which ntpstats 3.8.0 and earlier report as a delegation signature that does not
+verify.
 Cloudflare's service documents draft-08 support. If a server does not answer the IETF request,
 ntpstats tries once with Google-Roughtime, the pre-IETF protocol: unframed messages, 64-byte
 nonces and hashes, microsecond timestamps. Some deployed servers still answer only that; in the live runs of October 2026,

@@ -151,7 +151,7 @@ def main(argv=None):
             record("nts-pool", NTS_POOL, False, f"{type(exc).__name__}: {exc}")
             row(["", f"error: {type(exc).__name__}: {exc}", "", "", ""])
 
-    print("\n### Roughtime (draft-ietf-ntp-roughtime-19, chained, two rounds)\n")
+    print("\n### Roughtime (RFC 10049 and the drafts still deployed, chained, two rounds)\n")
     row(["server", "protocol", "MIDP (UTC)", "radius", "offset", "rtt", "Merkle leaf"])
     row(["---"] * 7)
     try:
@@ -160,7 +160,7 @@ def main(argv=None):
         m = rt.measure(rt.load_servers(), rounds=2, timeout=3, family=socket.AF_INET, spacing=0.5)
         for r in m.responses:
             record("roughtime", r.server, True, version=hex(r.version), midp=r.midp, radius=r.radi,
-                   offset=r.offset, delay=r.rtt, merkle_leaf=r.leaf, protocol=r.protocol)
+                   offset=r.offset, delay=r.rtt, merkle_leaf=r.leaf, protocol=r.protocol, context=r.context)
             row([r.server, r.protocol if r.protocol == "google" else hex(r.version), time.strftime("%H:%M:%S", time.gmtime(r.midp)), f"{r.radi:g} s",
                  f"{r.offset:+.3f} s", format_seconds(r.rtt), r.leaf])
         for name, err in m.errors:

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2012-2026 Thiago de Freitas (https://github.com/thiagodefreitas)
-"""Roughtime client (draft-ietf-ntp-roughtime-19).
+"""Roughtime client (RFC 10049, and the IETF drafts and Google-Roughtime still deployed).
 
 Roughtime gives a *signed*, coarse (about 1 s) time from several servers and
 makes a lying server provable: every request nonce is derived from the
@@ -11,6 +11,12 @@ were received. If two responses cannot both be right, the chain is a
 For ntpstats this is an independent, authenticated sanity bound: an NTP or
 PTP clock that disagrees with Roughtime by more than the Roughtime radius
 is wrong, whatever its own statistics say.
+
+On the wire, RFC 10049 (October 2026) differs from draft-19 in its version
+number (1) and in the spelling of the signature context strings,
+``Roughtime v1 ...`` where the drafts have ``RoughTime v1 ...``. Both are
+accepted, the version's own first, and :attr:`Response.context` records
+which one the server used.
 
 Signature checks need ``cryptography`` (``pip install 'ntpstats[nts]'``).
 """
@@ -28,15 +34,17 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 MAGIC = b"ROUGHTIM"
-VERSION_1 = 1
-VERSION_DRAFT = 0x8000000C  # draft-ietf-ntp-roughtime-12 and later (testing number, draft-19)
+VERSION_1 = 1  # RFC 10049
+VERSION_DRAFT = 0x8000000C  # draft-ietf-ntp-roughtime-12 to -19 (testing number)
 VERSION_DRAFT_11 = 0x8000000B
 VERSION_DRAFT_08 = 0x80000008  # still the only IETF version of some deployed servers (Cloudflare)
 DEFAULT_VERSIONS = (VERSION_1, VERSION_DRAFT_08, VERSION_DRAFT_11, VERSION_DRAFT)
 MIN_REQUEST = 1024
-CTX_DELEGATION = b"RoughTime v1 delegation signature\x00"
+CTX_DELEGATION = b"RoughTime v1 delegation signature\x00"  # the drafts
 CTX_DELEGATION_OLD = b"RoughTime v1 delegation signature--\x00"  # Google Roughtime and early drafts
 CTX_RESPONSE = b"RoughTime v1 response signature\x00"
+CTX_DELEGATION_RFC = b"Roughtime v1 delegation signature\x00"  # RFC 10049 section 5.2.6
+CTX_RESPONSE_RFC = b"Roughtime v1 response signature\x00"  # RFC 10049 section 5.2.1
 
 # Public servers, from the Roughtime ecosystem list
 # (https://github.com/cloudflare/roughtime/blob/master/ecosystem.json, retrieved 2026-09).
@@ -183,7 +191,7 @@ def _verify_sig(public_key: bytes, sig: bytes, data: bytes) -> bool:
 
 
 def merkle_root(leaf: bytes, path: bytes, index: int, size: int = 32) -> Optional[bytes]:
-    """Root from a leaf hash, PATH and INDX (draft-19 section 5.3.1); None if INDX has extra bits."""
+    """Root from a leaf hash, PATH and INDX (RFC 10049 section 5.3.1); None if INDX has extra bits."""
     if len(path) % size:
         return None
     h = leaf
@@ -218,8 +226,9 @@ class Response:
     rand: Optional[bytes] = field(default=None, repr=False)
     mint: float = 0.0
     maxt: float = 0.0
-    leaf: str = "request"  # what the Merkle leaf covered: "request" (draft-19) or "nonce" (older drafts)
+    leaf: str = "request"  # what the Merkle leaf covered: "request" (RFC, draft-19) or "nonce" (older drafts)
     protocol: str = "ietf"  # "ietf" or "google" (Google-Roughtime, the pre-IETF protocol)
+    context: str = "draft"  # signature context strings: "rfc10049" ("Roughtime v1") or "draft" ("RoughTime v1")
 
     @property
     def rtt(self) -> float:
@@ -239,12 +248,12 @@ class Response:
         return {"server": self.server, "midp": self.midp, "radi": self.radi, "version": hex(self.version),
                 "t_send": self.t_send, "t_recv": self.t_recv, "rtt": self.rtt, "offset": self.offset,
                 "bound": self.bound, "mint": self.mint, "maxt": self.maxt, "merkle_leaf": self.leaf,
-                "protocol": self.protocol}
+                "protocol": self.protocol, "context": self.context}
 
 
 def verify(request: bytes, response: bytes, public_key: bytes, server: str = "",
            t_send: float = 0.0, t_recv: float = 0.0) -> Response:
-    """Check a response against its request and the server's long-term key (draft-19 section 5.4).
+    """Check a response against its request and the server's long-term key (RFC 10049 section 5.4).
 
     Raises :class:`RoughtimeError` on any failure. Older drafts that sign the
     nonce instead of the request, and microsecond timestamps, are accepted.
@@ -279,11 +288,15 @@ def verify(request: bytes, response: bytes, public_key: bytes, server: str = "",
     offered = req.get(tag("VER"), b"")
     if version and offered and struct.pack("<I", version) not in [offered[i:i + 4] for i in range(0, len(offered), 4)]:
         raise RoughtimeError(f"server chose version {version:#x}, which was not offered")
-    if not any(_verify_sig(public_key, cert_sig, ctx + dele_raw) for ctx in (CTX_DELEGATION, CTX_DELEGATION_OLD)):
+    rfc = [("rfc10049", CTX_DELEGATION_RFC, CTX_RESPONSE_RFC)]
+    drafts = [("draft", CTX_DELEGATION, CTX_RESPONSE), ("draft", CTX_DELEGATION_OLD, CTX_RESPONSE)]
+    candidates = rfc + drafts if version == VERSION_1 else drafts + rfc  # the version's own spelling first
+    context = next((c for c in candidates if _verify_sig(public_key, cert_sig, c[1] + dele_raw)), None)
+    if context is None:
         raise RoughtimeError("delegation (CERT) signature does not verify with the long-term key")
-    if not _verify_sig(pubk, sig, CTX_RESPONSE + srep_raw):
+    if not _verify_sig(pubk, sig, context[2] + srep_raw):
         raise RoughtimeError("response (SREP) signature does not verify with the delegated key")
-    micro = midp_raw >= 10 ** 11  # draft-19: seconds; older drafts: microseconds (or MJD)
+    micro = midp_raw >= 10 ** 11  # RFC and draft-19: seconds; older drafts: microseconds (or MJD)
     midp, mint, maxt = (_timestamp(v, micro) for v in (midp_raw, mint_raw, maxt_raw))
     if not mint <= midp <= maxt:
         raise RoughtimeError("MIDP outside the delegation's validity (MINT..MAXT)")
@@ -300,7 +313,7 @@ def verify(request: bytes, response: bytes, public_key: bytes, server: str = "",
         raise RoughtimeError("RADI is zero")
     return Response(server=server, midp=midp, radi=radi, version=version, t_send=t_send, t_recv=t_recv,
                     request=request, response=response, public_key=public_key, mint=mint, maxt=maxt, leaf=leaf,
-                    protocol="ietf" if framed else "google")
+                    protocol="ietf" if framed else "google", context=context[0])
 
 
 # ------------------------------------------------------------------ servers and transport
@@ -340,7 +353,7 @@ def _key(b64: str) -> bytes:
 
 
 def load_servers(source: Optional[str] = None) -> List[Server]:
-    """Servers from a draft-19 server list (JSON, section 8.3), or the bundled list."""
+    """Servers from a server list (JSON, RFC 10049 section 8.3), or the bundled list."""
     entries: List[Dict[str, Any]]
     if source is None:
         entries = [{"name": e["name"], "publicKey": e["publicKey"], "publicKeyType": "ed25519",
@@ -362,7 +375,7 @@ def load_servers(source: Optional[str] = None) -> List[Server]:
 
 
 def backoff(n: int, base: float = 1.0) -> float:
-    """Minimum wait before retry ``n`` (1-based): min(base * 1.5**(n-1), 86400) s (draft-19 section 5)."""
+    """Minimum wait before retry ``n`` (1-based): min(base * 1.5**(n-1), 86400) s (RFC 10049 section 5)."""
     return min(base * 1.5 ** (n - 1), 86400.0)
 
 
@@ -443,7 +456,7 @@ class Measurement:
         return (lo, hi) if lo <= hi else None
 
     def malfeasance_report(self) -> Dict[str, object]:
-        """draft-19 section 8.4.1 report: the chain of requests and responses, in order."""
+        """RFC 10049 section 8.4.1 report: the chain of requests and responses, in order."""
         return {"responses": [
             {**({"rand": base64.b64encode(r.rand).decode()} if r.rand is not None else {}),
              "publicKey": base64.b64encode(r.public_key).decode(),
@@ -469,7 +482,7 @@ def causal_violations(responses: Sequence[Response]) -> List[Tuple[int, int]]:
 def measure(servers: Iterable[Server], rounds: int = 2, timeout: float = 3.0, tcp: bool = False,
             spacing: float = 0.0, rand: Callable[[int], bytes] = os.urandom,
             query_fn: Optional[Callable[..., Response]] = None, **kw) -> Measurement:
-    """Query the servers in order, ``rounds`` times (two per draft-19 section 8.2), chaining nonces.
+    """Query the servers in order, ``rounds`` times (two per RFC 10049 section 8.2), chaining nonces.
 
     Each nonce after the first is H(previous response || rand), so the
     responses prove their order (for a Google-Roughtime fallback the full
