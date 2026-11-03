@@ -47,9 +47,11 @@ CTX_DELEGATION_RFC = b"Roughtime v1 delegation signature\x00"  # RFC 10049 secti
 CTX_RESPONSE_RFC = b"Roughtime v1 response signature\x00"  # RFC 10049 section 5.2.1
 
 # Public servers, from the Roughtime ecosystem list
-# (https://github.com/cloudflare/roughtime/blob/master/ecosystem.json, retrieved 2026-09).
-# Keys are long-term Ed25519 public keys; check them against the operators' own publications
-# before relying on them.
+# (https://github.com/cloudflare/roughtime/blob/master/ecosystem.json, retrieved 2026-09), with
+# changes of 2026-11 from the operators' own pages: TimeNL (https://time.nl, a pilot that may change
+# port) added, and time.txryan.com on port 5319, its RFC 10049 endpoint (https://time.txryan.com;
+# port 2002 also answers the drafts). Keys are long-term Ed25519 public keys; check them against the
+# operators' own publications before relying on them.
 SERVERS = [
     {"name": "Cloudflare-Roughtime-2", "publicKey": "0GD7c3yP8xEc4Zl2zeuN2SlLvDVVocjsPSL8/Rl/7zg=",
      "address": "roughtime.cloudflare.com:2003"},
@@ -58,7 +60,9 @@ SERVERS = [
     {"name": "roughtime.se", "publicKey": "S3AzfZJ5CjSdkJ21ZJGbxqdYP/SoE8fXKY0+aicsehI=",
      "address": "roughtime.se:2002"},
     {"name": "time.txryan.com", "publicKey": "iBVjxg/1j7y1+kQUTBYdTabxCppesU/07D4PMDJk2WA=",
-     "address": "time.txryan.com:2002"},
+     "address": "time.txryan.com:5319"},
+    {"name": "TimeNL-Roughtime", "publicKey": "v2CievhgKsxzlWPwIkYFUXeA51Akhkv5uhJCj1/kbiY=",
+     "address": "rough.time.nl:2002"},
 ]
 
 

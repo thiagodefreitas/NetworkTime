@@ -75,11 +75,15 @@ records naming the servers it already has. `ntpstats query --nts --pool 3 HOST` 
 key exchanges this way and measures each assigned server with NTS:
 
 ```bash
-ntpstats query srv.experimental.ntspooltest.org --nts --pool 3
+ntpstats query nts-pool.example --nts --pool 3
 ```
 
-(`srv.experimental.ntspooltest.org` is the Trifecta Tech Foundation's
-[experimental pool](https://experimental.ntspooltest.org/).)
+The Trifecta Tech Foundation runs an experimental NTS pool at [sectime.org](https://sectime.org/),
+which gives its key-exchange host to users who accept its terms. Those terms allow personal use
+only and forbid preconfiguring the pool in software given to third parties, so ntpstats names no
+pool. Its earlier test host, `srv.experimental.ntspooltest.org`, has not resolved since September
+2026. The live interop run probes a pool only when the repository variable `INTEROP_NTS_POOL`
+names one.
 
 ## Interleaved mode (RFC 9769)
 

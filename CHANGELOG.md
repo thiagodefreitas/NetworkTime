@@ -22,6 +22,14 @@ uploads to PyPI.
   which one a server used. Found in the 2026-11-02 interop run, where time.txryan.com, upgraded to
   the RFC, failed both requests.
 
+### Changed
+- Bundled Roughtime servers: TimeNL (`rough.time.nl:2002`, key from time.nl) added; time.txryan.com
+  moved to port 5319, its RFC 10049 endpoint.
+- Live interop: the NTS pool probe runs only when the workflow variable `INTEROP_NTS_POOL` names a
+  pool. The experimental test host it used stopped resolving in September 2026, and the Trifecta
+  Tech Foundation's pool (sectime.org) may not be preconfigured in software given to third parties
+  (its terms, clause 9), so none is bundled; the docs use a placeholder.
+
 ## [3.8.0] - 2026-10-21
 
 The 3.8 operator release: many hosts at once, instruments without code, and the hardware clocks

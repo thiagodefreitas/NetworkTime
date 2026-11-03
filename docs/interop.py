@@ -22,7 +22,11 @@ from ntpstats.sntp import NTPError, query, query_interleaved, supports_v5
 
 NTP4 = ["time.cloudflare.com", "time.google.com", "ptbtime1.ptb.de", "time.nist.gov", "pool.ntp.org", "ntp.ubuntu.com"]
 NTS = ["time.cloudflare.com", "nts.netnod.se", "ptbtime1.ptb.de", "ntppool1.time.nl", "ntp.3eck.net"]
-NTS_POOL = "srv.experimental.ntspooltest.org"  # Trifecta Tech Foundation experimental NTS pool
+# NTS pool to probe, from the INTEROP_NTS_POOL environment variable (the "Live interop" workflow passes
+# the repository variable of that name). None is bundled: the Trifecta Tech Foundation's pool
+# (sectime.org) is for personal use and must not be preconfigured in software given to third
+# parties (its terms, clause 9), and its experimental test host stopped resolving in September 2026.
+NTS_POOL = os.environ.get("INTEROP_NTS_POOL", "").strip() or None
 V5 = ["time.cloudflare.com", "ptbtime1.ptb.de", "ntppool1.time.nl", "time.google.com"]
 SCHEMA = 1
 
@@ -132,10 +136,12 @@ def main(argv=None):
         row([s, "yes" if ok else "no", res])
         time.sleep(1)
 
-    print(f"\n### NTS pool (draft-ietf-ntp-nts-keyexchange-pool-01, {NTS_POOL})\n")
+    print(f"\n### NTS pool (draft-ietf-ntp-nts-keyexchange-pool-01, {NTS_POOL or 'not configured'})\n")
     row(["session", "NTP server assigned", "denied", "offset", "delay"])
     row(["---"] * 5)
-    if NTSSession is None:
+    if NTS_POOL is None:
+        row(["", "no pool configured (set INTEROP_NTS_POOL)", "", "", ""])
+    elif NTSSession is None:
         row(["", "nts extra not installed", "", "", ""])
     else:
         from ntpstats.nts import pool_sessions

@@ -27,7 +27,7 @@ for s in load("data/interop"):
 | `time` | time of the probe, POSIX seconds (runner clock) |
 | `ntpstats`, `runner`, `family` | software version, runner image, address family |
 | `test` | `ntp4`, `interleaved`, `nts`, `ntpv5`, `nts-pool`, `roughtime`, `roughtime-chain` |
-| `server` | name queried (for `nts-pool`, the pool; `ntp_server` is the server it assigned) |
+| `server` | name queried (for `nts-pool`, the pool; `ntp_server` is the server it assigned). `nts-pool` probes run only when the workflow's `INTEROP_NTS_POOL` variable names a pool; the runs to 2026-11-02 probed `srv.experimental.ntspooltest.org`, which no longer resolved |
 | `ok`, `error` | outcome; `error` holds the message of a failed probe |
 | `offset`, `delay` | server − runner clock and round-trip delay, seconds (Roughtime: MIDP − local midpoint, rtt) |
 | `address`, `stratum`, `refid`, `root_delay`, `root_dispersion`, `leap`, `version` | from the NTP response |

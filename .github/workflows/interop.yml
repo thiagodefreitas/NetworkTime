@@ -26,6 +26,9 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[nts]"
       - name: NTPv4 / NTS / NTS pool / NTPv5 / Roughtime probes
+        env:
+          # an NTS pool you may query (repository variable; none is bundled, see docs/interop.py)
+          INTEROP_NTS_POOL: ${{ vars.INTEROP_NTS_POOL }}
         run: |
           out="data/interop/$(date -u +%Y)/$(date -u +%F).jsonl"
           echo "DATASET_FILE=$out" >> "$GITHUB_ENV"
