@@ -4,7 +4,9 @@ on:
   pull_request:
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # ubuntu-latest is Ubuntu 26.04 since October 2026 and has no Python 3.9; 3.9 is still supported
+    # (ROADMAP, 4.0), so it runs on 24.04
+    runs-on: ${{ matrix.python-version == '3.9' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
