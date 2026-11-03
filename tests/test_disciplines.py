@@ -161,3 +161,87 @@ def test_ntpd_slew_is_bounded_at_500_ppm():
     assert np.max(np.abs(rate)) <= 500e-6 * (1 + 1e-9)
     assert np.max(np.abs(rate)) > 450e-6  # the bound is reached
     assert r.meta["steps"] == 0
+
+
+# --------------------------------------------------------------- 3.9: poll adaptation and chrony
+def test_ntpd_adapts_its_poll_between_minpoll_and_maxpoll():
+    s, truth = clock(freq=10e-6, noise=20e-6, poll=64.0, hours=48, seed=3)
+    r = ntpd_discipline(s, maxpoll=10)
+    polls = r.extra["poll"]
+    assert polls.min() >= 6 and polls.max() <= 10 and polls.max() > 6  # it climbs once the loop settles
+    assert r.meta["minpoll"] == 6 and r.meta["maxpoll"] == 10 and r.meta["polls"][0] == (T0, 6)
+    assert r.meta["measurements_used"] < len(s)  # only one measurement per current poll interval
+    changes = [p for _, p in r.meta["polls"]]
+    assert all(abs(a - b) == 1 for a, b in zip(changes, changes[1:]))  # one step at a time
+    late = r.t > T0 + 24 * 3600
+    assert np.sqrt(np.mean((r.offset[late] - truth[late]) ** 2)) < 1e-3
+    with pytest.raises(ValueError):
+        ntpd_discipline(s, poll=8, maxpoll=6)
+
+
+def test_ntpd_fixed_poll_is_unchanged_by_the_adaptation_code():
+    s, _ = clock(freq=10e-6, noise=20e-6, hours=12, seed=4)
+    r = ntpd_discipline(s)
+    assert "poll" not in r.extra and r.meta["measurements_used"] == len(s) and r.meta["poll"] == 6
+
+
+def test_chrony_regression_and_runs_test():
+    from ntpstats.disciplines import _best_regression, _runs
+
+    assert _runs(np.array([1.0, 1.0, -1.0, 1.0])) == 3
+    x = np.arange(-19.0, 1.0)
+    y = 2.0 + 0.5 * x + np.where(np.arange(20) % 2, 0.01, -0.01)
+    a, b, sb0, sb1, start, dof, var = _best_regression(x, y, np.ones(20), 20, 0, 1)
+    assert (a, b, start) == (pytest.approx(2.0, abs=0.02), pytest.approx(0.5, abs=1e-3), 0)
+    y2 = y.copy()
+    y2[:10] += 1.0  # an old step: the residuals form two long runs, the old samples are dropped
+    assert _best_regression(x, y2, np.ones(20), 20, 0, 1)[4] > 0
+    assert _best_regression(x[:2], y[:2], np.ones(2), 2, 0, 1) is None
+
+
+def test_chrony_removes_a_frequency_offset_and_reports_its_skew():
+    from ntpstats.disciplines import chrony_discipline
+
+    s, truth = clock(freq=20e-6, noise=50e-6, hours=24, seed=5)
+    r = chrony_discipline(s)
+    late = r.t > T0 + 12 * 3600
+    assert r.meta["frequency"] == pytest.approx(20e-6, abs=0.2e-6)
+    assert np.sqrt(np.mean((r.offset[late] - truth[late]) ** 2)) < 50e-6  # better than one measurement
+    assert 0 < r.meta["skew"] < 1e-6 and r.meta["steps"] == 0
+
+
+def test_chrony_makestep_and_delay_test():
+    from ntpstats.disciplines import chrony_discipline
+
+    s, truth = clock(freq=0.0, offset=2.0, hours=2, seed=6)
+    r = chrony_discipline(s)
+    assert r.meta["steps"] == 1 and abs(r.offset[-1] - truth[-1]) < 1e-3
+    assert chrony_discipline(s, makestep=None).meta["steps"] == 0  # chrony's default: never step
+    s, truth = clock(freq=5e-6, noise=10e-6, hours=12, seed=7, delay=0.010)
+    s.extra["delay"][100::40] = 0.200  # queueing on one direction: delay +190 ms, offset +50 ms (< delay/2)
+    s.offset[100::40] += 0.050
+    on, off = chrony_discipline(s), chrony_discipline(s, maxdelaydevratio=0)
+    assert on.meta["delay_rejected"] >= 5 and off.meta["delay_rejected"] == 0
+    late = s.t > T0 + 6 * 3600
+
+    def rms(r):
+        return np.sqrt(np.mean((r.offset[late] - truth[late]) ** 2))
+    assert rms(on) < rms(off)
+
+
+def test_chrony_adapts_its_poll_to_the_polltarget():
+    from ntpstats.disciplines import chrony_discipline
+
+    s, truth = clock(freq=10e-6, noise=20e-6, poll=64.0, hours=48, seed=8)
+    r = chrony_discipline(s, maxpoll=10)
+    assert r.extra["poll"].max() == 10 and r.extra["poll"].min() >= 6
+    assert r.meta["measurements_used"] < len(s) / 4
+    late = r.t > T0 + 24 * 3600
+    assert np.sqrt(np.mean((r.offset[late] - truth[late]) ** 2)) < 1e-3
+
+
+def test_new_disciplines_are_bench_estimators():
+    from ntpstats.estimators import available
+
+    names = set(available())
+    assert {"chrony", "ntpd-adaptive", "chrony-adaptive"} <= names

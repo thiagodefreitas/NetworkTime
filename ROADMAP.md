@@ -168,20 +168,20 @@ instruments people already own.
   ([#43](https://github.com/thiagodefreitas/NetworkTime/issues/43)); sample files are the
   blocker, not code.
 
-### 3.9: Research bench, part 3: closed loops
-3.6 put clock disciplines in the bench with a fixed poll interval. The next step is the full
-loop as the daemons run it.
-- Poll-interval adaptation: ntpd's poll adjust (RFC 5905 section 13, `poll_update()`) and chrony's
-  `minpoll`/`maxpoll` with its own criterion, so a scenario reports the intervals the daemon
-  would have chosen as well as the error.
-- A chrony discipline model from its documented algorithm (regression over the last samples,
-  with its outlier and skew handling), next to ntpd, LOCKCLOCK and the PTP servos; the bench
-  then covers every discipline in common use.
-- Closed-loop scenarios: the discipline's corrections feed back into the simulated local clock,
-  so transients (steps, frequency jumps, route changes) are measured as the user sees them, not
-  on an open-loop record.
-- Preprint v2 with the real-data campaign of 3.7 and the closed-loop results, and the status of
-  the three RFC 5905 errata filed on 12 October 2026 (IDs 9215–9217).
+### 3.9: Research bench, part 3: closed loops ✅
+3.6 put clock disciplines in the bench with a fixed poll interval; 3.9 runs the loop as the
+daemons do.
+- ✅ Poll-interval adaptation: ntpd's time-constant adjustment (`local_clock()`, with the bug 3615
+  time gates) and chrony's polltarget criterion (`ntp_core.c`); a scenario reports the intervals
+  the daemon chose as well as the error.
+- ✅ A chrony discipline model from its source (runs-test regression, skew-weighted frequency,
+  correction-rate slewing, delay test), next to ntpd, LOCKCLOCK and the PTP servos.
+- ✅ Closed loop: every discipline steers the simulated clock, and its measurements are the
+  residuals of the steered clock (the corrections never change the measurement noise, so this is
+  the closed loop exactly).
+- Moved to the next release: preprint v2, which needs the real-data campaign
+  ([#41](https://github.com/thiagodefreitas/NetworkTime/issues/41)), with the closed-loop results
+  and the status of the three RFC 5905 errata (IDs 9215–9217, still "Reported" on 3 November).
 
 ### 4.0: only when forced
 The 3.x API is final and nothing is scheduled to break it. A 4.0 happens only for a floor
@@ -244,3 +244,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 | 3.7 | `ntpstats validate` against a PPS reference and the validation campaign protocol; interop dataset trends; ntpd popcorn suppressor, slew bound and startup filter; Stable32 cross-check of the total, Théo and time-error statistics; TOTDEV bias correction ([#28](https://github.com/thiagodefreitas/NetworkTime/issues/28)) |
 | 3.7.1 | Documentation refresh (README, site home, CLI and API reference), complete sdist test suite, governance and packaging notes |
 | 3.8 | Fleet view and matching alert rules ([#36](https://github.com/thiagodefreitas/NetworkTime/issues/36)); column mapping without a profile ([#35](https://github.com/thiagodefreitas/NetworkTime/issues/35)); PHC, OCP Time Card, ClockBound and fbclock live sources, ptp4l port states ([#21](https://github.com/thiagodefreitas/NetworkTime/issues/21)) |
+| 3.9 | ntpd and chrony poll adaptation and chrony's discipline in the bench ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40)); Roughtime RFC 10049 and NTPv5 draft-10 clients |

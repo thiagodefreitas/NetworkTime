@@ -133,10 +133,11 @@ def test_monitor_writes_csv(server, tmp_path, monkeypatch):
 class FakeV5Server(FakeServer):
     """Answers draft-09 NTPv5 requests and the v4 'NTP5DRFT' upgrade probe."""
 
-    def __init__(self, offset=0.25, timescale=0, synced=True):
+    def __init__(self, offset=0.25, timescale=0, synced=True, drafts=(sntp.NTPV5_DRAFT,)):
         super().__init__(offset=offset)
         self.timescale = timescale
         self.synced = synced
+        self.drafts = drafts  # the draft names it answers; it ignores others, as the draft requires
 
     def run(self):
         while True:
@@ -148,16 +149,21 @@ class FakeV5Server(FakeServer):
             vn = (data[0] >> 3) & 7
             t2 = time.time() + self.offset + (37 if self.timescale == 1 else 0)
             if vn == 5:
+                ef = sntp._parse_efs(data).get(sntp.EF_DRAFT_ID, b"").decode()
+                if ef not in self.drafts:
+                    continue
+                old = ef == sntp.NTPV5_DRAFT_09
                 cookie = data[24:32]
                 hdr = bytearray(48)
                 hdr[0] = (0 << 6) | (5 << 3) | 4
                 hdr[1], hdr[2], hdr[3] = 1, 4, -20 & 0xFF
                 struct.pack_into("!II", hdr, 4, int(0.001 * 2 ** 28), int(0.002 * 2 ** 28))
-                struct.pack_into("!BBH", hdr, 12, self.timescale, 0, 0x1 if self.synced else 0)
+                unsync_flag = 0 if self.synced else 0x1  # draft-10: 0x1 = unsynchronized
+                struct.pack_into("!BBH", hdr, 12, self.timescale, 0, (0x1 if self.synced else 0) if old else unsync_flag)
                 hdr[16:24] = b"S" * 8
                 hdr[24:32] = cookie
                 struct.pack_into("!QQ", hdr, 32, to_ntp(t2), to_ntp(t2 + 1e-5))
-                self.sock.sendto(bytes(hdr) + sntp._ef(sntp.EF_DRAFT_ID, sntp.NTPV5_DRAFT.encode()), addr)
+                self.sock.sendto(bytes(hdr) + sntp._ef(sntp.EF_DRAFT_ID, ef.encode()), addr)
             else:
                 reply = bytearray(self._pkt(2, bytes([192, 0, 2, 1]), data[40:48], t2))
                 if data[16:24] == sntp.NTPV5_UPGRADE:
@@ -194,6 +200,21 @@ def test_ntpv5_tai_timescale(v5server):
 def test_ntpv5_unsynchronised(v5server):
     with pytest.raises(sntp.NTPError):
         sntp.query_v5("127.0.0.1", port=v5server.port)
+
+
+@pytest.mark.parametrize("v5server", [{"drafts": (sntp.NTPV5_DRAFT_09,)}], indirect=True)
+def test_ntpv5_falls_back_to_draft_09(v5server):
+    """A draft-09 server ignores the draft-10 request; the client retries in draft-09, where flag 0x1
+    means synchronized."""
+    r = sntp.query_v5("127.0.0.1", port=v5server.port, timeout=0.3)
+    assert r.draft == sntp.NTPV5_DRAFT_09 and r.offset == pytest.approx(0.25, abs=0.01)
+    assert [sntp._parse_efs(q)[sntp.EF_DRAFT_ID].decode() for q in v5server.requests] == list(sntp.NTPV5_DRAFTS)
+
+
+@pytest.mark.parametrize("v5server", [{"drafts": (sntp.NTPV5_DRAFT_09,), "synced": False}], indirect=True)
+def test_ntpv5_draft_09_unsynchronised(v5server):
+    with pytest.raises(sntp.NTPError, match="not synchronised"):
+        sntp.query_v5("127.0.0.1", port=v5server.port, timeout=0.3)
 
 
 def test_ntpv5_upgrade_probe(v5server, server):

@@ -14,6 +14,32 @@ uploads to PyPI.
 
 ## [Unreleased]
 
+## [3.9.0] - 2026-11-03
+
+Closed loops as the daemons run them: poll adaptation and chrony's discipline in the bench, plus
+the protocols that moved in October 2026 (Roughtime is RFC 10049, NTPv5 is at draft-10). The
+stable API only gains `chrony_discipline` and the `maxpoll` parameter of `ntpd_discipline`.
+
+### Added
+- **Poll adaptation** in the bench ([#40](https://github.com/thiagodefreitas/NetworkTime/issues/40)):
+  `ntpd_discipline(maxpoll=...)` adapts the time constant as ntpd's `local_clock()` does
+  (`CLOCK_PGATE` 4, `CLOCK_LIMIT` 30, the time gates of ntpd bug 3615) and uses only the
+  measurements it would have sent, one per current poll interval, of a series sampled at minpoll.
+  The result records the poll per sample and its changes. Estimators `ntpd-adaptive` and
+  `chrony-adaptive` (maxpoll 10).
+- **chrony's discipline** (`chrony_discipline`, estimator `chrony`), written from chrony 4.x's
+  `sourcestats.c`, `regress.c`, `reference.c`, `sys_generic.c` and `ntp_core.c`: distance-weighted
+  regression over the newest samples that pass the runs test, skew-weighted frequency updates,
+  correction-rate slewing, `makestep`, the delay-deviation test (`maxdelaydevratio`) and
+  polltarget-driven poll adaptation. On the presets it is the most accurate closed loop on four of
+  five paths and 4× better than ntpd on the LAN; adapting the poll costs accuracy everywhere for 2
+  to 25× fewer packets (`docs/research-bench.md`).
+
+### Changed
+- NTPv5 client: draft-ietf-ntp-ntpv5-10 (October 2026), falling back to draft-09. Draft-10 removes
+  the leap indicator and leap-smeared UTC and turns flag 0x1 from "synchronized" into
+  "unsynchronized"; the flags are read by the draft the server answered in.
+
 ### Fixed
 - Roughtime: responses in the format of **RFC 10049** (published October 2026: version 1, context
   strings spelled `Roughtime v1 …` instead of the drafts' `RoughTime v1 …`) failed with "delegation
@@ -29,6 +55,8 @@ uploads to PyPI.
   pool. The experimental test host it used stopped resolving in September 2026, and the Trifecta
   Tech Foundation's pool (sectime.org) may not be preconfigured in software given to third parties
   (its terms, clause 9), so none is bundled; the docs use a placeholder.
+- CI: the Python 3.9 job runs on Ubuntu 24.04; `ubuntu-latest` is 26.04 since October 2026 and has
+  no Python 3.9.
 
 ## [3.8.0] - 2026-10-21
 
@@ -845,7 +873,8 @@ First release of the rewrite. The 2012 Google Summer of Code prototype is kept u
 - Allan deviation τ₀ was hard-coded to 32 s (≈33× error on loopstats data); irregular sampling
   and gaps were ignored. See `docs/STATE_OF_THE_ART.md`.
 
-[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.8.0...HEAD
+[Unreleased]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.9.0...HEAD
+[3.9.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.8.0...v3.9.0
 [3.8.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.7.1...v3.8.0
 [3.7.1]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.7.0...v3.7.1
 [3.7.0]: https://github.com/thiagodefreitas/NetworkTime/compare/v3.6.1...v3.7.0

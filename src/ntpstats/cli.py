@@ -1098,7 +1098,7 @@ def cmd_query(args):
         for server in args.servers:
             try:
                 ok = supports_v5(server, timeout=args.timeout, family=_family(args))
-                print(f"{server}: NTPv5 ({'draft-09 upgrade supported' if ok else 'not offered'})")
+                print(f"{server}: NTPv5 ({'draft upgrade supported' if ok else 'not offered'})")
             except (NTPError, OSError) as exc:
                 print(f"{server}: {exc}")
                 rc = 1
@@ -1860,7 +1860,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--spacing", type=float, default=2.0)
     s.add_argument("--timeout", type=float, default=2.0)
     s.add_argument("--json", action="store_true")
-    s.add_argument("--ntpv5", action="store_true", help="use the experimental NTPv5 draft-09 format")
+    s.add_argument("--ntpv5", action="store_true", help="use the experimental NTPv5 format (draft-10, falling back to draft-09)")
     s.add_argument("--probe-v5", action="store_true", help="only test whether servers offer NTPv5 (upgrade probe)")
     s.add_argument("--pool", type=int, metavar="N",
                    help="NTS pool: N sessions with different servers, using NTS-KE server deny records")
@@ -1895,7 +1895,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-o", "--output", default="ntpstats-monitor.csv")
     s.add_argument("-i", "--interval", type=float, default=64.0)
     s.add_argument("-n", "--count", type=int, help="stop after N rounds")
-    s.add_argument("--ntpv5", action="store_true", help="use the experimental NTPv5 draft-09 format")
+    s.add_argument("--ntpv5", action="store_true", help="use the experimental NTPv5 format (draft-10, falling back to draft-09)")
     s.add_argument("--nts", action="store_true", help="authenticate with NTS, RFC 8915 (pip install 'ntpstats[nts]')")
     _metrics_args(s)
     s.set_defaults(func=cmd_monitor)

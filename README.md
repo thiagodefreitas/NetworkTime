@@ -146,7 +146,8 @@ are as valuable as code. Look for issues labelled
     RADclock-style feed-forward, a Huygens-style convex hull, RFC 5905 select/cluster/combine,
     an ntpd-rs-style multi-server combination, ptp4l-style and SPTP-style PTP clients, and
     clock disciplines in closed loop: ntpd's (with the reference implementation's or the RFC 5905
-    appendix's constants) and J. Levine's NIST algorithms (LOCKCLOCK and its Kalman variant);
+    appendix's constants), chrony's, and J. Levine's NIST algorithms (LOCKCLOCK and its Kalman
+    variant), with fixed or adaptive poll intervals as the daemons choose them;
   - bring your own estimator via a small API or a package entry point; scenarios can be
     presets or TOML files;
   - reproducible reports as tables, CSV/JSON or self-contained HTML;
@@ -166,7 +167,7 @@ are as valuable as code. Look for issues labelled
   - **NTS** (RFC 8915): NTS-KE over TLS 1.3 with certificate and host-name checks, AES-SIV
     authenticated exchanges and cookie renewal (optional extra `ntpstats[nts]`);
   - **NTS pools** (NTS-KE server deny records) and the **RFC 9769 interleaved mode**;
-  - experimental **NTPv5** (draft-ietf-ntp-ntpv5-09): v5 header with cookies, timescale and
+  - experimental **NTPv5** (draft-ietf-ntp-ntpv5-10, and -09): v5 header with cookies, timescale and
     era, plus the NTPv4→v5 upgrade probe;
   - **Roughtime** (RFC 10049, and the drafts still deployed): signed time from several servers, chained so that a lying server
     is provable (malfeasance reports), and an authenticated bound on the local clock's error;
@@ -266,7 +267,7 @@ More measurement commands:
 
 ```bash
 ntpstats query time.cloudflare.com --nts            # NTS-authenticated (pip install 'ntpstats[nts]')
-ntpstats query ntpd-rs.example.net --ntpv5          # experimental NTPv5 draft-09
+ntpstats query ntpd-rs.example.net --ntpv5          # experimental NTPv5 (draft-10, then -09)
 ntpstats query pool.ntp.org --probe-v5              # does the server offer NTPv5?
 ntpstats query time.example.net --interleaved       # RFC 9769: precise server transmit time
 ntpstats roughtime --check-local                    # signed time; exit 3 if servers or this clock disagree

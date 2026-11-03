@@ -246,7 +246,7 @@ free-running clock like the PTP servos above ([#40](https://github.com/thiagodef
 | `levine-kalman` | LOCKCLOCK with the scalar Kalman time estimate of J. Levine, PTTI 2011 (Eq. 5): the correction is the fraction σ_o²/(σ_o² + σ_t²) of the residual |
 
 The time constant (poll exponent) is fixed at the scenario's measurement interval, as with
-`minpoll = maxpoll`. Not modelled: LOCKCLOCK's automatic re-evaluation of its parameters. (Up to
+`minpoll = maxpoll`, except in the adaptive variants below. Not modelled: LOCKCLOCK's automatic re-evaluation of its parameters. (Up to
 3.6.1 the ntpd model also lacked the popcorn suppressor, the slew bound and the unsorted filter of
 the startup clamp; adding them in 3.7 raised its RMS error by 20 to 70 % on these presets, all of
 it from the startup filter order.) In time-adjustment mode the
@@ -302,6 +302,57 @@ What the numbers show:
 
 ```bash
 ntpstats bench lan internet congested route-change --seeds 1-5 -e raw,ntpd,ntpd-rfc,lockclock,levine-kalman,regression
+```
+
+## Poll adaptation and chrony's discipline
+
+3.9 lets the disciplines choose their own poll interval, as the daemons do, and adds chrony's
+loop. The scenario's measurements are then the exchanges the daemon *could* make at minpoll; the
+model uses only those it would have sent, one per current poll interval, and the error is scored
+at every measurement time.
+
+| Estimator | Model |
+|---|---|
+| `ntpd-adaptive` | `ntpd` with `maxpoll = 10`: the time-constant adjustment at the end of `local_clock()` (an offset below 4 × the clock jitter adds the poll exponent to a counter, otherwise twice it is subtracted; at ±30 the poll moves by one), not during the startup clamp, with the time gates of ntpd bug 3615 (no change until half the new interval, at least 60 s, has passed) |
+| `chrony` | chrony 4.x for one source (`sourcestats.c`, `regress.c`, `reference.c`, `sys_generic.c`, `ntp_core.c`): samples weighted by their peer distance relative to the median, the weighted regression over the newest samples that passes the runs test (5 % critical runs, older samples extending the test), the frequency updated with the skew-weighted gain 3s²/(3s² + s_new²) (`maxupdateskew` 1000 ppm), the offset slewed at the correction rate `corrtimeratio` × offset_sd/2 × update interval (slews of 1 to 10⁴ s, `maxslewrate` 83333 ppm), `makestep 1 3`, and test C (`maxdelaydevratio` 10), which drops samples whose delay grew more than the offsets justify |
+| `chrony-adaptive` | `chrony` with `maxpoll = 10`: `get_poll_adj()` backs off by log2(error/peer distance) when a sample is not predicted within its peer distance, otherwise keeps the number of regression samples near `polltarget` 8; a rejected sample adds 0.1 |
+
+Not modelled for chrony: source selection and combining (the bench gives one source), the
+optional sample filter, the delay tests that are off by default, asymmetry estimation and the
+kernel's own slewing.
+
+Three simulated days, five seeds, the first day excluded (RMS error):
+
+| Estimator | `lan` | `internet` | `congested` | `route-change` | `falseticker` |
+|---|---|---|---|---|---|
+| `ntpd` | 10.7 µs | 177 µs | 501 µs | 2.19 ms | 173 µs |
+| `ntpd-adaptive` | 14 µs | 1.2 ms | 12.4 ms | 4.39 ms | 470 µs |
+| `chrony` | 2.47 µs | 141 µs | 1.5 ms | 1.93 ms | 64.9 µs |
+| `chrony-adaptive` | 22.8 µs | 522 µs | 2 ms | 2.19 ms | 350 µs |
+| `lockclock` | 24 µs | 762 µs | 4.93 ms | 1.86 ms | 446 µs |
+| `regression` (estimator, not a loop) | 3.92 µs | 54.6 µs | 550 µs | 1.83 ms | 34.9 µs |
+
+Measurements used with adaptation (seed 1): ntpd 78 % on `lan`, 56 % on `internet`, 22 to 25 %
+on `congested` and `route-change`; chrony 4 to 7 % everywhere, close to maxpoll most of the time.
+
+What the numbers show:
+- **Adapting the poll costs accuracy everywhere**, in exchange for 2 to 25 times fewer packets.
+  Both daemons trade error for load deliberately; the bench now shows the price on each path.
+- **ntpd's poll "dance"**: on `lan` the poll rarely leaves minpoll, because the frequency
+  wander between polls soon exceeds 4 × the tiny jitter, and on `congested` it climbs while the
+  delay is quiet and then pays for the long time constant with a 12 ms RMS error, 25 times its
+  fixed-poll error.
+- **chrony's loop is the most accurate closed loop on four of the five presets**, close to the
+  open-loop `regression` estimator it shares its regression with, and four times better than
+  ntpd on `lan`. On `congested` it is worse than ntpd: with heavy-tailed queueing delays the runs
+  test keeps only 7 to 11 samples, the fitted frequency swings by tens of ppm, and test C rarely
+  fires because the large residual spread widens its own threshold. ntpd's minimum-delay clock
+  filter suits that path better. Since chrony's sample filter and source combining are not
+  modelled, this is a statement about the model on one path, not about chrony in general.
+
+```bash
+ntpstats bench lan internet congested route-change falseticker --seeds 1-5 --duration 259200 --warmup 86400 \
+    -e ntpd,ntpd-adaptive,chrony,chrony-adaptive,lockclock,regression
 ```
 
 ## NTP over PTP (RFC 10030)

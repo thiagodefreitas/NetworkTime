@@ -112,7 +112,7 @@ def main(argv=None):
             record("nts", s, False, f"{type(exc).__name__}: {exc}")
             row([s, f"error: {type(exc).__name__}: {exc}", "", "", "", ""])
 
-    print("\n### NTPv5 (draft-ietf-ntp-ntpv5-09 upgrade probe)\n")
+    print("\n### NTPv5 (draft-ietf-ntp-ntpv5 upgrade probe, drafts 09 and 10)\n")
     row(["server", "offers v5", "v5 query"])
     row(["---"] * 3)
     for s in V5:

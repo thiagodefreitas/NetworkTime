@@ -13,7 +13,7 @@ them against public servers from GitHub runners.
 | Roughtime | RFC 10049 (and the drafts and Google-Roughtime still deployed) | `ntpstats roughtime`, `ntpstats.roughtime` |
 | NTS pools | draft-ietf-ntp-nts-keyexchange-pool-01 | `ntpstats query --nts --pool N`, `nts.pool_sessions` |
 | Interleaved mode | RFC 9769 | `ntpstats query --interleaved`, and detected in captures |
-| NTPv5 | draft-ietf-ntp-ntpv5-09 | `ntpstats query --ntpv5`, `--probe-v5` |
+| NTPv5 | draft-ietf-ntp-ntpv5-10 (and -09) | `ntpstats query --ntpv5`, `--probe-v5` |
 
 ## Roughtime: signed time and provable misbehaviour
 
@@ -101,6 +101,11 @@ offset.
 
 ## NTPv5
 
-The NTPv5 client follows draft-ietf-ntp-ntpv5-09, which is still the current draft. It covers
-timescales (UTC, TAI, UT1, leap-smeared UTC), eras, cookies and the NTPv4 upgrade probe. See
+The NTPv5 client follows draft-ietf-ntp-ntpv5-10 (29 October 2026) and falls back to draft-09.
+Draft-10 removes the leap indicator and the leap-smeared UTC timescale, turns flag 0x1 from
+*synchronized* into *unsynchronized*, shortens reference IDs to 56 bits and adds Time Sources
+extension fields. A server must ignore a draft name it does not know, so the client asks in
+draft-10 first, retries in draft-09 when there is no answer, and reads the flags by the draft that
+answered (`draft` in the result). It covers timescales (UTC, TAI, UT1, and leap-smeared UTC in
+draft-09), eras, cookies and the NTPv4 upgrade probe. See
 [CLI](cli.md) and the [Live interop](INTEROP.md) results for which public servers answer.

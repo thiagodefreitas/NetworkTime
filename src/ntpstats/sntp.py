@@ -19,10 +19,13 @@ Improvements over the ``ntplib`` 0.1.9 copy used in 2012:
   returns the precise transmit time of its previous response, so software
   timestamping on the server's send path no longer adds error.
 
-* Experimental **NTPv5** (draft-ietf-ntp-ntpv5-09): 48-octet v5 header with
-  client/server cookies, timescale, era and flags, the draft-identification
-  extension field, and the NTPv4 -> v5 upgrade probe (reference timestamp
-  ``NTP5DRFT``). Interoperable with ntpd-rs' experimental v5 support.
+* Experimental **NTPv5** (draft-ietf-ntp-ntpv5-10, and -09): 48-octet v5
+  header with client/server cookies, timescale, era and flags, the
+  draft-identification extension field, and the NTPv4 -> v5 upgrade probe
+  (reference timestamp ``NTP5DRFT``). Draft-10 drops the leap indicator and
+  leap-smeared UTC and turns flag 0x1 from "synchronized" into
+  "unsynchronized"; a server must ignore a draft name it does not know, so
+  the client asks in draft-10 and falls back to draft-09.
 
 This is a *measurement* client. It never sets the clock. Authenticated time
 (NTS, RFC 8915) is not implemented here; use chrony/NTPsec for that and
@@ -36,16 +39,18 @@ import socket
 import struct
 import time
 from dataclasses import asdict, dataclass
-from typing import Optional
+from typing import Optional, Sequence
 
 NTP_UNIX_DELTA = 2208988800
 _ERA = 1 << 32
 _PACKET = struct.Struct("!BBbbII4sQQQQ")
 
-NTPV5_DRAFT = "draft-ietf-ntp-ntpv5-09"
-NTPV5_UPGRADE = b"NTP5DRFT"  # reference timestamp used to negotiate v5 (draft-09)
+NTPV5_DRAFT = "draft-ietf-ntp-ntpv5-10"
+NTPV5_DRAFT_09 = "draft-ietf-ntp-ntpv5-09"
+NTPV5_DRAFTS = (NTPV5_DRAFT, NTPV5_DRAFT_09)  # tried in this order
+NTPV5_UPGRADE = b"NTP5DRFT"  # reference timestamp used to negotiate v5 (drafts 09 and 10)
 EF_DRAFT_ID = 0xF5FF
-TIMESCALES = {0: "utc", 1: "tai", 2: "ut1", 3: "leap-smeared-utc"}
+TIMESCALES = {0: "utc", 1: "tai", 2: "ut1", 3: "leap-smeared-utc"}  # 3 only up to draft-09
 #: TAI - UTC in seconds (unchanged since 2017-01-01; leap seconds end by 2035)
 TAI_UTC = 37
 
@@ -88,7 +93,7 @@ class NTPResult:
     refid: str
     timescale: str = "utc"  # NTPv5: utc, tai, ut1, leap-smeared-utc
     era: int = 0
-    flags: int = 0  # NTPv5 flags word (0x1 synchronized, 0x2 interleaved, 0x4 authNAK)
+    flags: int = 0  # NTPv5 flags word (0x1 unsynchronized in draft-10, synchronized in -09; 0x2 interleaved; 0x4 authNAK)
     draft: str = ""  # NTPv5 draft identification echoed by the server
     auth: str = ""  # "nts" when the exchange was authenticated with NTS (RFC 8915)
     interleaved: bool = False  # measured with the RFC 9769 interleaved mode (precise server transmit time)
@@ -246,21 +251,35 @@ def _result(server: str, src, data: bytes, t1_ns: int, t4_ns: int) -> NTPResult:
 
 
 def query_v5(server: str, port: int = 123, timeout: float = 2.0, family: int = 0,
-             tai_utc: float = TAI_UTC) -> NTPResult:
-    """Experimental NTPv5 query (draft-ietf-ntp-ntpv5-09).
+             tai_utc: float = TAI_UTC, drafts: Sequence[str] = NTPV5_DRAFTS) -> NTPResult:
+    """Experimental NTPv5 query (draft-ietf-ntp-ntpv5-10, falling back to -09).
 
-    Header: LI|VN|Mode, Stratum, Poll, Precision, Root Delay and Root
-    Dispersion (unsigned 4.28 fixed point, seconds), Timescale, Era, Flags,
-    Server Cookie, Client Cookie, Receive and Transmit Timestamps. The
-    random client cookie replaces the v4 origin timestamp. Timestamps are
-    mapped with the era field; a TAI response is converted to UTC with
-    ``tai_utc``.
+    Header: reserved (the leap indicator until draft-09)|VN|Mode, Stratum,
+    Poll, Precision, Root Delay and Root Dispersion (unsigned 4.28 fixed
+    point, seconds), Timescale, Era, Flags, Server Cookie, Client Cookie,
+    Receive and Transmit Timestamps. The random client cookie replaces the
+    v4 origin timestamp. Timestamps are mapped with the era field; a TAI
+    response is converted to UTC with ``tai_utc``. ``drafts`` are the draft
+    names tried in turn (a server ignores a name it does not know); the
+    result's ``draft`` is the one that answered.
     """
+    last: Optional[NTPError] = None
+    for name in drafts:
+        try:
+            return _query_v5(server, port, timeout, family, tai_utc, name)
+        except NTPError as exc:
+            if "timeout" not in str(exc) and "no matching reply" not in str(exc):
+                raise
+            last = exc
+    raise last if last is not None else NTPError("no NTPv5 draft given")
+
+
+def _query_v5(server: str, port: int, timeout: float, family: int, tai_utc: float, name: str) -> NTPResult:
     cookie = os.urandom(8)
     pkt = bytearray(48)
     pkt[0] = (0 << 6) | (5 << 3) | 3
     pkt[24:32] = cookie
-    payload = bytes(pkt) + _ef(EF_DRAFT_ID, NTPV5_DRAFT.encode())
+    payload = bytes(pkt) + _ef(EF_DRAFT_ID, name.encode())
     data, src, t1_ns, t4_ns = _exchange(server, port, timeout, family, payload,
                                         lambda d: (d[0] >> 3) & 7 == 5 and d[24:32] == cookie)
     b0, stratum, poll, prec = struct.unpack_from("!BBbb", data, 0)
@@ -271,13 +290,16 @@ def query_v5(server: str, port: int = 123, timeout: float = 2.0, family: int = 0
     if mode != 4:
         raise NTPError(f"unexpected mode {mode} in NTPv5 reply")
     efs = _parse_efs(data)
-    draft = efs.get(EF_DRAFT_ID, b"").rstrip(b"\0").decode("ascii", errors="replace")
+    draft = efs.get(EF_DRAFT_ID, b"").rstrip(b"\0").decode("ascii", errors="replace") or name
+    old = draft == NTPV5_DRAFT_09  # draft-09: LI field, and flag 0x1 means synchronized
     if flags & 0x4:
         raise NTPError("NTPv5 authNAK from server")
     if stratum == 0:
         raise KissOfDeath("V5" if poll < 127 else "DENY")
-    if not flags & 0x1 or leap == 3:
+    if (not flags & 0x1 or leap == 3) if old else flags & 0x1:
         raise NTPError("server is not synchronised (NTPv5 flags)")
+    if not old:
+        leap = 0  # reserved since draft-10
     if xmt == 0:
         raise NTPError("server transmit timestamp is zero")
 
@@ -286,7 +308,7 @@ def query_v5(server: str, port: int = 123, timeout: float = 2.0, family: int = 0
 
     t1, t4 = t1_ns / 1e9, t4_ns / 1e9
     t2, t3 = ts(rec), ts(xmt)
-    timescale = TIMESCALES.get(tscale, f"unknown({tscale})")
+    timescale = TIMESCALES.get(tscale, f"unknown({tscale})") if old or tscale < 3 else f"unknown({tscale})"
     if timescale == "tai":
         t2 -= tai_utc
         t3 -= tai_utc

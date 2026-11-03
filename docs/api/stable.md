@@ -99,7 +99,7 @@ change in a minor release (always noted in the changelog).
 | `kalman_series` | Kalman filter and RTS smoother ([filters](filters.md)) |
 | `Scenario`, `ClockModel`, `PathModel`, `PathEvent`, `ServerSpec`, `simulate_ntp`, `simulate_multi` | simulator with ground truth ([simulate](simulate.md)) |
 | `load_scenarios`, `run_bench`, `score` | benchmark runner ([bench](bench.md)) |
-| `ntpd_discipline`, `lockclock` | ntpd's clock discipline and Levine's NIST algorithms in closed loop, also the `ntpd`, `ntpd-rfc`, `lockclock` and `levine-kalman` estimators (3.6, [disciplines](disciplines.md)) |
+| `ntpd_discipline`, `lockclock`, `chrony_discipline` | ntpd's and chrony's clock disciplines and Levine's NIST algorithms in closed loop, with poll adaptation (`maxpoll`, 3.9), also the `ntpd`, `ntpd-rfc`, `ntpd-adaptive`, `chrony`, `chrony-adaptive`, `lockclock` and `levine-kalman` estimators (3.6, 3.9, [disciplines](disciplines.md)) |
 
 ## Traces, PTP chains and network simulators
 

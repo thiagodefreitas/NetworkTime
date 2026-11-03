@@ -30,7 +30,7 @@ from .bench import load_scenarios, run_bench, score
 from .bounds import parse_bounds
 from .bounds import validate as validate_bounds
 from .deprecation import NtpstatsDeprecationWarning
-from .disciplines import lockclock, ntpd_discipline
+from .disciplines import chrony_discipline, lockclock, ntpd_discipline
 from .edf import edf
 from .estimators import Estimator, FunctionEstimator
 from .estimators import available as available_estimators
@@ -99,7 +99,7 @@ __all__ = [
     "ChainScenario", "Link", "ChainResult", "simulate_chain", "PIServo", "LinRegServo",
     "read_omnetpp_vec", "write_omnetpp_vec", "inet_oscillator",
     # clock-discipline models (3.6)
-    "ntpd_discipline", "lockclock",
+    "ntpd_discipline", "lockclock", "chrony_discipline",
     # reports
     "dataset_report", "bench_report",
     # extension points
